@@ -1,0 +1,217 @@
+[
+  {
+    "fn": "classifySyncThrow",
+    "input": {
+      "handOnsetPerfTime": 1000,
+      "voiceOnsetPerfTime": 1050,
+      "coOccurrenceMs": 400
+    },
+    "expected": {
+      "outcome": "synced",
+      "syncDeltaMs": 50,
+      "synced": true
+    }
+  },
+  {
+    "fn": "classifySyncThrow",
+    "input": {
+      "handOnsetPerfTime": 1000,
+      "voiceOnsetPerfTime": 1600,
+      "coOccurrenceMs": 400
+    },
+    "expected": {
+      "outcome": "voice-late",
+      "syncDeltaMs": 600,
+      "synced": false
+    }
+  },
+  {
+    "fn": "classifySyncThrow",
+    "input": {
+      "handOnsetPerfTime": 1000,
+      "voiceOnsetPerfTime": 400,
+      "coOccurrenceMs": 400
+    },
+    "expected": {
+      "outcome": "voice-early",
+      "syncDeltaMs": -600,
+      "synced": false
+    }
+  },
+  {
+    "fn": "classifySyncThrow",
+    "input": {
+      "handOnsetPerfTime": 1000,
+      "voiceOnsetPerfTime": null,
+      "coOccurrenceMs": 400
+    },
+    "expected": {
+      "outcome": "hand-only",
+      "syncDeltaMs": null,
+      "synced": false
+    }
+  },
+  {
+    "fn": "classifySyncThrow",
+    "input": {
+      "handOnsetPerfTime": 1000,
+      "voiceOnsetPerfTime": 1400,
+      "coOccurrenceMs": 400
+    },
+    "expected": {
+      "outcome": "synced",
+      "syncDeltaMs": 400,
+      "synced": true
+    }
+  },
+  {
+    "fn": "classifyHandSettleForSync",
+    "input": {
+      "fingerCount": 0,
+      "voiceOnsetPerfTime": null
+    },
+    "expected": {
+      "isReset": true,
+      "effectiveFingerCount": 0
+    }
+  },
+  {
+    "fn": "classifyHandSettleForSync",
+    "input": {
+      "fingerCount": 1,
+      "voiceOnsetPerfTime": null
+    },
+    "expected": {
+      "isReset": true,
+      "effectiveFingerCount": 1
+    }
+  },
+  {
+    "fn": "classifyHandSettleForSync",
+    "input": {
+      "fingerCount": 0,
+      "voiceOnsetPerfTime": 123
+    },
+    "expected": {
+      "isReset": false,
+      "effectiveFingerCount": 1
+    }
+  },
+  {
+    "fn": "classifyHandSettleForSync",
+    "input": {
+      "fingerCount": 1,
+      "voiceOnsetPerfTime": 123
+    },
+    "expected": {
+      "isReset": false,
+      "effectiveFingerCount": 1
+    }
+  },
+  {
+    "fn": "classifyHandSettleForSync",
+    "input": {
+      "fingerCount": 3,
+      "voiceOnsetPerfTime": null
+    },
+    "expected": {
+      "isReset": false,
+      "effectiveFingerCount": 3
+    }
+  },
+  {
+    "fn": "classifyHandSettleForSync",
+    "input": {
+      "fingerCount": 3,
+      "voiceOnsetPerfTime": 123
+    },
+    "expected": {
+      "isReset": false,
+      "effectiveFingerCount": 3
+    }
+  },
+  {
+    "fn": "classifyHandSettleForSync",
+    "input": {
+      "fingerCount": 5,
+      "voiceOnsetPerfTime": null
+    },
+    "expected": {
+      "isReset": false,
+      "effectiveFingerCount": 5
+    }
+  },
+  {
+    "fn": "shouldRevealPhase1",
+    "input": {
+      "fingerCount": 0
+    },
+    "expected": false
+  },
+  {
+    "fn": "shouldRevealPhase1",
+    "input": {
+      "fingerCount": 1
+    },
+    "expected": false
+  },
+  {
+    "fn": "shouldRevealPhase1",
+    "input": {
+      "fingerCount": 2
+    },
+    "expected": true
+  },
+  {
+    "fn": "shouldRevealPhase1",
+    "input": {
+      "fingerCount": 3
+    },
+    "expected": true
+  },
+  {
+    "fn": "shouldRevealPhase1",
+    "input": {
+      "fingerCount": 4
+    },
+    "expected": true
+  },
+  {
+    "fn": "shouldRevealPhase1",
+    "input": {
+      "fingerCount": 5
+    },
+    "expected": true
+  },
+  {
+    "fn": "shouldRevealPhase1",
+    "input": {
+      "fingerCount": null
+    },
+    "expected": false
+  },
+  {
+    "fn": "isOrphanVoiceOnset",
+    "input": {
+      "voicePerfTime": 5000,
+      "handOnsetPerfTimes": [
+        1000,
+        2000
+      ],
+      "partnerWindowMs": 500
+    },
+    "expected": true
+  },
+  {
+    "fn": "isOrphanVoiceOnset",
+    "input": {
+      "voicePerfTime": 2100,
+      "handOnsetPerfTimes": [
+        1000,
+        2000
+      ],
+      "partnerWindowMs": 500
+    },
+    "expected": false
+  }
+]

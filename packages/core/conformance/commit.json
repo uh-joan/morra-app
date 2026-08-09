@@ -1,0 +1,180 @@
+[
+  {
+    "fn": "computeCommitHash",
+    "input": {
+      "fingers": 3,
+      "call": 7,
+      "nonce": "deadbeef"
+    },
+    "expected": "76cfb2ff09037b8deeebb06dd16dae9ad0f498ae41787c1d966f39ed8ffdafdf"
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 3,
+      "call": 7,
+      "nonce": "deadbeef",
+      "expectedHashHex": "76cfb2ff09037b8deeebb06dd16dae9ad0f498ae41787c1d966f39ed8ffdafdf"
+    },
+    "expected": true
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 3,
+      "call": 8,
+      "nonce": "deadbeef",
+      "expectedHashHex": "76cfb2ff09037b8deeebb06dd16dae9ad0f498ae41787c1d966f39ed8ffdafdf"
+    },
+    "expected": false,
+    "note": "tampered call"
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 3,
+      "call": 7,
+      "nonce": "deadbeefx",
+      "expectedHashHex": "76cfb2ff09037b8deeebb06dd16dae9ad0f498ae41787c1d966f39ed8ffdafdf"
+    },
+    "expected": false,
+    "note": "tampered nonce"
+  },
+  {
+    "fn": "computeCommitHash",
+    "input": {
+      "fingers": 1,
+      "call": 2,
+      "nonce": "0000"
+    },
+    "expected": "c1158ee0638e957416617d40680194acacd7d21516de570a5cbb8a99be30a8fb"
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 1,
+      "call": 2,
+      "nonce": "0000",
+      "expectedHashHex": "c1158ee0638e957416617d40680194acacd7d21516de570a5cbb8a99be30a8fb"
+    },
+    "expected": true
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 1,
+      "call": 3,
+      "nonce": "0000",
+      "expectedHashHex": "c1158ee0638e957416617d40680194acacd7d21516de570a5cbb8a99be30a8fb"
+    },
+    "expected": false,
+    "note": "tampered call"
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 1,
+      "call": 2,
+      "nonce": "0000x",
+      "expectedHashHex": "c1158ee0638e957416617d40680194acacd7d21516de570a5cbb8a99be30a8fb"
+    },
+    "expected": false,
+    "note": "tampered nonce"
+  },
+  {
+    "fn": "computeCommitHash",
+    "input": {
+      "fingers": 5,
+      "call": 10,
+      "nonce": "ffffffffffffffffffffffffffffffff"
+    },
+    "expected": "f03c37ce8ffbdf33f04257de0b2fff679f91ea854742ac5b199ade4f8d26525a"
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 5,
+      "call": 10,
+      "nonce": "ffffffffffffffffffffffffffffffff",
+      "expectedHashHex": "f03c37ce8ffbdf33f04257de0b2fff679f91ea854742ac5b199ade4f8d26525a"
+    },
+    "expected": true
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 5,
+      "call": 11,
+      "nonce": "ffffffffffffffffffffffffffffffff",
+      "expectedHashHex": "f03c37ce8ffbdf33f04257de0b2fff679f91ea854742ac5b199ade4f8d26525a"
+    },
+    "expected": false,
+    "note": "tampered call"
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 5,
+      "call": 10,
+      "nonce": "ffffffffffffffffffffffffffffffffx",
+      "expectedHashHex": "f03c37ce8ffbdf33f04257de0b2fff679f91ea854742ac5b199ade4f8d26525a"
+    },
+    "expected": false,
+    "note": "tampered nonce"
+  },
+  {
+    "fn": "computeCommitHash",
+    "input": {
+      "fingers": 3,
+      "call": 7,
+      "nonce": ""
+    },
+    "expected": "dc55b3d69cf178ffbaa2d2472a5d649534d3e85cee933a4071aca74e54a584ff"
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 3,
+      "call": 7,
+      "nonce": "",
+      "expectedHashHex": "dc55b3d69cf178ffbaa2d2472a5d649534d3e85cee933a4071aca74e54a584ff"
+    },
+    "expected": true
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 3,
+      "call": 8,
+      "nonce": "",
+      "expectedHashHex": "dc55b3d69cf178ffbaa2d2472a5d649534d3e85cee933a4071aca74e54a584ff"
+    },
+    "expected": false,
+    "note": "tampered call"
+  },
+  {
+    "fn": "verifyCommitment",
+    "input": {
+      "fingers": 3,
+      "call": 7,
+      "nonce": "x",
+      "expectedHashHex": "dc55b3d69cf178ffbaa2d2472a5d649534d3e85cee933a4071aca74e54a584ff"
+    },
+    "expected": false,
+    "note": "tampered nonce"
+  },
+  {
+    "fn": "sha256Hex",
+    "input": {
+      "text": "hello"
+    },
+    "expected": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+  },
+  {
+    "fn": "sha256Hex",
+    "input": {
+      "text": ""
+    },
+    "expected": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

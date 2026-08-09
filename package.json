@@ -1,0 +1,21 @@
+{
+  "name": "morra",
+  "private": true,
+  "type": "module",
+  "description": "Morra Micatio monorepo. spikes/** stays untouched — reference implementation and regression oracle for packages/core's port. See .omc/plans/morra-micatio-vertical-slice.md.",
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "test": "pnpm -r --if-present run test",
+    "lint": "pnpm -r --if-present run lint",
+    "cross-check:conformance": "node scripts/cross-check-conformance.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/node": "^22.10.7",
+    "eslint": "^9.19.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.21.0",
+    "vitest": "^3.0.4"
+  },
+  "packageManager": "pnpm@11.21.0"
+}

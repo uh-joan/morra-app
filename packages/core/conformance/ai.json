@@ -1,0 +1,1258 @@
+[
+  {
+    "fn": "decideMove",
+    "level": "L1",
+    "rngSequence": [
+      0.05,
+      0.5,
+      0.95
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L1",
+      "fingers": 1,
+      "guessPlayerFingers": 3,
+      "call": 4,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L1-seq0-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L1",
+    "rngSequence": [
+      0.05,
+      0.5,
+      0.95
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L1",
+      "fingers": 1,
+      "guessPlayerFingers": 3,
+      "call": 4,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L1-seq0-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L1",
+    "rngSequence": [
+      0.2,
+      0.8
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L1",
+      "fingers": 2,
+      "guessPlayerFingers": 5,
+      "call": 7,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L1-seq1-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L1",
+    "rngSequence": [
+      0.2,
+      0.8
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L1",
+      "fingers": 2,
+      "guessPlayerFingers": 5,
+      "call": 7,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L1-seq1-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L1",
+    "rngSequence": [
+      0.99,
+      0.01,
+      0.5,
+      0.33
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L1",
+      "fingers": 5,
+      "guessPlayerFingers": 1,
+      "call": 6,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L1-seq2-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L1",
+    "rngSequence": [
+      0.99,
+      0.01,
+      0.5,
+      0.33
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L1",
+      "fingers": 5,
+      "guessPlayerFingers": 1,
+      "call": 6,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L1-seq2-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L2",
+    "rngSequence": [
+      0.05,
+      0.5,
+      0.95
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L2",
+      "fingers": 1,
+      "guessPlayerFingers": 3,
+      "call": 4,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L2-seq0-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L2",
+    "rngSequence": [
+      0.05,
+      0.5,
+      0.95
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L2",
+      "fingers": 1,
+      "guessPlayerFingers": 3,
+      "call": 4,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L2-seq0-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L2",
+    "rngSequence": [
+      0.2,
+      0.8
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L2",
+      "fingers": 2,
+      "guessPlayerFingers": 5,
+      "call": 7,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L2-seq1-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L2",
+    "rngSequence": [
+      0.2,
+      0.8
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L2",
+      "fingers": 2,
+      "guessPlayerFingers": 5,
+      "call": 7,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L2-seq1-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L2",
+    "rngSequence": [
+      0.99,
+      0.01,
+      0.5,
+      0.33
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L2",
+      "fingers": 5,
+      "guessPlayerFingers": 1,
+      "call": 6,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L2-seq2-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L2",
+    "rngSequence": [
+      0.99,
+      0.01,
+      0.5,
+      0.33
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L2",
+      "fingers": 5,
+      "guessPlayerFingers": 1,
+      "call": 6,
+      "predictedPlayerFDist": null,
+      "lambda": null,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L2-seq2-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L3",
+    "rngSequence": [
+      0.05,
+      0.5,
+      0.95
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L3",
+      "fingers": 1,
+      "guessPlayerFingers": 3,
+      "call": 4,
+      "predictedPlayerFDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": 0,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L3-seq0-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L3",
+    "rngSequence": [
+      0.05,
+      0.5,
+      0.95
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L3",
+      "fingers": 1,
+      "guessPlayerFingers": 3,
+      "call": 4,
+      "predictedPlayerFDist": {
+        "1": 0.14680287217582774,
+        "2": 0.14680287217582774,
+        "3": 0.21045389278590587,
+        "4": 0.14680287217582774,
+        "5": 0.34913749068661104
+      },
+      "lambda": 0.2659856391208614,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L3-seq0-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L3",
+    "rngSequence": [
+      0.2,
+      0.8
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L3",
+      "fingers": 2,
+      "guessPlayerFingers": 5,
+      "call": 7,
+      "predictedPlayerFDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": 0,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L3-seq1-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L3",
+    "rngSequence": [
+      0.2,
+      0.8
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L3",
+      "fingers": 2,
+      "guessPlayerFingers": 5,
+      "call": 7,
+      "predictedPlayerFDist": {
+        "1": 0.14680287217582774,
+        "2": 0.14680287217582774,
+        "3": 0.21045389278590587,
+        "4": 0.14680287217582774,
+        "5": 0.34913749068661104
+      },
+      "lambda": 0.2659856391208614,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L3-seq1-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L3",
+    "rngSequence": [
+      0.99,
+      0.01,
+      0.5,
+      0.33
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L3",
+      "fingers": 5,
+      "guessPlayerFingers": 1,
+      "call": 6,
+      "predictedPlayerFDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": 0,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L3-seq2-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L3",
+    "rngSequence": [
+      0.99,
+      0.01,
+      0.5,
+      0.33
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L3",
+      "fingers": 5,
+      "guessPlayerFingers": 1,
+      "call": 6,
+      "predictedPlayerFDist": {
+        "1": 0.14680287217582774,
+        "2": 0.14680287217582774,
+        "3": 0.21045389278590587,
+        "4": 0.14680287217582774,
+        "5": 0.34913749068661104
+      },
+      "lambda": 0.2659856391208614,
+      "predictorWeights": null,
+      "antiAimDist": null
+    },
+    "caseId": "L3-seq2-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L4",
+    "rngSequence": [
+      0.05,
+      0.5,
+      0.95
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L4",
+      "fingers": 3,
+      "guessPlayerFingers": 1,
+      "call": 4,
+      "predictedPlayerFDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": 0,
+      "predictorWeights": {},
+      "antiAimDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      }
+    },
+    "caseId": "L4-seq0-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L4",
+    "rngSequence": [
+      0.05,
+      0.5,
+      0.95
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L4",
+      "fingers": 3,
+      "guessPlayerFingers": 1,
+      "call": 4,
+      "predictedPlayerFDist": {
+        "1": 0.1159593502796541,
+        "2": 0.1159593502796541,
+        "3": 0.16848235423509542,
+        "4": 0.1159593502796541,
+        "5": 0.4836395949259423
+      },
+      "lambda": 0.42020324860172953,
+      "predictorWeights": {
+        "order1": {
+          "weight": 0.5,
+          "hitRate": 0,
+          "nEff": 1
+        },
+        "ngramBackoff": {
+          "weight": 0.5,
+          "hitRate": 0,
+          "nEff": 1
+        },
+        "globalFreq": {
+          "weight": 1.7393815922769917,
+          "hitRate": 0.09999999999999998,
+          "nEff": 2.898969320461653
+        },
+        "stickyMode": {
+          "weight": 1.7393815922769917,
+          "hitRate": 0.09999999999999998,
+          "nEff": 2.898969320461653
+        }
+      },
+      "antiAimDist": {
+        "1": 0.20972562136266834,
+        "2": 0.20972562136266834,
+        "3": 0.16109751454932664,
+        "4": 0.20972562136266834,
+        "5": 0.20972562136266834
+      }
+    },
+    "caseId": "L4-seq0-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L4",
+    "rngSequence": [
+      0.2,
+      0.8
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L4",
+      "fingers": 5,
+      "guessPlayerFingers": 2,
+      "call": 7,
+      "predictedPlayerFDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": 0,
+      "predictorWeights": {},
+      "antiAimDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      }
+    },
+    "caseId": "L4-seq1-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L4",
+    "rngSequence": [
+      0.2,
+      0.8
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L4",
+      "fingers": 5,
+      "guessPlayerFingers": 3,
+      "call": 8,
+      "predictedPlayerFDist": {
+        "1": 0.1159593502796541,
+        "2": 0.1159593502796541,
+        "3": 0.16848235423509542,
+        "4": 0.1159593502796541,
+        "5": 0.4836395949259423
+      },
+      "lambda": 0.42020324860172953,
+      "predictorWeights": {
+        "order1": {
+          "weight": 0.5,
+          "hitRate": 0,
+          "nEff": 1
+        },
+        "ngramBackoff": {
+          "weight": 0.5,
+          "hitRate": 0,
+          "nEff": 1
+        },
+        "globalFreq": {
+          "weight": 1.7393815922769917,
+          "hitRate": 0.09999999999999998,
+          "nEff": 2.898969320461653
+        },
+        "stickyMode": {
+          "weight": 1.7393815922769917,
+          "hitRate": 0.09999999999999998,
+          "nEff": 2.898969320461653
+        }
+      },
+      "antiAimDist": {
+        "1": 0.20972562136266834,
+        "2": 0.20972562136266834,
+        "3": 0.16109751454932664,
+        "4": 0.20972562136266834,
+        "5": 0.20972562136266834
+      }
+    },
+    "caseId": "L4-seq1-hist1"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L4",
+    "rngSequence": [
+      0.99,
+      0.01,
+      0.5,
+      0.33
+    ],
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "level": "L4",
+      "fingers": 1,
+      "guessPlayerFingers": 5,
+      "call": 6,
+      "predictedPlayerFDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": 0,
+      "predictorWeights": {},
+      "antiAimDist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      }
+    },
+    "caseId": "L4-seq2-hist0"
+  },
+  {
+    "fn": "decideMove",
+    "level": "L4",
+    "rngSequence": [
+      0.99,
+      0.01,
+      0.5,
+      0.33
+    ],
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "level": "L4",
+      "fingers": 1,
+      "guessPlayerFingers": 5,
+      "call": 6,
+      "predictedPlayerFDist": {
+        "1": 0.1159593502796541,
+        "2": 0.1159593502796541,
+        "3": 0.16848235423509542,
+        "4": 0.1159593502796541,
+        "5": 0.4836395949259423
+      },
+      "lambda": 0.42020324860172953,
+      "predictorWeights": {
+        "order1": {
+          "weight": 0.5,
+          "hitRate": 0,
+          "nEff": 1
+        },
+        "ngramBackoff": {
+          "weight": 0.5,
+          "hitRate": 0,
+          "nEff": 1
+        },
+        "globalFreq": {
+          "weight": 1.7393815922769917,
+          "hitRate": 0.09999999999999998,
+          "nEff": 2.898969320461653
+        },
+        "stickyMode": {
+          "weight": 1.7393815922769917,
+          "hitRate": 0.09999999999999998,
+          "nEff": 2.898969320461653
+        }
+      },
+      "antiAimDist": {
+        "1": 0.20972562136266834,
+        "2": 0.20972562136266834,
+        "3": 0.16109751454932664,
+        "4": 0.20972562136266834,
+        "5": 0.20972562136266834
+      }
+    },
+    "caseId": "L4-seq2-hist1"
+  },
+  {
+    "fn": "predictPlayerF",
+    "level": "L1",
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "dist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": null,
+      "predictorWeights": null
+    }
+  },
+  {
+    "fn": "predictPlayerF",
+    "level": "L1",
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "dist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": null,
+      "predictorWeights": null
+    }
+  },
+  {
+    "fn": "predictPlayerF",
+    "level": "L2",
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "dist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": null,
+      "predictorWeights": null
+    }
+  },
+  {
+    "fn": "predictPlayerF",
+    "level": "L2",
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "dist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": null,
+      "predictorWeights": null
+    }
+  },
+  {
+    "fn": "predictPlayerF",
+    "level": "L3",
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "dist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": 0,
+      "predictorWeights": null
+    }
+  },
+  {
+    "fn": "predictPlayerF",
+    "level": "L3",
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "dist": {
+        "1": 0.14680287217582774,
+        "2": 0.14680287217582774,
+        "3": 0.21045389278590587,
+        "4": 0.14680287217582774,
+        "5": 0.34913749068661104
+      },
+      "lambda": 0.2659856391208614,
+      "predictorWeights": null
+    }
+  },
+  {
+    "fn": "predictPlayerF",
+    "level": "L4",
+    "historyId": "empty",
+    "history": [],
+    "expected": {
+      "dist": {
+        "1": 0.2,
+        "2": 0.2,
+        "3": 0.2,
+        "4": 0.2,
+        "5": 0.2
+      },
+      "lambda": 0,
+      "predictorWeights": {}
+    }
+  },
+  {
+    "fn": "predictPlayerF",
+    "level": "L4",
+    "historyId": "A",
+    "history": [
+      {
+        "playerFingers": 3,
+        "playerCall": 7,
+        "aiFingers": 2,
+        "aiCall": 5,
+        "verdictWinner": "player",
+        "throwIndex": 1
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 8,
+        "aiFingers": 3,
+        "aiCall": 6,
+        "verdictWinner": "ai",
+        "throwIndex": 2
+      },
+      {
+        "playerFingers": 5,
+        "playerCall": 9,
+        "aiFingers": 1,
+        "aiCall": 4,
+        "verdictWinner": "parata",
+        "throwIndex": 3
+      }
+    ],
+    "expected": {
+      "dist": {
+        "1": 0.1159593502796541,
+        "2": 0.1159593502796541,
+        "3": 0.16848235423509542,
+        "4": 0.1159593502796541,
+        "5": 0.4836395949259423
+      },
+      "lambda": 0.42020324860172953,
+      "predictorWeights": {
+        "order1": {
+          "weight": 0.5,
+          "hitRate": 0,
+          "nEff": 1
+        },
+        "ngramBackoff": {
+          "weight": 0.5,
+          "hitRate": 0,
+          "nEff": 1
+        },
+        "globalFreq": {
+          "weight": 1.7393815922769917,
+          "hitRate": 0.09999999999999998,
+          "nEff": 2.898969320461653
+        },
+        "stickyMode": {
+          "weight": 1.7393815922769917,
+          "hitRate": 0.09999999999999998,
+          "nEff": 2.898969320461653
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,300 @@
+[
+  {
+    "fn": "callFromFG",
+    "input": {
+      "f": 1,
+      "g": 1
+    },
+    "expected": 2
+  },
+  {
+    "fn": "gFromCall",
+    "input": {
+      "call": 2,
+      "f": 1
+    },
+    "expected": 1
+  },
+  {
+    "fn": "callFromFG",
+    "input": {
+      "f": 1,
+      "g": 5
+    },
+    "expected": 6
+  },
+  {
+    "fn": "gFromCall",
+    "input": {
+      "call": 6,
+      "f": 1
+    },
+    "expected": 5
+  },
+  {
+    "fn": "callFromFG",
+    "input": {
+      "f": 5,
+      "g": 1
+    },
+    "expected": 6
+  },
+  {
+    "fn": "gFromCall",
+    "input": {
+      "call": 6,
+      "f": 5
+    },
+    "expected": 1
+  },
+  {
+    "fn": "callFromFG",
+    "input": {
+      "f": 5,
+      "g": 5
+    },
+    "expected": 10
+  },
+  {
+    "fn": "gFromCall",
+    "input": {
+      "call": 10,
+      "f": 5
+    },
+    "expected": 5
+  },
+  {
+    "fn": "callFromFG",
+    "input": {
+      "f": 3,
+      "g": 4
+    },
+    "expected": 7
+  },
+  {
+    "fn": "gFromCall",
+    "input": {
+      "call": 7,
+      "f": 3
+    },
+    "expected": 4
+  },
+  {
+    "fn": "callFromFG",
+    "input": {
+      "f": 2,
+      "g": 3
+    },
+    "expected": 5
+  },
+  {
+    "fn": "gFromCall",
+    "input": {
+      "call": 5,
+      "f": 2
+    },
+    "expected": 3
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "dos"
+    },
+    "expected": 2
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "tres"
+    },
+    "expected": 3
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "quatre"
+    },
+    "expected": 4
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "cinc"
+    },
+    "expected": 5
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "sis"
+    },
+    "expected": 6
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "set"
+    },
+    "expected": 7
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "vuit"
+    },
+    "expected": 8
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "nou"
+    },
+    "expected": 9
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "deu"
+    },
+    "expected": 10
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "tot"
+    },
+    "expected": 10
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "VUIT"
+    },
+    "expected": 8
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "Tres"
+    },
+    "expected": 3
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": " "
+    },
+    "expected": null
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "morra"
+    },
+    "expected": null
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": "onze"
+    },
+    "expected": null
+  },
+  {
+    "fn": "wordToNumber",
+    "input": {
+      "word": null
+    },
+    "expected": null
+  },
+  {
+    "fn": "computeMicatioVerdict",
+    "input": {
+      "playerFingers": 3,
+      "playerCall": 7,
+      "aiFingers": 4,
+      "aiCall": 5
+    },
+    "expected": {
+      "total": 7,
+      "playerCorrect": true,
+      "aiCorrect": false,
+      "winner": "player"
+    }
+  },
+  {
+    "fn": "computeMicatioVerdict",
+    "input": {
+      "playerFingers": 3,
+      "playerCall": 5,
+      "aiFingers": 4,
+      "aiCall": 7
+    },
+    "expected": {
+      "total": 7,
+      "playerCorrect": false,
+      "aiCorrect": true,
+      "winner": "ai"
+    }
+  },
+  {
+    "fn": "computeMicatioVerdict",
+    "input": {
+      "playerFingers": 3,
+      "playerCall": 7,
+      "aiFingers": 4,
+      "aiCall": 7
+    },
+    "expected": {
+      "total": 7,
+      "playerCorrect": true,
+      "aiCorrect": true,
+      "winner": "parata"
+    }
+  },
+  {
+    "fn": "computeMicatioVerdict",
+    "input": {
+      "playerFingers": 3,
+      "playerCall": 5,
+      "aiFingers": 4,
+      "aiCall": 6
+    },
+    "expected": {
+      "total": 7,
+      "playerCorrect": false,
+      "aiCorrect": false,
+      "winner": "parata"
+    }
+  },
+  {
+    "fn": "computeMicatioVerdict",
+    "input": {
+      "playerFingers": 1,
+      "playerCall": 2,
+      "aiFingers": 1,
+      "aiCall": 3
+    },
+    "expected": {
+      "total": 2,
+      "playerCorrect": true,
+      "aiCorrect": false,
+      "winner": "player"
+    }
+  },
+  {
+    "fn": "computeMicatioVerdict",
+    "input": {
+      "playerFingers": 5,
+      "playerCall": 10,
+      "aiFingers": 5,
+      "aiCall": 9
+    },
+    "expected": {
+      "total": 10,
+      "playerCorrect": true,
+      "aiCorrect": false,
+      "winner": "player"
+    }
+  }
+]

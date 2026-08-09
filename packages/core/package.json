@@ -1,0 +1,28 @@
+{
+  "name": "@morra/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure, platform-agnostic morra micatio rules/commit/scorer/AI/player-model/mirror engine. No DOM, no crypto global, no Math.random — all impurity enters via src/ports/. Ported from spikes/modules/*.mjs (spikes/** is the regression oracle; this is a straight port, not a redesign).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "conformance"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.7.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}
