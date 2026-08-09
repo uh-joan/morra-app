@@ -20,6 +20,6 @@ class COIHandler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    with socketserver.TCPServer(("", PORT), COIHandler) as httpd:
+    with socketserver.TCPServer(("127.0.0.1", PORT), COIHandler) as httpd:  # loopback only (audit H2)
         print(f"Serving with COOP/COEP headers on http://localhost:{PORT}")
         httpd.serve_forever()

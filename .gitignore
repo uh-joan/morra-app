@@ -23,3 +23,7 @@ spikes/logs/
 # OMC runtime state (session machinery, not project content)
 .omc/state/
 .omc/logs/
+
+# nested OMC state anywhere (audit M8)
+**/.omc/state/
+.omc/project-memory.json

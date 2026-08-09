@@ -40,7 +40,7 @@ export function startStaticServer(root, port = 0) {
       createReadStream(filePath).pipe(res);
     });
     server.on("error", reject);
-    server.listen(port, () => {
+    server.listen(port, "127.0.0.1", () => {
       const actualPort = server.address().port;
       resolve({
         server,

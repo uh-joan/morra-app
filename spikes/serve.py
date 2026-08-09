@@ -59,4 +59,6 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
     print(f"serving {ROOT} on http://localhost:{port} (POST /log -> logs/)")
-    ThreadingHTTPServer(("", port), Handler).serve_forever()
+    # Loopback only — this directory contains private voice recordings and
+    # session logs; never expose it to the LAN (security audit H2).
+    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()

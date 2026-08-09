@@ -1,0 +1,30 @@
+{
+  "name": "@morra/platform-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser platform layer: single AudioContext ownership + clock mapping, camera/mic device access, web implementations of @morra/core's ports (localStorage PlayerModelStore, batched-NDJSON TelemetrySink, PerformanceClock, CryptoRandomSource), and a minimal asset manager (clip sets, Cache-Storage-backed model fetch). Extracted from spikes/s03-beat.html's proven ClockMap/event-bus/playermodel-storage/rival-clip-loading patterns; spikes/** stays untouched.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:integration": "node test/integration/run.mjs",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@morra/core": "workspace:*",
+    "@morra/recognition": "workspace:*"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.5.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}
