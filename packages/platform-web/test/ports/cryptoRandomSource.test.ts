@@ -17,10 +17,10 @@ describe("CryptoRandomSource: next()", () => {
   });
 });
 
-describe("CryptoRandomSource: nextBytes()", () => {
+describe("CryptoRandomSource: nextSecureBytes()", () => {
   it("returns exactly `length` bytes, each in [0, 255]", () => {
     const rng = new CryptoRandomSource();
-    const bytes = rng.nextBytes(16);
+    const bytes = rng.nextSecureBytes(16);
     expect(bytes.length).toBe(16);
     for (const b of bytes) {
       expect(b).toBeGreaterThanOrEqual(0);
@@ -29,6 +29,6 @@ describe("CryptoRandomSource: nextBytes()", () => {
   });
   it("length 0 -> empty array, no throw", () => {
     const rng = new CryptoRandomSource();
-    expect(rng.nextBytes(0).length).toBe(0);
+    expect(rng.nextSecureBytes(0).length).toBe(0);
   });
 });

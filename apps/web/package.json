@@ -1,0 +1,36 @@
+{
+  "name": "@morra/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The real morra micatio game app (M4): Vite + React + TS, consuming @morra/{core,recognition,platform-web}. Game/session state lives OUTSIDE React (a plain store, ported from spikes/s03-beat.html's self-paced sync-mode round flow) — React only subscribes via useSyncExternalStore and renders low-frequency projections. spikes/** stays untouched; it is the parity oracle for this app.",
+  "scripts": {
+    "predev": "node scripts/prepare-assets.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/prepare-assets.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:integration": "node test/integration/run.mjs",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@morra/core": "workspace:*",
+    "@morra/platform-web": "workspace:*",
+    "@morra/recognition": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "puppeteer-core": "^25.5.0",
+    "typescript": "^5.7.3",
+    "vite": "^8.2.1",
+    "vitest": "^3.0.4"
+  }
+}

@@ -9,5 +9,7 @@ export * from "./mirror.js";
 export type { Clock } from "./ports/clock.js";
 export type { RandomSource } from "./ports/random-source.js";
 export { createSeededRandomSource, createSequenceRandomSource } from "./ports/random-source.js";
+export type { SecureRandomSource } from "./ports/secure-random-source.js";
 export type { TelemetryEvent, TelemetrySink } from "./ports/telemetry-sink.js";
 export type { PlayerModelStore } from "./ports/player-model-store.js";
+export type { CharacterRenderer, CharacterRenderState } from "./ports/character-renderer.js";

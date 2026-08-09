@@ -24,11 +24,9 @@ describe("ports: createSeededRandomSource", () => {
       expect(v).toBeLessThan(1);
     }
   });
-  it("nextBytes returns the requested length, deterministically", () => {
-    const a = createSeededRandomSource(3);
-    const b = createSeededRandomSource(3);
-    expect(a.nextBytes(16)).toEqual(b.nextBytes(16));
-    expect(createSeededRandomSource(3).nextBytes(20).length).toBe(20);
+  it("does not satisfy SecureRandomSource (security audit M6 — compile-time only, documented here as a comment: createSeededRandomSource's return type has no nextSecureBytes method, so passing it to commit.ts's randomNonceHex is a TS2345 error, not a runtime check)", () => {
+    const r = createSeededRandomSource(3);
+    expect((r as unknown as { nextSecureBytes?: unknown }).nextSecureBytes).toBeUndefined();
   });
 });
 
@@ -43,9 +41,5 @@ describe("ports: createSequenceRandomSource", () => {
   });
   it("rejects an empty sequence", () => {
     expect(() => createSequenceRandomSource([])).toThrow();
-  });
-  it("nextBytes throws (corpus cases pass nonces directly instead)", () => {
-    const r = createSequenceRandomSource([0.1]);
-    expect(() => r.nextBytes(4)).toThrow();
   });
 });

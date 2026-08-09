@@ -7,15 +7,18 @@
 // NDJSON session logs already assume it.
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
-import type { RandomSource } from "./ports/random-source.js";
+import type { SecureRandomSource } from "./ports/secure-random-source.js";
 
 export function sha256Hex(text: string): string {
   return bytesToHex(sha256(utf8ToBytes(text)));
 }
 
-// Nonce bytes come from the injected RandomSource (never crypto.getRandomValues).
-export function randomNonceHex(random: RandomSource, byteLength = 16): string {
-  return bytesToHex(random.nextBytes(byteLength));
+// Nonce bytes come from the injected SecureRandomSource (never
+// crypto.getRandomValues called directly here, and never a plain
+// RandomSource — see secure-random-source.ts / security audit M6: a
+// predictable nonce source makes the commitment brute-forceable).
+export function randomNonceHex(random: SecureRandomSource, byteLength = 16): string {
+  return bytesToHex(random.nextSecureBytes(byteLength));
 }
 
 export function computeCommitHash(fingers: number, call: number, nonce: string): string {

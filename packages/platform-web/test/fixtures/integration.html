@@ -131,10 +131,10 @@ async function run() {
     const rng = new CryptoRandomSource();
     const t = clock.now();
     const f = rng.next();
-    const bytes = rng.nextBytes(8);
+    const bytes = rng.nextSecureBytes(8);
     if (typeof t !== "number" || t < 0) throw new Error("PerformanceClock.now() not sane");
     if (typeof f !== "number" || f < 0 || f >= 1) throw new Error("CryptoRandomSource.next() out of range");
-    if (bytes.length !== 8) throw new Error("CryptoRandomSource.nextBytes() wrong length");
+    if (bytes.length !== 8) throw new Error("CryptoRandomSource.nextSecureBytes() wrong length");
   } catch (err) {
     result.clockPortsError = String((err && err.message) || err);
   }

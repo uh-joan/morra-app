@@ -149,7 +149,7 @@ describe("ai: L1 — designed to be read", () => {
     const rng = mulberry32Fn(7);
     let twos = 0, fives = 0;
     const N = 4000;
-    const random: RandomSource = { next: rng, nextBytes: () => new Uint8Array(0) };
+    const random: RandomSource = { next: rng };
     for (let i = 0; i < N; i++) {
       const m = decideMove("L1", random, []);
       if (m.fingers === 2) twos++;
@@ -172,7 +172,7 @@ describe("ai: L1 — designed to be read", () => {
 describe("ai: L2 aim ~20% vs a uniform simulated player (χ² sanity)", () => {
   it("aim rate is close to the 20% baseline against a uniform player", () => {
     const rng = mulberry32Fn(42);
-    const random: RandomSource = { next: rng, nextBytes: () => new Uint8Array(0) };
+    const random: RandomSource = { next: rng };
     const N = 3000;
     let hits = 0;
     for (let i = 0; i < N; i++) {
@@ -186,7 +186,7 @@ describe("ai: L2 aim ~20% vs a uniform simulated player (χ² sanity)", () => {
 
 function runScriptedMatch(level: string, scriptedPlayerF: number, throwsCount: number, seed: number) {
   const rng = mulberry32Fn(seed);
-  const random: RandomSource = { next: rng, nextBytes: () => new Uint8Array(0) };
+  const random: RandomSource = { next: rng };
   const history: HistoryEntry[] = [];
   let hits = 0;
   const hitsByThrow: boolean[] = [];
@@ -225,8 +225,8 @@ describe("ai: L4 >= L2 vs a pure-random player (the equilibrium floor)", () => {
       const rngPlayer = mulberry32Fn(1000 + t);
       const rngL2 = mulberry32Fn(2000 + t);
       const rngL4 = mulberry32Fn(2000 + t); // SAME seed as L2 so both face the identical player sequence
-      const randomL2: RandomSource = { next: rngL2, nextBytes: () => new Uint8Array(0) };
-      const randomL4: RandomSource = { next: rngL4, nextBytes: () => new Uint8Array(0) };
+      const randomL2: RandomSource = { next: rngL2 };
+      const randomL4: RandomSource = { next: rngL4 };
       const playerSeq: number[] = [];
       for (let i = 0; i < THROWS; i++) playerSeq.push(1 + Math.floor(rngPlayer() * 5));
 
@@ -261,7 +261,7 @@ describe("ai: L4 anti-aim — own fingers avoid the player's predicted guess", (
       history.push(historyEntry({ throwIndex: i + 1, playerFingers, playerCall: playerFingers + 3, aiFingers: 1, aiCall: 4, verdictWinner: "parata" }));
     }
     const sampleRng = mulberry32Fn(11);
-    const randomSample: RandomSource = { next: sampleRng, nextBytes: () => new Uint8Array(0) };
+    const randomSample: RandomSource = { next: sampleRng };
     let hitsOn3 = 0;
     const N = 1500;
     for (let i = 0; i < N; i++) {
