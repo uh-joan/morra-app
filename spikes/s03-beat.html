@@ -874,6 +874,16 @@ const SYNC_PARTNER_TIMEOUT_MS = 1500; // how long a voice-only event waits for a
 // revealed AI opponent, layered on top of sync mode's existing throw pipeline.
 const GAME_WIN_SCORE = 10;
 
+// step 14 (Phase B): pre-generated rival voice clips replace speechSynthesis
+// — zero-latency playback via the page's existing AudioContext, no TTS
+// startup lag. RIVAL_VOICE_SUFFIX is the single knob for swapping voice sets
+// ("_jordi" = Jordi Enhanced, male Catalan; "_gruff" = pitch-shifted Montse
+// spare set) without touching any other code.
+const RIVAL_VOICE_DIR = "rival-voice"; // same-origin, relative to this page
+const RIVAL_VOICE_SUFFIX = "_jordi";
+const RIVAL_VOICE_WORDS = ["dos", "tres", "quatre", "cinc", "sis", "set", "vuit", "nou", "deu", "tot"];
+const RIVAL_VOICE_GAIN = 1.2; // modest boost — the source clips run quiet; stays under clipping
+
 // Debug telemetry (step 5): a lightweight array push per finalized beat —
 // no rendering cost in the hot loop. Exported as JSON for offline analysis
 // (e.g. cross-referencing a voice onset time against the recognition
@@ -2707,26 +2717,72 @@ function resetGame() {
   throwInProgress = false;
   renderReadyPill();
   // No prior reveal to preserve here — safe to show the fresh commitment immediately.
-  if (playVsOpponent && heroMode === "sync") commitAiMove().then(renderRivalCommitted);
+  if (playVsOpponent && heroMode === "sync") {
+    commitAiMove().then(renderRivalCommitted);
+    preloadRivalVoiceClips(); // idempotent — no-op if already loaded/loading
+  }
 }
 el.btnPlayAgain.addEventListener("click", resetGame);
 
 // Best-effort Catalan/Spanish TTS for the AI's call — silent if no matching
 // voice is installed (this is a spike; we don't ship voice packs).
-function speakAiCall(call) {
-  if (!("speechSynthesis" in window)) return;
+// step 14 (Phase B): pre-generated audio clips, not speechSynthesis. All 10
+// words are fetched + decoded into AudioBuffers on the page's EXISTING
+// AudioContext (`ctx` — no second context) as soon as game mode goes live;
+// playback is then a zero-latency buffer-source start. A clip that fails to
+// load/decode is logged (console + rivalVoiceLoadStatus, exported in the
+// debug meta) but never surfaces as a red error card — voice here is flavor,
+// the text reveal is authoritative and works regardless.
+const rivalVoiceBuffers = {};    // word -> AudioBuffer
+const rivalVoiceLoadStatus = {}; // word -> "pending" | "loaded" | "failed"
+let rivalVoicePreloadStarted = false;
+let rivalVoiceGainNode = null;
+
+function getRivalVoiceGainNode() {
+  if (!rivalVoiceGainNode) {
+    rivalVoiceGainNode = ctx.createGain();
+    rivalVoiceGainNode.gain.value = RIVAL_VOICE_GAIN;
+    rivalVoiceGainNode.connect(ctx.destination);
+  }
+  return rivalVoiceGainNode;
+}
+
+async function preloadRivalVoiceClips() {
+  if (rivalVoicePreloadStarted) return;
+  rivalVoicePreloadStarted = true;
+  await Promise.all(RIVAL_VOICE_WORDS.map(async (word) => {
+    rivalVoiceLoadStatus[word] = "pending";
+    const url = `${RIVAL_VOICE_DIR}/${word}${RIVAL_VOICE_SUFFIX}.m4a`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
+      const arrayBuf = await resp.arrayBuffer();
+      const audioBuf = await ctx.decodeAudioData(arrayBuf);
+      rivalVoiceBuffers[word] = audioBuf;
+      rivalVoiceLoadStatus[word] = "loaded";
+    } catch (err) {
+      rivalVoiceLoadStatus[word] = "failed";
+      console.warn(`rival voice clip failed to load (${url}):`, err);
+    }
+  }));
+}
+
+function playRivalCall(call) {
   const word = NUMBER_TO_CATALAN_CALL[call];
   if (!word) return;
+  const buffer = rivalVoiceBuffers[word];
+  if (!buffer) {
+    console.warn(`rival voice: no clip loaded for "${word}" (call=${call}) — silent, text-only reveal stands`);
+    return;
+  }
   try {
-    const voices = speechSynthesis.getVoices();
-    const voice = voices.find((v) => /^ca(-|_|$)/i.test(v.lang)) || voices.find((v) => /^es(-|_|$)/i.test(v.lang));
-    if (!voice) return; // no ca-ES/es voice installed — stay silent, text already shows the word
-    const utter = new SpeechSynthesisUtterance(word);
-    utter.voice = voice;
-    utter.lang = voice.lang;
-    speechSynthesis.speak(utter);
+    ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(getRivalVoiceGainNode());
+    source.start(0);
   } catch (err) {
-    reportError("game-tts", err); // never let TTS failure break the round
+    console.warn(`rival voice: playback failed for "${word}":`, err);
   }
 }
 
@@ -2746,7 +2802,7 @@ async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumbe
   renderGameReveal(move, verified, playerFingers, playerCallNumber, verdict, word);
   renderRivalReveal(move, verified);
   renderScoreboard();
-  speakAiCall(move.call);
+  playRivalCall(move.call); // step 14: pre-generated clip, not speechSynthesis
   markThrowResolvedForReadyPill(playerFingers); // step 13
 
   if (throwEvent.debugRec) {
@@ -2791,7 +2847,10 @@ el.chkPlayVsOpponent.addEventListener("change", () => {
   playVsOpponent = el.chkPlayVsOpponent.checked;
   el.gamePanel.style.display = playVsOpponent ? "flex" : "none";
   el.rivalSide.style.display = playVsOpponent && heroMode === "sync" ? "flex" : "none";
-  if (playVsOpponent && !gameOver && !currentAiMove) commitAiMove().then(renderRivalCommitted);
+  if (playVsOpponent) {
+    if (!gameOver && !currentAiMove) commitAiMove().then(renderRivalCommitted);
+    preloadRivalVoiceClips();
+  }
   renderReadyPill();
 });
 
@@ -2816,6 +2875,7 @@ function setHeroMode(mode) {
     if (playVsOpponent && !gameOver) {
       if (currentAiMove) renderRivalCommitted(); // already committed while we were away — show it, don't burn a new one
       else commitAiMove().then(renderRivalCommitted);
+      preloadRivalVoiceClips();
     }
   } else {
     resetHeroVerdict();
@@ -3160,6 +3220,7 @@ function exportDebugLog() {
       orphanOnsetCount: debugOrphanOnsets.length,
       suppressedClickOnsetCount: debugSuppressedOnsets.length,
       echoSuspected,
+      voiceClipsLoaded: { ...rivalVoiceLoadStatus }, // step 14: word -> "pending"/"loaded"/"failed"
     },
     beats: debugLog,
     orphanOnsets: debugOrphanOnsets,
@@ -3177,7 +3238,10 @@ renderSyncTally(syncThrows); // step 9: sync mode is the default hero experience
 renderScoreboard();
 el.gamePanel.style.display = heroMode === "sync" && playVsOpponent ? "flex" : "none";
 el.rivalSide.style.display = heroMode === "sync" && playVsOpponent ? "flex" : "none";
-if (playVsOpponent) commitAiMove().then(renderRivalCommitted); // step 11/12: play-vs-opponent is on by default
+if (playVsOpponent) {
+  commitAiMove().then(renderRivalCommitted); // step 11/12: play-vs-opponent is on by default
+  preloadRivalVoiceClips(); // step 14: preload rival voice clips at game start
+}
 renderReadyPill(); // step 13: armed from the start, per spec
 
 // exposed for manual / automated console checks
@@ -3231,6 +3295,12 @@ window.__s03 = {
   get handArmedForNextThrow() { return handArmedForNextThrow; },
   set handArmedForNextThrow(v) { handArmedForNextThrow = v; },
   get throwInProgress() { return throwInProgress; },
+  // step 14 (Phase B: pre-generated rival voice clips)
+  preloadRivalVoiceClips, playRivalCall, getRivalVoiceGainNode,
+  RIVAL_VOICE_DIR, RIVAL_VOICE_SUFFIX, RIVAL_VOICE_WORDS, RIVAL_VOICE_GAIN,
+  get rivalVoiceBuffers() { return rivalVoiceBuffers; },
+  get rivalVoiceLoadStatus() { return rivalVoiceLoadStatus; },
+  get rivalVoicePreloadStarted() { return rivalVoicePreloadStarted; },
 };
 </script>
 </body>
