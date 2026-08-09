@@ -68,8 +68,20 @@
   "hotPaths": [
     {
       "path": "spikes/s03-beat.html",
-      "accessCount": 56,
-      "lastAccessed": 1786301061040,
+      "accessCount": 85,
+      "lastAccessed": 1786302117524,
+      "type": "file"
+    },
+    {
+      "path": "spikes/modules/playermodel.mjs",
+      "accessCount": 5,
+      "lastAccessed": 1786301924406,
+      "type": "file"
+    },
+    {
+      "path": "spikes/modules/test.mjs",
+      "accessCount": 5,
+      "lastAccessed": 1786301950830,
       "type": "file"
     },
     {
@@ -91,6 +103,12 @@
       "type": "file"
     },
     {
+      "path": "spikes/modules/ai.mjs",
+      "accessCount": 2,
+      "lastAccessed": 1786301764120,
+      "type": "file"
+    },
+    {
       "path": "spikes/modules/rules.mjs",
       "accessCount": 1,
       "lastAccessed": 1786300958620,
@@ -100,24 +118,6 @@
       "path": "spikes/modules/scorer.mjs",
       "accessCount": 1,
       "lastAccessed": 1786300976461,
-      "type": "file"
-    },
-    {
-      "path": "spikes/modules/ai.mjs",
-      "accessCount": 1,
-      "lastAccessed": 1786300984321,
-      "type": "file"
-    },
-    {
-      "path": "spikes/modules/playermodel.mjs",
-      "accessCount": 1,
-      "lastAccessed": 1786300990157,
-      "type": "file"
-    },
-    {
-      "path": "spikes/modules/test.mjs",
-      "accessCount": 1,
-      "lastAccessed": 1786301109853,
       "type": "file"
     }
   ],

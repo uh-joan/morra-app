@@ -132,6 +132,241 @@ check("ai.mjs: LEVELS.L2 exists with a name/description", !!Ai.LEVELS.L2 && type
   check("decideMove: pure — identical (rng-sequence, history, model) -> identical decision", JSON.stringify(m1) === JSON.stringify(m2), { m1, m2 });
 }
 
+// ======================= ai.mjs — Phase G: the ladder =======================
+check("LEVEL_ORDER has all four levels, L2 default", JSON.stringify(Ai.LEVEL_ORDER) === JSON.stringify(["L1", "L2", "L3", "L4"]) && Ai.DEFAULT_LEVEL === "L2");
+for (const id of Ai.LEVEL_ORDER) {
+  check(`LEVELS.${id} has a name and a description`, !!Ai.LEVELS[id] && typeof Ai.LEVELS[id].name === "string" && typeof Ai.LEVELS[id].description === "string");
+}
+
+// --- low-level math helpers ---
+check("decayWeight: 0 throws back -> full weight 1", Ai.decayWeight(0, 20) === 1);
+check("decayWeight: exactly one half-life back -> weight 0.5", Math.abs(Ai.decayWeight(20, 20) - 0.5) < 1e-9);
+check("lambdaFromNEff: half-saturation — nEff===k -> lambda=0.5", Math.abs(Ai.lambdaFromNEff(8, 8) - 0.5) < 1e-9);
+check("lambdaFromNEff: nEff=0 -> lambda=0 (no data, no confidence)", Ai.lambdaFromNEff(0, 8) === 0);
+check("lambdaFromNEff: nEff->large -> lambda->1", Ai.lambdaFromNEff(10000, 8) > 0.99);
+{
+  const mixed = Ai.mixWithUniform({ 1: 1, 2: 0, 3: 0, 4: 0, 5: 0 }, 0);
+  check("mixWithUniform: lambda=0 -> exactly uniform regardless of the sharpened distribution", Object.values(mixed).every((p) => Math.abs(p - 0.2) < 1e-9), mixed);
+}
+{
+  const mixed = Ai.mixWithUniform({ 1: 1, 2: 0, 3: 0, 4: 0, 5: 0 }, 1);
+  check("mixWithUniform: lambda=1 -> exactly the sharpened distribution, uniform ignored", mixed[1] === 1 && mixed[2] === 0, mixed);
+}
+{
+  const inv = Ai.invertDistribution({ 1: 0.6, 2: 0.1, 3: 0.1, 4: 0.1, 5: 0.1 });
+  check("invertDistribution: mass moves AWAY from the peak (anti-aim)", inv[1] < inv[2] && Math.abs(Object.values(inv).reduce((a, b) => a + b, 0) - 1) < 1e-9, inv);
+}
+{
+  const combined = Ai.combineByWeight([{ dist: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0 }, weight: 1 }, { dist: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 }, weight: 1 }]);
+  check("combineByWeight: equal weights -> equal blend", Math.abs(combined[1] - 0.5) < 1e-9 && Math.abs(combined[5] - 0.5) < 1e-9, combined);
+}
+check("combineByWeight: no usable predictions -> null", Ai.combineByWeight([]) === null && Ai.combineByWeight([{ dist: null, weight: 5 }]) === null);
+{
+  // temperature=1 samples proportionally, never argmax: a deterministic rng
+  // just above the peak's cumulative mass should land on the NEXT bucket,
+  // not always on the peak — proves this isn't argmax in disguise.
+  const dist = { 1: 0.9, 2: 0.025, 3: 0.025, 4: 0.025, 5: 0.025 };
+  const pick = Ai.sampleWithTemperature(() => 0.95, dist, 1);
+  check("sampleWithTemperature: draws from the CDF (not argmax) — a high rng() draw lands past the peak", pick !== 1, pick);
+  const pickLow = Ai.sampleWithTemperature(() => 0.01, dist, 1);
+  check("sampleWithTemperature: a low rng() draw lands on the peak (still probability-proportional)", pickLow === 1, pickLow);
+}
+{
+  // sharper temperature (0.6) concentrates more mass on the peak than τ=1 would
+  const dist = { 1: 0.4, 2: 0.15, 3: 0.15, 4: 0.15, 5: 0.15 };
+  let hits1 = 0;
+  const N = 2000;
+  for (let i = 0; i < N; i++) {
+    const rng = mulberry32(i + 1);
+    if (Ai.sampleWithTemperature(rng, dist, 0.6) === 1) hits1++;
+  }
+  check("sampleWithTemperature: τ=0.6 sharpens toward the peak (samples value-1 MORE than its raw 40% share)", hits1 / N > 0.45, hits1 / N);
+}
+
+// --- predictors ---
+{
+  const series = [1, 3, 1, 3, 1, 3, 1]; // strict alternation, last value 1 -> should predict 3 next
+  const p = Ai.order1Predict(series, 20);
+  check("order1Predict: catches a strict alternation", !!p && p.dist[3] > p.dist[1], p && p.dist);
+}
+check("order1Predict: too little data -> null", Ai.order1Predict([3], 20) === null);
+{
+  // series ends in (1,2); "1,2" has been followed by 3 twice before, with
+  // enough decayed weight to clear ORDER2_MIN_WEIGHT (a single occurrence
+  // near the threshold isn't enough — that's exactly what order2Predict's
+  // backoff-on-insufficient-data guard is for, covered by the next check).
+  const series = [1, 2, 3, 4, 4, 1, 2, 3, 5, 5, 1, 2];
+  const p2 = Ai.order2Predict(series, 20);
+  check("order2Predict: conditions on the last TWO values", !!p2 && p2.dist[3] > p2.dist[1], p2 && p2.dist);
+}
+check("order2Predict: below the min-weight threshold -> null (caller should back off)", Ai.order2Predict([1, 2, 3], 20) === null);
+{
+  const series = [5, 5, 5, 5, null, 5];
+  const bo = Ai.ngramWithBackoff(series, 20);
+  check("ngramWithBackoff: falls back to order-1 when order-2 has too little data", !!bo, bo);
+}
+{
+  const series = [2, 2, 2, 2, 2];
+  const g = Ai.globalFreqPredict(series, 20);
+  check("globalFreqPredict: all-same series -> all mass on that value", !!g && g.dist[2] === 1, g && g.dist);
+  const sm = Ai.stickyModePredict(series, 20);
+  check("stickyModePredict: peaks fully on the mode", !!sm && sm.dist[2] === 1 && Object.values(sm.dist).reduce((a, b) => a + b, 0) === 1, sm);
+}
+check("globalFreqPredict: empty series -> null", Ai.globalFreqPredict([], 20) === null);
+{
+  // player repeats their fingers after winning, changes after losing
+  const series = [3, 3, 4, 2, 2, 5];
+  const verdicts = ["player", "player", "ai", "player", "player", "ai"];
+  const wsls = Ai.winStayLoseShiftPredict(series, verdicts, 20);
+  check("winStayLoseShiftPredict: needs a clean win/lose last-outcome signal", !!wsls, wsls);
+}
+check("winStayLoseShiftPredict: last outcome parata -> null (no clean signal)", Ai.winStayLoseShiftPredict([3, 4], ["player", "parata"], 20) === null);
+
+// --- L1: designed to be read ---
+{
+  // deterministic fake rng always returning a value that lands in the {2,5} favored region for the fingers draw
+  const seq = [0.2]; // cumulative: 1(.15) 2(.15+.30=.45) -> 0.2 lands in bucket 2
+  let i = 0;
+  const rng = () => seq[i++ % seq.length];
+  const move = Ai.decideMove("L1", rng, []);
+  check("L1: fingers sampled from the biased-toward-{2,5} distribution (not uniform)", move.fingers === 2, move);
+}
+{
+  const rng = mulberry32(7);
+  let twos = 0, fives = 0, N = 4000;
+  for (let i = 0; i < N; i++) { const m = Ai.decideMove("L1", rng, []); if (m.fingers === 2) twos++; if (m.fingers === 5) fives++; }
+  check("L1: over many draws, 2 and 5 together are favored well above the 40% a uniform split would give", (twos + fives) / N > 0.5, (twos + fives) / N);
+}
+{
+  const history = [{ throwIndex: 1, playerFingers: 3, playerCall: 7, aiFingers: 4, aiCall: 6, verdictWinner: "ai" }];
+  const rng = () => 0; // forces the repeat-after-score branch to fire when it rolls
+  const move = Ai.decideMove("L1", rng, history);
+  check("L1: repeats its last fingers after scoring, when the repeat-roll fires", move.fingers === 4, move);
+}
+{
+  // AI LOST last round (verdictWinner: "player") — the repeat-after-score
+  // branch must be skipped entirely, so with a rng() that's always 0, the
+  // very first rng() call goes straight to the biased draw (which lands on
+  // bucket 1 at r=0), never touching last.aiFingers (4) at all.
+  const history = [{ throwIndex: 1, playerFingers: 3, playerCall: 7, aiFingers: 4, aiCall: 6, verdictWinner: "player" }];
+  const rng = () => 0;
+  const move = Ai.decideMove("L1", rng, history);
+  check("L1: does NOT repeat after losing (only after scoring) — falls straight to the biased draw", move.fingers === 1, move);
+}
+
+// --- L2: aim ~20% vs a uniform simulated player (χ² sanity) ---
+{
+  const rng = mulberry32(42);
+  const N = 3000;
+  let hits = 0;
+  for (let i = 0; i < N; i++) {
+    const actualPlayerF = 1 + Math.floor(rng() * 5);
+    const move = Ai.decideMove("L2", rng, []);
+    if (move.guessPlayerFingers === actualPlayerF) hits++;
+  }
+  const rate = hits / N;
+  check(`L2 aim rate is close to the 20% baseline against a uniform player (got ${(rate * 100).toFixed(1)}%)`, Math.abs(rate - 0.2) < 0.03, rate);
+}
+
+// --- L3/L4: aim >30% vs a scripted, strongly-biased player within 30 throws ---
+function runScriptedMatch(level, scriptedPlayerF, throwsCount, seed) {
+  const rng = mulberry32(seed);
+  const history = [];
+  let hits = 0;
+  const hitsByThrow = [];
+  for (let i = 0; i < throwsCount; i++) {
+    const move = Ai.decideMove(level, rng, history);
+    const actualPlayerF = typeof scriptedPlayerF === "function" ? scriptedPlayerF(i, history) : scriptedPlayerF;
+    const hit = move.guessPlayerFingers === actualPlayerF;
+    if (hit) hits++;
+    hitsByThrow.push(hit);
+    // simulate a verdict: if the AI's g hit the player's f, count it AS IF the AI's own f/aiCall don't matter for this sanity check — approximate outcome bookkeeping is enough for the predictor to have win/lose signal to chew on.
+    const verdictWinner = hit ? "ai" : (rng() < 0.3 ? "player" : "parata");
+    history.push({ throwIndex: i + 1, playerFingers: actualPlayerF, playerCall: actualPlayerF + (1 + Math.floor(rng() * 5)), aiFingers: move.fingers, aiCall: move.call, verdictWinner });
+  }
+  return { hits, rate: hits / throwsCount, hitsByThrow };
+}
+{
+  const { rate, hitsByThrow } = runScriptedMatch("L3", 5, 30, 1); // player ALWAYS throws 5
+  const lateRate = hitsByThrow.slice(15).filter(Boolean).length / hitsByThrow.slice(15).length; // warmed-up half
+  check(`L3 aim vs an always-throws-5 player climbs above 30% within 30 throws (late-match rate ${(lateRate * 100).toFixed(0)}%)`, lateRate > 0.3, lateRate);
+}
+{
+  const { hitsByThrow } = runScriptedMatch("L4", 5, 30, 2);
+  const lateRate = hitsByThrow.slice(15).filter(Boolean).length / hitsByThrow.slice(15).length;
+  check(`L4 aim vs an always-throws-5 player climbs above 30% within 30 throws (late-match rate ${(lateRate * 100).toFixed(0)}%)`, lateRate > 0.3, lateRate);
+}
+
+// --- L4 >= L2 vs a pure-random player (the equilibrium floor) ---
+{
+  const TRIALS = 6, THROWS = 400;
+  let l2Total = 0, l4Total = 0;
+  for (let t = 0; t < TRIALS; t++) {
+    const rngPlayer = mulberry32(1000 + t);
+    const rngL2 = mulberry32(2000 + t);
+    const rngL4 = mulberry32(2000 + t); // SAME seed as L2 so both face the identical player sequence
+    const playerSeq = [];
+    for (let i = 0; i < THROWS; i++) playerSeq.push(1 + Math.floor(rngPlayer() * 5));
+
+    let l2Hits = 0;
+    for (let i = 0; i < THROWS; i++) { const m = Ai.decideMove("L2", rngL2, []); if (m.guessPlayerFingers === playerSeq[i]) l2Hits++; }
+
+    let l4Hits = 0; const history = [];
+    for (let i = 0; i < THROWS; i++) {
+      const m = Ai.decideMove("L4", rngL4, history);
+      const hit = m.guessPlayerFingers === playerSeq[i];
+      if (hit) l4Hits++;
+      history.push({ throwIndex: i + 1, playerFingers: playerSeq[i], playerCall: playerSeq[i] + 3, aiFingers: m.fingers, aiCall: m.call, verdictWinner: hit ? "ai" : "parata" });
+    }
+    l2Total += l2Hits; l4Total += l4Hits;
+  }
+  const l2Rate = l2Total / (TRIALS * THROWS), l4Rate = l4Total / (TRIALS * THROWS);
+  check(`L4 aim rate (${(l4Rate * 100).toFixed(1)}%) is not meaningfully below L2's (${(l2Rate * 100).toFixed(1)}%) vs a pure-random player — the equilibrium floor`, l4Rate > l2Rate - 0.03, { l2Rate, l4Rate });
+}
+
+// --- L4 anti-aim: own fingers avoid the player's predicted guess ---
+{
+  // player's call always implies g=3 (their guess of the AI's fingers) — feed
+  // enough history for the anti-aim channel to build real confidence, then
+  // check the AI's OWN fingers land on 3 much less than a uniform 20% would.
+  const rng = mulberry32(9);
+  const history = [];
+  for (let i = 0; i < 25; i++) {
+    const playerFingers = 1 + Math.floor(rng() * 5);
+    history.push({ throwIndex: i + 1, playerFingers, playerCall: playerFingers + 3, aiFingers: 1, aiCall: 4, verdictWinner: "parata" });
+  }
+  let hitsOn3 = 0, N = 1500;
+  const sampleRng = mulberry32(11);
+  for (let i = 0; i < N; i++) {
+    const m = Ai.decideMove("L4", sampleRng, history);
+    if (m.fingers === 3) hitsOn3++;
+  }
+  check(`L4 anti-aim: own fingers avoid the player's well-established predicted guess (3) — landed there ${(hitsOn3 / N * 100).toFixed(1)}% of the time, well under uniform 20%`, hitsOn3 / N < 0.16, hitsOn3 / N);
+}
+
+// --- commit purity: identical (level, rng-sequence, history) -> identical decision, for every level ---
+for (const level of Ai.LEVEL_ORDER) {
+  const history = [
+    { throwIndex: 1, playerFingers: 3, playerCall: 7, aiFingers: 2, aiCall: 5, verdictWinner: "player" },
+    { throwIndex: 2, playerFingers: 5, playerCall: 8, aiFingers: 3, aiCall: 6, verdictWinner: "ai" },
+  ];
+  const makeRng = () => mulberry32(123);
+  const m1 = Ai.decideMove(level, makeRng(), history, null);
+  const m2 = Ai.decideMove(level, makeRng(), history, null);
+  check(`decideMove is pure for ${level}: identical inputs -> identical decision`, JSON.stringify(m1) === JSON.stringify(m2), { m1, m2 });
+}
+
+// deterministic seeded PRNG for reproducible statistical tests (Math.random is not seedable)
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // ============================== playermodel.mjs ==============================
 {
   const m = PlayerModel.createEmptyModel();
@@ -140,6 +375,29 @@ check("ai.mjs: LEVELS.L2 exists with a name/description", !!Ai.LEVELS.L2 && type
   check("recordThrow: appends without mutating the original model", m.throws.length === 0 && m2.throws.length === 1, { m, m2 });
   check("snapshotModel: reflects the throw count", PlayerModel.snapshotModel(m2).throwCount === 1);
   check("snapshotModel: empty model -> zero", PlayerModel.snapshotModel(PlayerModel.createEmptyModel()).throwCount === 0);
+  check("toHistoryArray: returns the plain throws array (the shape ai.mjs expects)", PlayerModel.toHistoryArray(m2).length === 1 && PlayerModel.toHistoryArray(m2)[0].f === 3);
+}
+{
+  // localStorage persistence — Node has a native localStorage (v22+), so
+  // this exercises the real IO path, not a mock. Uses a throwaway key.
+  const TEST_KEY = "morra-s03-playermodel-TEST-phaseG";
+  PlayerModel.clearModel(TEST_KEY);
+  check("loadModel: no stored data -> a fresh empty model", PlayerModel.loadModel(TEST_KEY).throws.length === 0);
+  let m = PlayerModel.createEmptyModel();
+  m = PlayerModel.recordThrow(m, { throwIndex: 1, playerFingers: 4 });
+  m = PlayerModel.recordThrow(m, { throwIndex: 2, playerFingers: 2 });
+  const saved = PlayerModel.saveModel(m, TEST_KEY);
+  check("saveModel: reports success", saved === true);
+  const reloaded = PlayerModel.loadModel(TEST_KEY);
+  check("loadModel: round-trips exactly what was saved", reloaded.throws.length === 2 && reloaded.throws[1].playerFingers === 2, reloaded);
+  PlayerModel.clearModel(TEST_KEY);
+  check("clearModel: removes it (a fresh load is empty again)", PlayerModel.loadModel(TEST_KEY).throws.length === 0);
+}
+{
+  const many = Array.from({ length: 3 }, (_, i) => ({ throwIndex: i }));
+  let m = PlayerModel.createEmptyModel();
+  for (const e of many) m = PlayerModel.recordThrow(m, e);
+  check("recordThrow: does not exceed HISTORY_CAP behavior sanity (small case, no truncation yet)", m.throws.length === 3);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

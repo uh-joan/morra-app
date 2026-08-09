@@ -368,6 +368,11 @@ This rig is retained as the future corpus-capture harness — treat it as produc
         <div id="heroCoachHint" class="hero-prompt" style="display:none; color:var(--warn); font-weight:600;">Torna al puny entre cops! (return to a fist between throws)</div>
       </div>
       <div id="gamePanel" style="display:none; width:100%;">
+        <div class="row" id="aiLevelRow" style="margin:0 0 6px; gap:8px; align-items:center; flex-wrap:nowrap;">
+          <label for="selAiLevel" style="white-space:nowrap;">Rival</label>
+          <select id="selAiLevel" style="flex:1;"></select>
+        </div>
+        <div id="aiLevelDescription" class="hero-prompt" style="opacity:.75; margin:0 0 8px;"></div>
         <div class="scoreboard" id="scoreboard">Tu 0 — 0 Rival</div>
         <div id="roundResultCard" class="verdict-card idle">
           <div class="verdict-result" id="roundResultText">–</div>
@@ -1004,6 +1009,7 @@ const el = {
   btnPlayAgain: $("btnPlayAgain"),
   rivalSide: $("rivalSide"), rivalAvatar: $("rivalAvatar"), rivalHandSvg: $("rivalHandSvg"),
   rivalHandDigit: $("rivalHandDigit"), rivalWord: $("rivalWord"), readyPill: $("readyPill"),
+  selAiLevel: $("selAiLevel"), aiLevelDescription: $("aiLevelDescription"),
   btnCam: $("btnCam"), btnMic: $("btnMic"), sensorStatus: $("sensorStatus"),
   camPreview: $("camPreview"), handOverlay: $("handOverlay"), handVel: $("handVel"), handState: $("handState"),
   handVelMeterFill: $("handVelMeterFill"), handIndicator: $("handIndicator"), handIndicatorText: $("handIndicatorText"),
@@ -2712,9 +2718,18 @@ function onSyncVoiceOnset(voicePerfTime) {
  * ------------------------------------------------------------------- */
 
 let playVsOpponent = true; // default on — see setHeroMode/checkbox wiring
-let currentAiMove = null;  // {fingers, guessPlayerFingers, call, nonce, hashHex}
+let currentAiMove = null;  // {fingers, guessPlayerFingers, call, nonce, hashHex, level}
 let gameScore = { player: 0, ai: 0 };
 let gameOver = false;
+
+// Phase G: the ladder. L1/L2/L3 read the CURRENT MATCH's history only
+// (matchHistory, reset every resetGame); L4 reads the CROSS-MATCH history
+// persisted in playerModel (localStorage via modules/playermodel.mjs) — the
+// AI policy itself (modules/ai.mjs) stays agnostic to which one it's fed;
+// that choice is made here, at commitAiMove's call site.
+let currentAiLevel = AiPolicy.DEFAULT_LEVEL;
+let matchHistory = [];
+let playerModel = PlayerModel.loadModel();
 
 // step 13: ready indicator — surfaces whether the detector will actually
 // accept a fresh onset right now, derived from real per-frame hand data
@@ -2764,11 +2779,14 @@ function markThrowResolvedForReadyPill(playerFingers) {
 // and game-start, and each of those three moments has different display
 // rules (see renderRivalCommitted's call sites and the "next throw start"
 // note below).
-// Phase F: the MOVE comes from AiPolicy.decideMove (modules/ai.mjs — today
-// just L2's uniform policy); the SEAL comes from commit.mjs's nonce+hash
-// helpers. Behavior is identical to the pre-extraction inline version.
+// Phase F: the SEAL comes from commit.mjs's nonce+hash helpers. Phase G:
+// the MOVE comes from AiPolicy.decideMove (modules/ai.mjs — the four-level
+// ladder). Fairness invariant (design doc §4): the decision is made HERE,
+// from history strictly before the throw that's about to start, then
+// sealed — nothing about the pending throw ever reaches decideMove.
 async function commitAiMove() {
-  const move = AiPolicy.decideMove(AiPolicy.DEFAULT_LEVEL, Math.random, [], null);
+  const history = currentAiLevel === "L4" ? PlayerModel.toHistoryArray(playerModel) : matchHistory;
+  const move = AiPolicy.decideMove(currentAiLevel, Math.random, history, null);
   const { fingers, guessPlayerFingers, call } = move;
   const nonce = randomNonceHex();
   let hashHex;
@@ -2779,12 +2797,19 @@ async function commitAiMove() {
     el.aiCommitStatus.textContent = "Commitment error: " + err.message;
     return;
   }
-  currentAiMove = { fingers, guessPlayerFingers, call, nonce, hashHex };
+  currentAiMove = { fingers, guessPlayerFingers, call, nonce, hashHex, level: currentAiLevel };
   // Phase D: only the fingerprint (hash) is logged here, never fingers/call/
   // nonce — those are the commit-before-reveal secret and only get logged
   // (in game_reveal) once actually disclosed. The hash alone can't be
   // reversed to the move without the nonce, so this leaks nothing.
-  logEvent("game_commit", { commitmentHash: hashHex });
+  // Phase G validation (design doc §5): level/predictedDist/λ/predictor
+  // weights ARE safe to log pre-reveal — they describe what the AI thinks
+  // the PLAYER will do next, not the AI's own sealed fingers/call, which
+  // stay hidden in the hash alone until reveal.
+  logEvent("game_commit", {
+    commitmentHash: hashHex, level: currentAiLevel,
+    predictedPlayerFDist: move.predictedPlayerFDist, lambda: move.lambda, predictorWeights: move.predictorWeights,
+  });
 }
 
 // Rival hand shows a fist + the CURRENT commitment's fingerprint (whatever
@@ -2810,6 +2835,32 @@ function renderRivalReveal(move, verified) {
   el.rivalWord.className = "big-word heard";
   el.aiCommitStatus.textContent = `Opponent committed: ${move.hashHex.slice(0, 8)} ${verified ? "✓" : "✗ VERIFY FAILED"}`;
 }
+
+// Phase G: level selector — names/descriptions come straight from
+// AiPolicy.LEVELS (modules/ai.mjs), so the UI never drifts from what the
+// policy actually implements. Switching levels only changes what the NEXT
+// commitAiMove() call decides — it never touches a commitment already
+// sealed (that decision was already made honestly under the old level).
+const RIVAL_AVATAR_BY_LEVEL = { L1: "🙂", L2: "🧔", L3: "🧙", L4: "👹" };
+function populateAiLevelSelector() {
+  el.selAiLevel.innerHTML = AiPolicy.LEVEL_ORDER.map((id) => {
+    const lvl = AiPolicy.LEVELS[id];
+    return `<option value="${id}"${id === currentAiLevel ? " selected" : ""}>${lvl.name}</option>`;
+  }).join("");
+}
+function renderAiLevelDescription() {
+  const lvl = AiPolicy.LEVELS[currentAiLevel];
+  el.aiLevelDescription.textContent = lvl ? lvl.description : "";
+}
+function renderRivalAvatar() {
+  el.rivalAvatar.textContent = RIVAL_AVATAR_BY_LEVEL[currentAiLevel] || "🧔";
+}
+el.selAiLevel.addEventListener("change", () => {
+  currentAiLevel = el.selAiLevel.value;
+  renderAiLevelDescription();
+  renderRivalAvatar();
+  logEvent("setting_change", { setting: "aiLevel", value: currentAiLevel });
+});
 
 // Phase E: the AI's move was sealed (commit-before-reveal) before the
 // player ever threw, so revealing it the instant a real throw is detected
@@ -2926,6 +2977,7 @@ function resetGame() {
   handArmedForNextThrow = true;
   throwInProgress = false;
   lastRoundAudioEndCtxTime = null; // Phase C.4: no prior round's audio to clamp against in a fresh game
+  matchHistory = []; // Phase G: in-match history resets — playerModel (cross-match, L4) deliberately does NOT
   renderReadyPill();
   // No prior reveal to preserve here — safe to show the fresh commitment immediately.
   if (playVsOpponent && heroMode === "sync") {
@@ -3018,6 +3070,31 @@ function playRivalCall(call) {
   }
 }
 
+// Phase G: every throw with a known playerFingers feeds the shared
+// PlayerModel — both the in-match `matchHistory` (L1-L3 read this) and the
+// cross-match localStorage-persisted `playerModel` (L4 reads this) —
+// regardless of whether the round scored, voided, or was never even
+// revealed: any of those is still real signal about what the player threw.
+// A "reset" (Phase C.1 — fist retraction, never a throw) is the only case
+// excluded, upstream of every call site below. Also logs the per-throw
+// aim result (design doc §5: "actual player f, hit/miss of g").
+function recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, aiMove, verdictWinner) {
+  const entry = {
+    throwIndex: throwEvent.throwIndex,
+    playerFingers, playerCall: playerCallNumber,
+    aiFingers: aiMove ? aiMove.fingers : null,
+    aiCall: aiMove ? aiMove.call : null,
+    aiGuessPlayerFingers: aiMove ? aiMove.guessPlayerFingers : null,
+    aiLevel: (aiMove && aiMove.level) || currentAiLevel,
+    verdictWinner, // "player" | "ai" | "parata" | null (void/never-revealed)
+  };
+  matchHistory.push(entry);
+  playerModel = PlayerModel.recordThrow(playerModel, entry);
+  PlayerModel.saveModel(playerModel);
+  const aimHit = aiMove && aiMove.guessPlayerFingers != null ? aiMove.guessPlayerFingers === playerFingers : null;
+  logEvent("ai_aim_result", { throwIndex: throwEvent.throwIndex, level: entry.aiLevel, guessPlayerFingers: entry.aiGuessPlayerFingers, actualPlayerFingers: playerFingers, aimHit });
+}
+
 async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumber) {
   // Phase E: normally the rival was already revealed — and a fresh
   // commitment already minted — back at phase-1 reveal (revealRivalPhase1,
@@ -3070,6 +3147,9 @@ async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumbe
     playerFingers, playerWord: word, playerCallNumber, total: verdict.total, verdictWinner: verdict.winner,
     scoreAfter: { player: gameScore.player, ai: gameScore.ai }, revealedEarly: alreadyRevealed,
   });
+  // Phase G: feed the ladder BEFORE minting the next commitment, so that
+  // next decision already sees this round if it reads matchHistory/playerModel.
+  recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, move, verdict.winner);
 
   if (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE) {
     showGameEndBanner(gameScore.player >= GAME_WIN_SCORE ? "player" : "ai");
@@ -3109,10 +3189,13 @@ async function maybeResolveGameRound(throwEvent) {
       const burnedHash = throwEvent.revealedAiMove ? throwEvent.revealedAiMove.hashHex : null;
       if (throwEvent.debugRec) throwEvent.debugRec.game = { void: true, playerFingers, playerWord: throwEvent.word, syncOutcome: throwEvent.outcome, burnedCommitmentHash: burnedHash };
       logEvent("reveal_burned", { throwIndex: throwEvent.throwIndex, reason: throwEvent.outcome, burnedCommitmentHash: burnedHash });
+      // Phase G: the throw itself is still real signal, even though the round voided.
+      if (playerFingers != null) recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, throwEvent.revealedAiMove, null);
     } else {
       renderGameIncomplete(playerFingers, throwEvent.word, throwEvent.outcome);
       if (throwEvent.debugRec) throwEvent.debugRec.game = { incomplete: true, playerFingers, playerWord: throwEvent.word, syncOutcome: throwEvent.outcome };
       // AI's commitment stays exactly as-is (never revealed) — same hash, next throw retries against it
+      if (playerFingers != null) recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, null, null);
     }
     markThrowResolvedForReadyPill(playerFingers); // step 13
     return;
@@ -3526,6 +3609,7 @@ if (playVsOpponent) {
 }
 renderReadyPill(); // step 13: armed from the start, per spec
 el.sessionIdFooter.textContent = `session: ${LOG_SESSION_ID}`; // Phase D.4: so the user can reference this run's log file
+populateAiLevelSelector(); renderAiLevelDescription(); renderRivalAvatar(); // Phase G: level selector, default L2
 
 // exposed for manual / automated console checks
 window.__s03 = {
@@ -3598,6 +3682,14 @@ window.__s03 = {
   logEvent, flushLogBatch, LOG_SESSION_ID,
   get eventBusLog() { return eventBusLog; },
   get pendingLogBatch() { return pendingLogBatch; },
+  // Phase G (the AI ladder + shared PlayerModel)
+  recordMatchHistoryEntry, populateAiLevelSelector, renderAiLevelDescription, renderRivalAvatar,
+  RIVAL_AVATAR_BY_LEVEL,
+  get currentAiLevel() { return currentAiLevel; },
+  set currentAiLevel(v) { currentAiLevel = v; },
+  get matchHistory() { return matchHistory; },
+  get playerModel() { return playerModel; },
+  set playerModel(v) { playerModel = v; },
 };
 </script>
 </body>
