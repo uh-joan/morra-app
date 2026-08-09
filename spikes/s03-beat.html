@@ -763,6 +763,15 @@ function classifyHandSettleForSync(fingerCount, voiceOnsetPerfTime) {
   return { isReset: false, effectiveFingerCount };
 }
 
+// Phase E.1: gate for the early ("phase-1") rival reveal. Only a settle at
+// fingerCount >=2 is confident enough — synchronously, before voice is even
+// known — to be a real throw rather than fist-retraction noise; counts <=1
+// wait for the existing Phase C.1 voice disambiguation and are only ever
+// revealed later (at normal resolution), never early.
+function shouldRevealPhase1(fingerCount) {
+  return fingerCount != null && fingerCount >= 2;
+}
+
 // Phase C.3: blank rival-clip audio from an extracted recognition buffer.
 // Jordi's clips are scheduled on the SAME shared AudioContext as the mic
 // capture (ctx — there is only one in this file), and each playback's real
@@ -2476,6 +2485,13 @@ function onSyncHandOnset(settlePerfTime, motionStartPerfTime, fingerCount) {
     voiceOnsetPerfTime: null, voicePreWindow: false,
     syncDeltaMs: null, outcome: "pending", pending: true, word: null,
     gameHandled: false, // step 11: guards maybeResolveGameRound against double-processing
+    // Phase E: snapshotted BEFORE any phase-1 reveal below can update the
+    // live lastRoundAudioEndCtxTime — triggerSyncAudioAnalysis's window
+    // clamp for THIS throw must be measured against the PREVIOUS throw's
+    // rival audio, never against this same throw's own in-flight reveal
+    // clip (that overlap is handled by blanking instead, not by clamping).
+    clampFloorCtxTime: lastRoundAudioEndCtxTime,
+    rivalRevealed: false, revealedAiMove: null, revealedVerified: null,
   };
   syncThrows.push(throwEvent);
   logEvent("throw_onset", { throwIndex: throwEvent.throwIndex, handOnsetPerfTime: anchorPerfTime, settlePerfTime, fingerCount });
@@ -2483,13 +2499,19 @@ function onSyncHandOnset(settlePerfTime, motionStartPerfTime, fingerCount) {
   renderSyncTally(syncThrows);
   if (voskModel) renderBigWordPendingFor(throwEvent);
   // step 11/12: a fresh throw starting is what should replace the previous
-  // round's reveal on screen — not the auto-recommit that follows it. The
-  // rival hand flips back to a fist here too, showing whichever commitment
-  // is already sitting in currentAiMove (generated in the background right
-  // after the last round resolved).
+  // round's reveal on screen — not the auto-recommit that follows it.
   if (playVsOpponent && heroMode === "sync" && !gameOver) {
     renderGameRoundAnalyzing();
-    renderRivalCommitted();
+    // Phase E.1: a settle at fingerCount>=2 is confident enough to be a real
+    // throw — reveal the rival's already-sealed move immediately instead of
+    // waiting for word recognition (phase 2, which only updates the verdict
+    // card + score later). Counts <=1 could still turn out to be a reset,
+    // so they keep showing the fist until resolution, exactly as before.
+    if (shouldRevealPhase1(fingerCount)) {
+      revealRivalPhase1(throwEvent); // fire-and-forget — see its own comment
+    } else {
+      renderRivalCommitted();
+    }
     throwInProgress = true; // step 13
     renderReadyPill();
   }
@@ -2536,7 +2558,10 @@ function triggerSyncAudioAnalysis(handPerfTime, throwEvent, debugRec) {
 
   // Phase C.4: clamp the requested pre-window so it can never reach
   // backward into the previous round's own audio (reveal / rival clip).
-  const clampResult = clampSyncWindowStart(handOnsetCtxTime, SYNC_PRE_MS, lastRoundAudioEndCtxTime);
+  // Phase E: uses throwEvent.clampFloorCtxTime (snapshotted at onset, before
+  // this same throw's own phase-1 reveal could move the live value) — never
+  // this throw's own concurrently-playing clip, which blanking handles.
+  const clampResult = clampSyncWindowStart(handOnsetCtxTime, SYNC_PRE_MS, throwEvent.clampFloorCtxTime);
   rec.clampedToPrevRound = clampResult.clampedToPrevRound;
 
   requestRingExtract(handOnsetCtxTime, clampResult.clampedPreMs, SYNC_POST_MS)
@@ -2849,6 +2874,48 @@ function renderRivalReveal(move, verified) {
   el.aiCommitStatus.textContent = `Opponent committed: ${move.hashHex.slice(0, 8)} ${verified ? "✓" : "✗ VERIFY FAILED"}`;
 }
 
+// Phase E: the AI's move was sealed (commit-before-reveal) before the
+// player ever threw, so revealing it the instant a real throw is detected
+// leaks nothing and can't be reacted to — this kills the perceived lag
+// between throwing and seeing the rival's hand. Word recognition + the
+// verdict/score still land later, at phase 2 (resolveGameRound, or the
+// "void" branch of maybeResolveGameRound if this throw doesn't pan out). A
+// revealed move is single-use regardless of outcome: the moment it's shown,
+// a fresh commitment is minted for whatever throw comes next (kept
+// unrendered until then, same "reveal persists until the next throw
+// starts" convention as before) — never reused, exactly like a real round.
+async function revealRivalPhase1(throwEvent) {
+  const move = currentAiMove;
+  if (!move) return;
+  const t0 = performance.now();
+  let verified = false;
+  try {
+    verified = await verifyCommitment(move.fingers, move.call, move.nonce, move.hashHex);
+  } catch (err) {
+    reportError("game-verify", err);
+  }
+  throwEvent.rivalRevealed = true;
+  throwEvent.revealedAiMove = move;
+  throwEvent.revealedVerified = verified;
+  renderRivalReveal(move, verified);
+  const clipPlayback = playRivalCall(move.call); // step 14 clip, now scheduled during the player's own capture window
+  // Phase C.4: floor for the NEXT throw's window clamp (see clampFloorCtxTime
+  // in onSyncHandOnset — never used against THIS throw's own window).
+  lastRoundAudioEndCtxTime = clipPlayback ? clipPlayback.endCtxTime : ctx.currentTime;
+  if (throwEvent.debugRec) {
+    throwEvent.debugRec.rivalReveal = { commitmentHash: move.hashHex, aiFingers: move.fingers, aiCall: move.call, verified, latencyMs: performance.now() - t0 };
+  }
+  logEvent("rival_reveal_phase1", {
+    throwIndex: throwEvent.throwIndex, commitmentHash: move.hashHex, aiFingers: move.fingers, aiCall: move.call, verified,
+    latencyMs: performance.now() - t0, // time spent verifying+rendering+starting the clip, NOT the (separate, pre-existing) motion-to-settle detector latency
+  });
+  // Burn it: mint the next commitment now, in the background — this one can
+  // never be offered again. Not rendered yet (no renderRivalCommitted()
+  // call) so the just-revealed hand/word stays on screen until the next
+  // throw's onset, whether this round ends up resolved or voided.
+  if (!gameOver) await commitAiMove();
+}
+
 function renderGameRoundPending() {
   el.roundResultCard.className = "verdict-card idle";
   el.roundResultText.textContent = "–";
@@ -2873,6 +2940,24 @@ function renderGameIncomplete(playerFingers, word, syncOutcome) {
   else reason = "unrecognized call";
   const commitTxt = currentAiMove ? currentAiMove.hashHex.slice(0, 8) : "—";
   el.roundResultDetail.textContent = `${reason} — same commitment stands (${commitTxt})`;
+}
+const SYNC_OUTCOME_VOID_REASON = {
+  "voice-late": "you called it too late",
+  "voice-early": "you called it too early",
+  "hand-only": "no call word heard",
+  "voice-only": "no hand onset seen",
+};
+// Phase E.2/E.3: the rival was already revealed for this throw (phase 1)
+// but the throw itself didn't come together — unlike the plain "incomplete"
+// case, that revealed move can't just sit and wait for a retry (it's public
+// now), so the round is VOID: the reveal stays on screen, a fresh
+// commitment is already in force (minted in revealRivalPhase1), and the
+// player just throws again.
+function renderGameRoundVoid(syncOutcome) {
+  el.roundResultCard.className = "verdict-card incomplete";
+  el.roundResultText.textContent = "RONDA ANUL·LADA";
+  const reason = SYNC_OUTCOME_VOID_REASON[syncOutcome] || "not synced";
+  el.roundResultDetail.textContent = `${reason} — torna-hi (el rival ja ha fet una nova aposta)`;
 }
 function renderGameReveal(move, verified, playerFingers, playerCallNumber, verdict, playerWord) {
   const aiWord = NUMBER_TO_CATALAN_CALL[move.call] || String(move.call);
@@ -2997,26 +3082,39 @@ function playRivalCall(call) {
 }
 
 async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumber) {
-  const move = currentAiMove;
+  // Phase E: normally the rival was already revealed — and a fresh
+  // commitment already minted — back at phase-1 reveal (revealRivalPhase1,
+  // fired the instant this throw's hand onset settled at fingerCount>=2).
+  // This only falls back to the full legacy reveal-here path if that never
+  // happened (e.g. play-vs-opponent got toggled on mid-throw), so nothing
+  // regresses for a throw phase-1 never saw.
+  const alreadyRevealed = !!throwEvent.rivalRevealed;
+  const move = alreadyRevealed ? throwEvent.revealedAiMove : currentAiMove;
   if (!move) return; // no commitment yet (shouldn't normally happen once the game is running)
-  let verified = false;
-  try {
-    verified = await verifyCommitment(move.fingers, move.call, move.nonce, move.hashHex);
-  } catch (err) {
-    reportError("game-verify", err);
+  let verified;
+  if (alreadyRevealed) {
+    verified = throwEvent.revealedVerified;
+  } else {
+    verified = false;
+    try {
+      verified = await verifyCommitment(move.fingers, move.call, move.nonce, move.hashHex);
+    } catch (err) {
+      reportError("game-verify", err);
+    }
   }
   const verdict = computeMicatioVerdict(playerFingers, playerCallNumber, move.fingers, move.call);
   if (verdict.winner === "player") gameScore.player++;
   else if (verdict.winner === "ai") gameScore.ai++;
 
   renderGameReveal(move, verified, playerFingers, playerCallNumber, verdict, word);
-  renderRivalReveal(move, verified);
+  if (!alreadyRevealed) {
+    // legacy fallback only — phase-1 already rendered the reveal, played
+    // the clip, and set the C.4 clamp floor for this move.
+    renderRivalReveal(move, verified);
+    const clipPlayback = playRivalCall(move.call); // step 14: pre-generated clip, not speechSynthesis
+    lastRoundAudioEndCtxTime = clipPlayback ? clipPlayback.endCtxTime : ctx.currentTime;
+  }
   renderScoreboard();
-  const clipPlayback = playRivalCall(move.call); // step 14: pre-generated clip, not speechSynthesis
-  // Phase C.4: the floor for the NEXT throw's window clamp — either the
-  // rival clip's real end time, or (clip missing/failed) this reveal's own
-  // ctx-time, so a window can never reach back into this moment's audio.
-  lastRoundAudioEndCtxTime = clipPlayback ? clipPlayback.endCtxTime : ctx.currentTime;
   markThrowResolvedForReadyPill(playerFingers); // step 13
 
   if (throwEvent.debugRec) {
@@ -3026,19 +3124,20 @@ async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumbe
       playerFingers, playerWord: word, playerCallNumber,
       total: verdict.total, playerCorrect: verdict.playerCorrect, aiCorrect: verdict.aiCorrect,
       verdictWinner: verdict.winner, scoreAfter: { player: gameScore.player, ai: gameScore.ai },
+      revealedEarly: alreadyRevealed,
     };
   }
 
   logEvent("game_reveal", {
     throwIndex: throwEvent.throwIndex, aiFingers: move.fingers, aiCall: move.call, commitmentHash: move.hashHex, verified,
     playerFingers, playerWord: word, playerCallNumber, total: verdict.total, verdictWinner: verdict.winner,
-    scoreAfter: { player: gameScore.player, ai: gameScore.ai },
+    scoreAfter: { player: gameScore.player, ai: gameScore.ai }, revealedEarly: alreadyRevealed,
   });
 
   if (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE) {
     showGameEndBanner(gameScore.player >= GAME_WIN_SCORE ? "player" : "ai");
-  } else {
-    commitAiMove(); // prepare the next round's commitment right away
+  } else if (!alreadyRevealed) {
+    commitAiMove(); // legacy fallback only — phase-1 already minted the next round's commitment otherwise
   }
 }
 
@@ -3063,10 +3162,23 @@ async function maybeResolveGameRound(throwEvent) {
   // but must never consume/resolve the committed AI move, exactly like the
   // existing "no hand/no word" incomplete path.
   if (throwEvent.outcome !== "synced" || playerFingers == null || playerCallNumber == null) {
-    renderGameIncomplete(playerFingers, throwEvent.word, throwEvent.outcome);
-    if (throwEvent.debugRec) throwEvent.debugRec.game = { incomplete: true, playerFingers, playerWord: throwEvent.word, syncOutcome: throwEvent.outcome };
+    if (throwEvent.rivalRevealed) {
+      // Phase E.2/E.3: the rival was already shown for this throw (commit-
+      // before-reveal made that safe) but it didn't pair up as a real synced
+      // throw — that revealed move is burned (never reused; a fresh
+      // commitment is already sitting in currentAiMove from
+      // revealRivalPhase1) and the round is void, not just incomplete.
+      renderGameRoundVoid(throwEvent.outcome);
+      const burnedHash = throwEvent.revealedAiMove ? throwEvent.revealedAiMove.hashHex : null;
+      if (throwEvent.debugRec) throwEvent.debugRec.game = { void: true, playerFingers, playerWord: throwEvent.word, syncOutcome: throwEvent.outcome, burnedCommitmentHash: burnedHash };
+      logEvent("reveal_burned", { throwIndex: throwEvent.throwIndex, reason: throwEvent.outcome, burnedCommitmentHash: burnedHash });
+    } else {
+      renderGameIncomplete(playerFingers, throwEvent.word, throwEvent.outcome);
+      if (throwEvent.debugRec) throwEvent.debugRec.game = { incomplete: true, playerFingers, playerWord: throwEvent.word, syncOutcome: throwEvent.outcome };
+      // AI's commitment stays exactly as-is (never revealed) — same hash, next throw retries against it
+    }
     markThrowResolvedForReadyPill(playerFingers); // step 13
-    return; // AI's commitment stays exactly as-is — same hash, next throw retries against it
+    return;
   }
   await resolveGameRound(throwEvent, playerFingers, throwEvent.word, playerCallNumber);
 }
@@ -3540,6 +3652,8 @@ window.__s03 = {
   get rivalClipPlaybacks() { return rivalClipPlaybacks; },
   get lastRoundAudioEndCtxTime() { return lastRoundAudioEndCtxTime; },
   set lastRoundAudioEndCtxTime(v) { lastRoundAudioEndCtxTime = v; },
+  // Phase E (two-phase reveal: instant rival reveal, verdict trails)
+  shouldRevealPhase1, revealRivalPhase1, renderGameRoundVoid, SYNC_OUTCOME_VOID_REASON,
   // Phase D (structured event log: one bus, two sinks)
   logEvent, flushLogBatch, LOG_SESSION_ID,
   get eventBusLog() { return eventBusLog; },

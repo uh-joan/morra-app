@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd /private/tmp && node test-phase-c-d.mjs\",\"timeout\":60000}",
-  "error": "Exit code 1\nok   - sessionId present and looks like 8 hex chars\nok   - footer shows the sessionId\nnode:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nError [TypeError]: Cannot read properties of undefined (reading 'debugRec')\n    at evaluate (evaluate at file:///private/tmp/test-phase-c-d.mjs:49:23, <anonymous>:7:27)\n    at #evaluate (file:///private/tmp/node_modules/puppeteer-core/lib/puppeteer/cdp/ExecutionContext.js:388:19)\n    at async ExecutionContext.evaluate (file:///p...",
-  "timestamp": "2026-08-09T17:07:05.322Z",
+  "tool_input_preview": "{\"command\":\"cd /private/tmp && timeout 40 node -e '\\nimport(\\\"puppeteer-core\\\").then(async (m) => {\\n  const puppeteer = m.default;\\n  const browser = await puppeteer.launch({ executablePath: \\\"/Appli...",
+  "error": "Exit code 127\n(eval):1: command not found: timeout",
+  "timestamp": "2026-08-09T17:46:13.852Z",
   "retry_count": 1
 }

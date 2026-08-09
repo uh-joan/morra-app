@@ -68,8 +68,14 @@
   "hotPaths": [
     {
       "path": "spikes/s03-beat.html",
-      "accessCount": 35,
-      "lastAccessed": 1786295238987,
+      "accessCount": 47,
+      "lastAccessed": 1786297448022,
+      "type": "file"
+    },
+    {
+      "path": "play.sh",
+      "accessCount": 2,
+      "lastAccessed": 1786297206587,
       "type": "file"
     }
   ],
