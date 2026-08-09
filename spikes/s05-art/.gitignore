@@ -1,0 +1,9 @@
+# Pipeline artifacts — not source, don't commit.
+character.blend
+*.blend1
+*.blend2
+out/
+final/
+*.webm
+*.png
+__pycache__/

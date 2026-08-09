@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>S0.1 — Finger-CV Spike</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --pass: #2ea043;
+    --fail: #d73a49;
+    --accent: #58a6ff;
+    --warn: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0; padding: 16px;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 12px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; margin-bottom: 16px;
+  }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  input[type=text], select {
+    width: 100%; background: #0d1117; border: 1px solid var(--border); color: var(--text);
+    padding: 6px 8px; border-radius: 4px; font-size: 13px;
+  }
+  input[type=range] { width: 100%; }
+  button {
+    background: #21262d; color: var(--text); border: 1px solid var(--border);
+    padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin: 4px 4px 0 0;
+  }
+  button:hover { background: #30363d; }
+  button.primary { background: var(--accent); color: #041226; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .video-wrap { position: relative; width: 640px; max-width: 100%; }
+  video, canvas.overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: auto; border-radius: 8px;
+  }
+  video { position: relative; background: #000; }
+  .status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .badge {
+    display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px;
+    background: #21262d; border: 1px solid var(--border); color: var(--muted);
+  }
+  .badge.ok { color: var(--pass); border-color: var(--pass); }
+  .badge.warn { color: var(--warn); border-color: var(--warn); }
+  .badge.bad { color: var(--fail); border-color: var(--fail); }
+  .count-display {
+    font-size: 64px; font-weight: 700; text-align: center; padding: 12px 0;
+    color: var(--accent);
+  }
+  .count-display .label { font-size: 12px; color: var(--muted); font-weight: 400; text-align: center; }
+  .keys-row { display: flex; gap: 6px; justify-content: center; margin: 8px 0; }
+  .key {
+    width: 40px; height: 40px; border-radius: 6px; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;
+    background: #0d1117; color: var(--muted);
+  }
+  .key.active { background: var(--accent); color: #041226; border-color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { border: 1px solid var(--border); padding: 4px 6px; text-align: center; }
+  th { background: #0d1117; color: var(--muted); font-weight: 600; }
+  td.diag { background: rgba(46,160,67,0.12); }
+  td.hot34 { background: rgba(215,58,73,0.25); font-weight: 700; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-box { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+  .stat-box .v { font-size: 20px; font-weight: 700; }
+  .stat-box .k { font-size: 11px; color: var(--muted); }
+  .stat-box.pass { border-color: var(--pass); }
+  .stat-box.fail { border-color: var(--fail); }
+  .log-table-wrap { max-height: 220px; overflow-y: auto; }
+  .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 13px; margin-bottom: 8px; }
+  code { background: #0d1117; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .footnote { color: var(--muted); font-size: 11px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<h1>S0.1 — Finger-CV Spike</h1>
+<p class="sub">Throwaway test harness. MediaPipe HandLandmarker, raw-landmark finger counting, live scoring protocol. Not part of any package build.</p>
+
+<details class="panel">
+  <summary>Operator instructions (read before testing)</summary>
+  <ol>
+    <li>Serve this directory over HTTP (not <code>file://</code>) — e.g. <code>npx serve spikes</code> or <code>python3 -m http.server 8080</code> from <code>spikes/</code>, then open <code>http://localhost:PORT/s01-fingers.html</code>.</li>
+    <li>Fill in tester name, lighting condition, and camera model (auto-filled after camera permission, editable).</li>
+    <li>Click <b>Start Camera</b>, allow webcam access. Wait for status to say the model is ready and a mode badge appears (Worker+OffscreenCanvas or Main-thread fallback).</li>
+    <li>Hold the digit key <b>1–5</b> down while throwing that many fingers at the camera; release the key when the throw is done. Repeat for many throws, mixing digits, especially 3 and 4.</li>
+    <li>Watch the confusion matrix and the 3-vs-4 callout update live. Change lighting/tester and click <b>Reset live stats</b> to start a fresh matrix for that condition (all throws remain in the export regardless).</li>
+    <li>Click <b>Export CSV</b> at the end of a session (or any time) to download every logged throw with metadata.</li>
+  </ol>
+  <p class="footnote">This harness never simulates or pre-fills throws — every row in the log and CSV comes from an actual keypress-held throw.</p>
+</details>
+
+<div class="grid">
+  <div>
+    <div class="panel">
+      <h2>Session metadata</h2>
+      <label for="tester">Tester name</label>
+      <input type="text" id="tester" placeholder="e.g. jani">
+      <label for="lighting">Lighting condition</label>
+      <select id="lighting">
+        <option value="window-backlight">window-backlight</option>
+        <option value="overhead-LED">overhead-LED</option>
+        <option value="dim-lamp">dim-lamp</option>
+      </select>
+      <label for="camera">Camera model</label>
+      <input type="text" id="camera" placeholder="auto-filled after permission">
+    </div>
+
+    <div class="panel">
+      <h2>Camera / model</h2>
+      <div class="flex">
+        <button id="startBtn" class="primary">Start Camera</button>
+        <button id="stopBtn" disabled>Stop</button>
+      </div>
+      <div class="status-row" id="statusRow">
+        <span class="badge" id="camBadge">camera: idle</span>
+        <span class="badge" id="modeBadge">mode: —</span>
+        <span class="badge" id="delegateBadge">delegate: —</span>
+        <span class="badge" id="rvfcBadge">rVFC: —</span>
+      </div>
+      <div id="errorBox" class="footnote" style="color:var(--fail);"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Settled-frame threshold</h2>
+      <label for="settleSlider">Fingertip velocity threshold (normalized units/sec): <span id="settleVal">0.8</span></label>
+      <input type="range" id="settleSlider" min="0.1" max="3" step="0.05" value="0.8">
+      <div class="stat-grid" style="margin-top:8px;">
+        <div class="stat-box"><div class="v" id="settledCount">0</div><div class="k">settled frames (session)</div></div>
+        <div class="stat-box"><div class="v" id="blurredCount">0</div><div class="k">blurred frames (session)</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Timing vs kill criteria</h2>
+      <div class="stat-grid">
+        <div class="stat-box" id="workerP50Box"><div class="v" id="workerP50">—</div><div class="k">worker inference p50 (ms)</div></div>
+        <div class="stat-box" id="workerP95Box"><div class="v" id="workerP95">—</div><div class="k">worker inference p95 (ms) — kill ≤12</div></div>
+        <div class="stat-box" id="mainP50Box"><div class="v" id="mainP50">—</div><div class="k">main-thread p50 (ms/frame)</div></div>
+        <div class="stat-box" id="mainP95Box"><div class="v" id="mainP95">—</div><div class="k">main-thread p95 (ms/frame) — kill ≤8</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Live preview</h2>
+      <div class="video-wrap" id="videoWrap">
+        <video id="video" width="640" height="480" playsinline muted></video>
+        <canvas class="overlay" id="overlay" width="640" height="480"></canvas>
+      </div>
+      <div class="count-display" id="countDisplay">–</div>
+      <div class="label">recognized finger count</div>
+      <div class="keys-row">
+        <div class="key" id="key1">1</div>
+        <div class="key" id="key2">2</div>
+        <div class="key" id="key3">3</div>
+        <div class="key" id="key4">4</div>
+        <div class="key" id="key5">5</div>
+      </div>
+      <p class="footnote" id="trialStatus">Hold a digit key (1–5) while throwing that many fingers.</p>
+    </div>
+
+    <div class="panel">
+      <h2>3-vs-4 accuracy (kill criterion: ≥90%)</h2>
+      <div class="stat-grid">
+        <div class="stat-box" id="acc34Box"><div class="v" id="acc34">—</div><div class="k">3-vs-4 accuracy (this segment)</div></div>
+        <div class="stat-box"><div class="v" id="acc34n">0</div><div class="k">3-vs-4 throws sampled</div></div>
+      </div>
+      <p class="footnote">Kill criterion is per tester per lighting condition. Click "Reset live stats" when tester/lighting changes to score a fresh segment; the CSV export always retains every throw across all segments for offline per-(tester,lighting) analysis.</p>
+    </div>
+
+    <div class="panel">
+      <div class="flex" style="justify-content: space-between;">
+        <h2 style="margin:0;">Confusion matrix (truth rows × predicted cols) — this segment</h2>
+        <div>
+          <button id="resetBtn">Reset live stats (new segment)</button>
+          <button id="exportBtn" class="primary">Export CSV</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="matrixTable"></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Throw log (most recent first)</h2>
+      <div class="log-table-wrap">
+        <table id="logTable">
+          <thead><tr><th>#</th><th>time</th><th>truth</th><th>predicted</th><th>ok?</th><th>settled/blurred</th><th>avg inf ms</th></tr></thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+'use strict';
+
+/* ---------------------------------------------------------------------
+ * Config
+ * ------------------------------------------------------------------- */
+const TASKS_VISION_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
+const TASKS_VISION_BUNDLE_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js';
+const TASKS_VISION_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
+const HAND_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],
+  [13,17],[17,18],[18,19],[19,20],
+  [0,17]
+];
+
+/* ---------------------------------------------------------------------
+ * DOM refs
+ * ------------------------------------------------------------------- */
+const $ = (id) => document.getElementById(id);
+const video = $('video');
+const overlay = $('overlay');
+const overlayCtx = overlay.getContext('2d');
+const startBtn = $('startBtn');
+const stopBtn = $('stopBtn');
+const camBadge = $('camBadge');
+const modeBadge = $('modeBadge');
+const delegateBadge = $('delegateBadge');
+const rvfcBadge = $('rvfcBadge');
+const errorBox = $('errorBox');
+const countDisplay = $('countDisplay');
+const trialStatus = $('trialStatus');
+const settleSlider = $('settleSlider');
+const settleVal = $('settleVal');
+const settledCountEl = $('settledCount');
+const blurredCountEl = $('blurredCount');
+const testerInput = $('tester');
+const lightingSelect = $('lighting');
+const cameraInput = $('camera');
+const matrixTable = $('matrixTable');
+const logBody = $('logBody');
+const resetBtn = $('resetBtn');
+const exportBtn = $('exportBtn');
+
+/* ---------------------------------------------------------------------
+ * State
+ * ------------------------------------------------------------------- */
+let stream = null;
+let worker = null;
+let usingWorker = false;
+let rvfcSupported = false;
+let handle = null; // rVFC handle or rAF handle
+let busy = false;
+let frameCounter = 0;
+let lastTimestampMs = -1;
+let pendingFrame = null; // {captureStart, captureEnd}
+let settleThreshold = parseFloat(settleSlider.value);
+
+// main-thread-only fallback state
+let fallbackLandmarker = null;
+let fallbackPrevTips = null;
+let fallbackPrevTs = null;
+
+// timing arrays (capped)
+const MAX_SAMPLES = 500;
+let workerInferenceTimes = [];
+let mainThreadCosts = [];
+
+// session-wide settled/blurred totals (never reset by "reset live stats")
+let sessionSettled = 0;
+let sessionBlurred = 0;
+
+// trial (keypress) state
+let activeTruth = null;
+let trialSamples = []; // {count, settled, inferenceMs}
+
+// full throw log (append-only, used for CSV export)
+let allThrows = [];
+let segmentId = 0;
+let segmentStartIndex = 0;
+let throwCounter = 0;
+
+/* ---------------------------------------------------------------------
+ * Finger counting (raw landmarks: tip vs PIP/reference joint, thumb
+ * special-cased). Duplicated in the worker source string below because
+ * the worker ships as a self-contained Blob — this is spike code, kept
+ * in sync manually, not shared modules.
+ * ------------------------------------------------------------------- */
+function dist(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+}
+function countFingersMainThread(lm) {
+  const wrist = lm[0];
+  const fingers = [[8,6],[12,10],[16,14],[20,18]];
+  let count = 0;
+  for (const [tip, pip] of fingers) {
+    if (dist(lm[tip], wrist) > dist(lm[pip], wrist) * 1.05) count++;
+  }
+  const thumbTip = lm[4], thumbIp = lm[3], pinkyMcp = lm[17];
+  if (dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05) count++;
+  return count;
+}
+
+/* ---------------------------------------------------------------------
+ * Percentiles
+ * ------------------------------------------------------------------- */
+function percentile(arr, p) {
+  if (arr.length === 0) return null;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.floor(p * (sorted.length - 1)));
+  return sorted[idx];
+}
+function pushCapped(arr, v) {
+  arr.push(v);
+  if (arr.length > MAX_SAMPLES) arr.shift();
+}
+
+/* ---------------------------------------------------------------------
+ * Worker source (Blob URL, CLASSIC worker — not type:'module').
+ *
+ * IMPORTANT (found by testing, not assumption): @mediapipe/tasks-vision's
+ * WASM loader calls importScripts() internally to pull in the wasm glue
+ * script, and importScripts() throws in a module-type Worker (it's a
+ * classic-worker-only API). Using `new Worker(url, {type:'module'})`
+ * with a static `import` of the ESM bundle builds fine but fails at
+ * HandLandmarker.createFromOptions() with "ModuleFactory not set." —
+ * confirmed live via headless Chrome with a fake camera. The working
+ * pattern (matches MediaPipe's own worker codelab) is a classic worker
+ * that pulls in the IIFE bundle via importScripts(), which exposes a
+ * global `Vision` namespace (Vision.FilesetResolver, Vision.HandLandmarker).
+ *
+ * OffscreenCanvas is a Worker-global feature independent of module-ness,
+ * so it's still used here for the off-main-thread landmark-overlay
+ * render + settled-frame velocity bookkeeping. detectForVideo() is fed
+ * the raw ImageBitmap directly (a documented supported source type).
+ * ------------------------------------------------------------------- */
+const workerSrc = [
+'importScripts("' + TASKS_VISION_BUNDLE_URL + '");',
+'const { FilesetResolver, HandLandmarker } = self.Vision;',
+'',
+'let handLandmarker = null;',
+'let canvas = new OffscreenCanvas(640, 480);',
+'let ctx = canvas.getContext("2d");',
+'let settleThreshold = 0.8;',
+'let prevTips = null;',
+'let prevTs = null;',
+'',
+'const CONNECTIONS = ' + JSON.stringify(HAND_CONNECTIONS) + ';',
+'',
+'function dist(a, b) {',
+'  return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));',
+'}',
+'function countFingers(lm) {',
+'  const wrist = lm[0];',
+'  const fingers = [[8,6],[12,10],[16,14],[20,18]];',
+'  let count = 0;',
+'  for (const pair of fingers) {',
+'    const tip = pair[0], pip = pair[1];',
+'    if (dist(lm[tip], wrist) > dist(lm[pip], wrist) * 1.05) count++;',
+'  }',
+'  const thumbTip = lm[4], thumbIp = lm[3], pinkyMcp = lm[17];',
+'  if (dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05) count++;',
+'  return count;',
+'}',
+'',
+'async function init() {',
+'  try {',
+'    const vision = await FilesetResolver.forVisionTasks("' + TASKS_VISION_WASM + '");',
+'    let delegate = "GPU";',
+'    try {',
+'      handLandmarker = await HandLandmarker.createFromOptions(vision, {',
+'        baseOptions: { modelAssetPath: "' + HAND_MODEL_URL + '", delegate: "GPU" },',
+'        runningMode: "VIDEO",',
+'        numHands: 1',
+'      });',
+'    } catch (gpuErr) {',
+'      delegate = "CPU";',
+'      handLandmarker = await HandLandmarker.createFromOptions(vision, {',
+'        baseOptions: { modelAssetPath: "' + HAND_MODEL_URL + '", delegate: "CPU" },',
+'        runningMode: "VIDEO",',
+'        numHands: 1',
+'      });',
+'    }',
+'    postMessage({ type: "ready", delegate: delegate });',
+'  } catch (err) {',
+'    postMessage({ type: "fatal-error", message: String(err && err.message || err) });',
+'  }',
+'}',
+'init();',
+'',
+'self.onmessage = async (ev) => {',
+'  const msg = ev.data;',
+'  if (msg.type === "config") {',
+'    settleThreshold = msg.settleThreshold;',
+'    return;',
+'  }',
+'  if (msg.type !== "frame" || !handLandmarker) {',
+'    if (msg.bitmap && msg.bitmap.close) msg.bitmap.close();',
+'    return;',
+'  }',
+'  const bitmap = msg.bitmap;',
+'  const id = msg.id;',
+'  const timestamp = msg.timestamp;',
+'  try {',
+'    if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {',
+'      canvas.width = bitmap.width; canvas.height = bitmap.height;',
+'    }',
+'    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);',
+'',
+'    const t0 = performance.now();',
+'    const result = handLandmarker.detectForVideo(bitmap, timestamp);',
+'    const t1 = performance.now();',
+'    const inferenceMs = t1 - t0;',
+'',
+'    let count = null, settled = false, handDetected = false;',
+'    if (result.landmarks && result.landmarks.length > 0) {',
+'      handDetected = true;',
+'      const lm = result.landmarks[0];',
+'      count = countFingers(lm);',
+'',
+'      const tips = [4,8,12,16,20].map((i) => lm[i]);',
+'      if (prevTips && prevTs != null) {',
+'        const dt = Math.max(1, timestamp - prevTs) / 1000;',
+'        let totalDisp = 0;',
+'        for (let i = 0; i < tips.length; i++) totalDisp += dist(tips[i], prevTips[i]);',
+'        const velocity = (totalDisp / tips.length) / dt;',
+'        settled = velocity < settleThreshold;',
+'      }',
+'      prevTips = tips;',
+'      prevTs = timestamp;',
+'',
+'      ctx.lineWidth = 2;',
+'      ctx.strokeStyle = settled ? "#2ea043" : "#d29922";',
+'      ctx.beginPath();',
+'      for (const c of CONNECTIONS) {',
+'        const a = lm[c[0]], b = lm[c[1]];',
+'        ctx.moveTo(a.x * canvas.width, a.y * canvas.height);',
+'        ctx.lineTo(b.x * canvas.width, b.y * canvas.height);',
+'      }',
+'      ctx.stroke();',
+'      ctx.fillStyle = "#58a6ff";',
+'      for (const p of lm) {',
+'        ctx.beginPath();',
+'        ctx.arc(p.x * canvas.width, p.y * canvas.height, 3, 0, Math.PI * 2);',
+'        ctx.fill();',
+'      }',
+'    } else {',
+'      prevTips = null; prevTs = null;',
+'    }',
+'',
+'    bitmap.close();',
+'    const overlayBitmap = canvas.transferToImageBitmap();',
+'    postMessage({',
+'      type: "result", id, count, settled, handDetected, inferenceMs, timestamp,',
+'      overlayBitmap',
+'    }, [overlayBitmap]);',
+'  } catch (err) {',
+'    if (bitmap && bitmap.close) bitmap.close();',
+'    postMessage({ type: "frame-error", id, message: String(err && err.message || err) });',
+'  }',
+'};'
+].join('\n');
+
+/* ---------------------------------------------------------------------
+ * UI helpers
+ * ------------------------------------------------------------------- */
+function setBadge(el, text, cls) {
+  el.textContent = text;
+  el.className = 'badge' + (cls ? ' ' + cls : '');
+}
+function showError(msg) {
+  errorBox.textContent = msg;
+  console.error('[s01-fingers]', msg);
+}
+
+function updateTimingUI() {
+  const wp50 = percentile(workerInferenceTimes, 0.5);
+  const wp95 = percentile(workerInferenceTimes, 0.95);
+  const mp50 = percentile(mainThreadCosts, 0.5);
+  const mp95 = percentile(mainThreadCosts, 0.95);
+  $('workerP50').textContent = wp50 == null ? '—' : wp50.toFixed(2);
+  $('workerP95').textContent = wp95 == null ? '—' : wp95.toFixed(2);
+  $('mainP50').textContent = mp50 == null ? '—' : mp50.toFixed(2);
+  $('mainP95').textContent = mp95 == null ? '—' : mp95.toFixed(2);
+  $('workerP95Box').className = 'stat-box' + (wp95 == null ? '' : wp95 <= 12 ? ' pass' : ' fail');
+  $('mainP95Box').className = 'stat-box' + (mp95 == null ? '' : mp95 <= 8 ? ' pass' : ' fail');
+}
+
+function renderMatrix() {
+  const truths = [1,2,3,4,5];
+  const preds = [1,2,3,4,5,'none'];
+  const throws = allThrows.slice(segmentStartIndex);
+
+  const matrix = {};
+  for (const t of truths) { matrix[t] = {}; for (const p of preds) matrix[t][p] = 0; }
+  for (const row of throws) {
+    const t = row.truth;
+    const p = row.predicted == null ? 'none' : row.predicted;
+    if (matrix[t] && p in matrix[t]) matrix[t][p]++;
+  }
+
+  let html = '<tr><th>truth \\ pred</th>' + preds.map(p => '<th>' + p + '</th>').join('') + '<th>row acc</th></tr>';
+  for (const t of truths) {
+    let rowTotal = 0, rowCorrect = 0;
+    let cells = '';
+    for (const p of preds) {
+      const v = matrix[t][p];
+      rowTotal += v;
+      if (String(p) === String(t)) rowCorrect += v;
+      let cls = '';
+      if (String(p) === String(t)) cls = 'diag';
+      if ((t === 3 || t === 4) && (p === 3 || p === 4)) cls = (String(p) === String(t)) ? 'diag' : 'hot34';
+      cells += '<td class="' + cls + '">' + v + '</td>';
+    }
+    const acc = rowTotal ? ((rowCorrect / rowTotal) * 100).toFixed(0) + '%' : '—';
+    html += '<tr><th>' + t + '</th>' + cells + '<td>' + acc + '</td></tr>';
+  }
+  matrixTable.innerHTML = html;
+
+  // 3-vs-4 callout: among truth in {3,4}, correct / total
+  const relevant = throws.filter(r => r.truth === 3 || r.truth === 4);
+  const correct34 = relevant.filter(r => r.predicted === r.truth).length;
+  const acc34 = relevant.length ? (correct34 / relevant.length) * 100 : null;
+  $('acc34').textContent = acc34 == null ? '—' : acc34.toFixed(1) + '%';
+  $('acc34n').textContent = String(relevant.length);
+  $('acc34Box').className = 'stat-box' + (acc34 == null ? '' : acc34 >= 90 ? ' pass' : ' fail');
+}
+
+function renderLog() {
+  const rows = allThrows.slice().reverse().slice(0, 100);
+  logBody.innerHTML = rows.map(r => {
+    const ok = r.predicted === r.truth;
+    return '<tr>' +
+      '<td>' + r.idx + '</td>' +
+      '<td>' + new Date(r.tsIso).toLocaleTimeString() + '</td>' +
+      '<td>' + r.truth + '</td>' +
+      '<td>' + (r.predicted == null ? 'none' : r.predicted) + '</td>' +
+      '<td style="color:' + (ok ? 'var(--pass)' : 'var(--fail)') + '">' + (ok ? 'yes' : 'no') + '</td>' +
+      '<td>' + r.settledFrames + '/' + r.blurredFrames + '</td>' +
+      '<td>' + (r.avgInferenceMs == null ? '—' : r.avgInferenceMs.toFixed(2)) + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+/* ---------------------------------------------------------------------
+ * Trial (keypress-held ground truth) handling
+ * ------------------------------------------------------------------- */
+function onKeyDown(e) {
+  if (e.repeat) return;
+  const digit = { Digit1:1, Digit2:2, Digit3:3, Digit4:4, Digit5:5 }[e.code];
+  if (!digit) return;
+  if (activeTruth != null) return; // ignore overlapping trials
+  activeTruth = digit;
+  trialSamples = [];
+  $('key' + digit).classList.add('active');
+  trialStatus.textContent = 'Recording throw for truth = ' + digit + '… release the key when done.';
+}
+function onKeyUp(e) {
+  const digit = { Digit1:1, Digit2:2, Digit3:3, Digit4:4, Digit5:5 }[e.code];
+  if (!digit || digit !== activeTruth) return;
+  $('key' + digit).classList.remove('active');
+  finalizeTrial(digit);
+  activeTruth = null;
+}
+function finalizeTrial(truth) {
+  const settledSamples = trialSamples.filter(s => s.settled && s.count != null);
+  let predicted = null;
+  if (settledSamples.length > 0) {
+    const counts = {};
+    for (const s of settledSamples) counts[s.count] = (counts[s.count] || 0) + 1;
+    let best = null, bestN = -1;
+    for (const k in counts) { if (counts[k] > bestN) { bestN = counts[k]; best = parseInt(k, 10); } }
+    predicted = best;
+  }
+  const settledFrames = trialSamples.filter(s => s.settled).length;
+  const blurredFrames = trialSamples.length - settledFrames;
+  const infTimes = trialSamples.map(s => s.inferenceMs).filter(v => v != null);
+  const avgInferenceMs = infTimes.length ? infTimes.reduce((a,b)=>a+b,0) / infTimes.length : null;
+
+  throwCounter++;
+  const record = {
+    idx: throwCounter,
+    tsIso: new Date().toISOString(),
+    tester: testerInput.value || '(unset)',
+    lighting: lightingSelect.value,
+    camera: cameraInput.value || '(unset)',
+    segment: segmentId,
+    truth,
+    predicted,
+    settledFrames,
+    blurredFrames,
+    sampleCount: trialSamples.length,
+    avgInferenceMs
+  };
+  allThrows.push(record);
+  trialStatus.textContent = 'Logged throw #' + throwCounter + ': truth=' + truth +
+    ', predicted=' + (predicted == null ? 'none (no settled frames)' : predicted) +
+    ' (' + settledFrames + ' settled / ' + blurredFrames + ' blurred frames sampled).';
+  renderMatrix();
+  renderLog();
+}
+
+/* ---------------------------------------------------------------------
+ * Frame handling (shared by worker-mode result handler and fallback)
+ * ------------------------------------------------------------------- */
+function handleDetectionResult({ count, settled, handDetected, inferenceMs }) {
+  countDisplay.textContent = handDetected ? String(count) : '–';
+  if (settled) { sessionSettled++; } else if (handDetected) { sessionBlurred++; }
+  settledCountEl.textContent = String(sessionSettled);
+  blurredCountEl.textContent = String(sessionBlurred);
+  if (activeTruth != null) {
+    trialSamples.push({ count: handDetected ? count : null, settled, inferenceMs });
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Worker-mode pipeline
+ * ------------------------------------------------------------------- */
+function computeFrameTimestampMs(metadata) {
+  let ts;
+  if (metadata && typeof metadata.mediaTime === 'number') {
+    ts = Math.round(metadata.mediaTime * 1000);
+  } else {
+    ts = Math.round(performance.now());
+  }
+  if (ts <= lastTimestampMs) ts = lastTimestampMs + 1;
+  lastTimestampMs = ts;
+  return ts;
+}
+
+async function captureAndSendFrame(metadata) {
+  if (busy) return;
+  busy = true;
+  const captureStart = performance.now();
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(video);
+  } catch (err) {
+    busy = false;
+    return;
+  }
+  const captureEnd = performance.now();
+  const id = ++frameCounter;
+  pendingFrame = { id, captureStart, captureEnd };
+  const timestamp = computeFrameTimestampMs(metadata);
+  worker.postMessage({ type: 'frame', id, bitmap, timestamp }, [bitmap]);
+}
+
+function onWorkerMessage(ev) {
+  const msg = ev.data;
+  if (msg.type === 'ready') {
+    setBadge(delegateBadge, 'delegate: ' + msg.delegate, msg.delegate === 'GPU' ? 'ok' : 'warn');
+    setBadge(camBadge, 'camera: running', 'ok');
+    startFrameLoop();
+    return;
+  }
+  if (msg.type === 'fatal-error') {
+    showError('Worker HandLandmarker init failed: ' + msg.message + ' — falling back to main thread.');
+    teardownWorker();
+    startMainThreadFallback('worker init failed: ' + msg.message);
+    return;
+  }
+  if (msg.type === 'frame-error') {
+    busy = false;
+    return;
+  }
+  if (msg.type === 'result') {
+    const handleStart = performance.now();
+    if (msg.overlayBitmap) {
+      overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+      overlayCtx.drawImage(msg.overlayBitmap, 0, 0, overlay.width, overlay.height);
+      msg.overlayBitmap.close();
+    }
+    handleDetectionResult(msg);
+    pushCapped(workerInferenceTimes, msg.inferenceMs);
+    const handleEnd = performance.now();
+    if (pendingFrame && pendingFrame.id === msg.id) {
+      const cost = (pendingFrame.captureEnd - pendingFrame.captureStart) + (handleEnd - handleStart);
+      pushCapped(mainThreadCosts, cost);
+    }
+    updateTimingUI();
+    busy = false;
+  }
+}
+
+function startFrameLoop() {
+  if (rvfcSupported) {
+    const loop = (now, metadata) => {
+      captureAndSendFrame(metadata);
+      handle = video.requestVideoFrameCallback(loop);
+    };
+    handle = video.requestVideoFrameCallback(loop);
+  } else {
+    const loop = () => {
+      captureAndSendFrame(null);
+      handle = requestAnimationFrame(loop);
+    };
+    handle = requestAnimationFrame(loop);
+  }
+}
+
+function teardownWorker() {
+  if (worker) { worker.terminate(); worker = null; }
+  if (handle != null) {
+    if (rvfcSupported && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(handle);
+    else cancelAnimationFrame(handle);
+    handle = null;
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Main-thread fallback pipeline (no Worker/OffscreenCanvas support)
+ * ------------------------------------------------------------------- */
+async function startMainThreadFallback(reason) {
+  setBadge(modeBadge, 'mode: main-thread fallback', 'warn');
+  if (reason) showError('Fallback reason: ' + reason);
+  try {
+    const { FilesetResolver, HandLandmarker } = await import(/* @vite-ignore */ TASKS_VISION_URL);
+    const vision = await FilesetResolver.forVisionTasks(TASKS_VISION_WASM);
+    let delegate = 'GPU';
+    try {
+      fallbackLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: HAND_MODEL_URL, delegate: 'GPU' },
+        runningMode: 'VIDEO', numHands: 1
+      });
+    } catch (gpuErr) {
+      delegate = 'CPU';
+      fallbackLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: HAND_MODEL_URL, delegate: 'CPU' },
+        runningMode: 'VIDEO', numHands: 1
+      });
+    }
+    setBadge(delegateBadge, 'delegate: ' + delegate, delegate === 'GPU' ? 'ok' : 'warn');
+    setBadge(camBadge, 'camera: running', 'ok');
+    startFallbackLoop();
+  } catch (err) {
+    showError('Fatal: could not initialize HandLandmarker at all: ' + err.message);
+    setBadge(camBadge, 'camera: error', 'bad');
+  }
+}
+
+function fallbackProcessFrame(metadata) {
+  if (busy) return;
+  busy = true;
+  const frameStart = performance.now();
+  const timestamp = computeFrameTimestampMs(metadata);
+
+  const t0 = performance.now();
+  const result = fallbackLandmarker.detectForVideo(video, timestamp);
+  const t1 = performance.now();
+  const inferenceMs = t1 - t0;
+
+  overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+  let count = null, settled = false, handDetected = false;
+  if (result.landmarks && result.landmarks.length > 0) {
+    handDetected = true;
+    const lm = result.landmarks[0];
+    count = countFingersMainThread(lm);
+
+    const tips = [4,8,12,16,20].map(i => lm[i]);
+    if (fallbackPrevTips && fallbackPrevTs != null) {
+      const dt = Math.max(1, timestamp - fallbackPrevTs) / 1000;
+      let totalDisp = 0;
+      for (let i = 0; i < tips.length; i++) totalDisp += dist(tips[i], fallbackPrevTips[i]);
+      const velocity = (totalDisp / tips.length) / dt;
+      settled = velocity < settleThreshold;
+    }
+    fallbackPrevTips = tips;
+    fallbackPrevTs = timestamp;
+
+    overlayCtx.lineWidth = 2;
+    overlayCtx.strokeStyle = settled ? '#2ea043' : '#d29922';
+    overlayCtx.beginPath();
+    for (const [a, b] of HAND_CONNECTIONS) {
+      overlayCtx.moveTo(lm[a].x * overlay.width, lm[a].y * overlay.height);
+      overlayCtx.lineTo(lm[b].x * overlay.width, lm[b].y * overlay.height);
+    }
+    overlayCtx.stroke();
+    overlayCtx.fillStyle = '#58a6ff';
+    for (const p of lm) {
+      overlayCtx.beginPath();
+      overlayCtx.arc(p.x * overlay.width, p.y * overlay.height, 3, 0, Math.PI * 2);
+      overlayCtx.fill();
+    }
+  } else {
+    fallbackPrevTips = null; fallbackPrevTs = null;
+  }
+
+  handleDetectionResult({ count, settled, handDetected, inferenceMs });
+  pushCapped(workerInferenceTimes, inferenceMs); // fallback: worker-inference == main-thread inference call
+  const frameEnd = performance.now();
+  pushCapped(mainThreadCosts, frameEnd - frameStart);
+  updateTimingUI();
+  busy = false;
+}
+
+function startFallbackLoop() {
+  if (rvfcSupported) {
+    const loop = (now, metadata) => {
+      fallbackProcessFrame(metadata);
+      handle = video.requestVideoFrameCallback(loop);
+    };
+    handle = video.requestVideoFrameCallback(loop);
+  } else {
+    const loop = () => {
+      fallbackProcessFrame(null);
+      handle = requestAnimationFrame(loop);
+    };
+    handle = requestAnimationFrame(loop);
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Start / stop
+ * ------------------------------------------------------------------- */
+async function start() {
+  startBtn.disabled = true;
+  errorBox.textContent = '';
+  setBadge(camBadge, 'camera: requesting…', '');
+
+  rvfcSupported = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+  setBadge(rvfcBadge, rvfcSupported ? 'rVFC: supported' : 'rVFC: unsupported (rAF fallback)', rvfcSupported ? 'ok' : 'warn');
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, frameRate: { ideal: 60 } },
+      audio: false
+    });
+  } catch (err) {
+    showError('getUserMedia failed: ' + err.message);
+    setBadge(camBadge, 'camera: denied/error', 'bad');
+    startBtn.disabled = false;
+    return;
+  }
+  video.srcObject = stream;
+  await video.play();
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings ? track.getSettings() : {};
+    const match = devices.find(d => d.kind === 'videoinput' && d.deviceId === settings.deviceId);
+    if (match && match.label && !cameraInput.value) cameraInput.value = match.label;
+  } catch (e) { /* best-effort only */ }
+
+  stopBtn.disabled = false;
+
+  const supportsWorkerOffscreen = (typeof Worker !== 'undefined') && (typeof OffscreenCanvas !== 'undefined');
+  if (supportsWorkerOffscreen) {
+    try {
+      const blob = new Blob([workerSrc], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      // Classic worker (no {type:'module'}): tasks-vision's WASM loader
+      // needs importScripts(), which only exists in classic workers. See
+      // the workerSrc comment above for how this was found.
+      worker = new Worker(url);
+      worker.onmessage = onWorkerMessage;
+      worker.onerror = (e) => {
+        showError('Worker error: ' + e.message + ' — falling back to main thread.');
+        teardownWorker();
+        startMainThreadFallback('worker runtime error: ' + e.message);
+      };
+      usingWorker = true;
+      setBadge(modeBadge, 'mode: Worker + OffscreenCanvas', 'ok');
+      worker.postMessage({ type: 'config', settleThreshold });
+    } catch (err) {
+      showError('Worker construction failed: ' + err.message + ' — falling back to main thread.');
+      usingWorker = false;
+      startMainThreadFallback('worker construction threw: ' + err.message);
+    }
+  } else {
+    usingWorker = false;
+    const missing = [];
+    if (typeof Worker === 'undefined') missing.push('Worker');
+    if (typeof OffscreenCanvas === 'undefined') missing.push('OffscreenCanvas');
+    startMainThreadFallback('missing browser support: ' + missing.join(', '));
+  }
+}
+
+function stop() {
+  teardownWorker();
+  if (fallbackLandmarker) { fallbackLandmarker.close(); fallbackLandmarker = null; }
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.srcObject = null;
+  setBadge(camBadge, 'camera: stopped', '');
+  setBadge(modeBadge, 'mode: —', '');
+  setBadge(delegateBadge, 'delegate: —', '');
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  countDisplay.textContent = '–';
+}
+
+/* ---------------------------------------------------------------------
+ * CSV export
+ * ------------------------------------------------------------------- */
+function exportCsv() {
+  const cols = ['idx','tsIso','tester','lighting','camera','segment','truth','predicted','correct','settledFrames','blurredFrames','sampleCount','avgInferenceMs'];
+  const lines = [cols.join(',')];
+  for (const r of allThrows) {
+    const row = [
+      r.idx, r.tsIso, csvEscape(r.tester), r.lighting, csvEscape(r.camera), r.segment,
+      r.truth, r.predicted == null ? '' : r.predicted,
+      r.predicted === r.truth ? 1 : 0,
+      r.settledFrames, r.blurredFrames, r.sampleCount,
+      r.avgInferenceMs == null ? '' : r.avgInferenceMs.toFixed(3)
+    ];
+    lines.push(row.join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  a.href = url;
+  a.download = 's01-fingers-' + (testerInput.value || 'tester') + '-' + stamp + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function csvEscape(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+/* ---------------------------------------------------------------------
+ * Wire up UI
+ * ------------------------------------------------------------------- */
+startBtn.addEventListener('click', start);
+stopBtn.addEventListener('click', stop);
+resetBtn.addEventListener('click', () => {
+  segmentId++;
+  segmentStartIndex = allThrows.length;
+  workerInferenceTimes = [];
+  mainThreadCosts = [];
+  updateTimingUI();
+  renderMatrix();
+  trialStatus.textContent = 'Live stats reset — segment ' + segmentId + ' started.';
+});
+exportBtn.addEventListener('click', exportCsv);
+settleSlider.addEventListener('input', () => {
+  settleThreshold = parseFloat(settleSlider.value);
+  settleVal.textContent = settleThreshold.toFixed(2);
+  if (worker) worker.postMessage({ type: 'config', settleThreshold });
+});
+window.addEventListener('keydown', onKeyDown);
+window.addEventListener('keyup', onKeyUp);
+
+renderMatrix();
+renderLog();
+updateTimingUI();
+</script>
+</body>
+</html>

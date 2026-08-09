@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S0.4 — Contention Spike</title>
+<style>
+  :root {
+    --bg: #0b0e13; --panel: #131820; --panel2: #1a212c; --border: #263041;
+    --fg: #e6edf3; --dim: #8b96a5; --good: #3fd08a; --bad: #ff6b6b; --warn: #ffb84d;
+    --accent: #5fb0ff; --mono: "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 0 0 10px; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+  .sub { color: var(--dim); margin: 0 0 20px; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .panel.wide { grid-column: 1 / -1; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--dim); font-weight: 500; }
+  td.num, th.num { text-align: right; font-family: var(--mono); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .pill.ok { background: rgba(63,208,138,.15); color: var(--good); }
+  .pill.no { background: rgba(255,107,107,.15); color: var(--bad); }
+  .pill.warn { background: rgba(255,184,77,.15); color: var(--warn); }
+  .pill.info { background: rgba(95,176,255,.15); color: var(--accent); }
+  button {
+    background: var(--panel2); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 12px; font-size: 12.5px; cursor: pointer; margin: 2px 4px 2px 0;
+  }
+  button:hover { border-color: var(--accent); }
+  button.active { background: var(--accent); color: #051018; border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .mono { font-family: var(--mono); }
+  .metric { font-family: var(--mono); font-size: 28px; font-weight: 700; }
+  .metric-label { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  video, canvas.contention-canvas { background: #000; border-radius: 6px; border: 1px solid var(--border); }
+  .video-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .video-row figure { margin: 0; }
+  .video-row figcaption { color: var(--dim); font-size: 11px; margin-top: 3px; }
+  #decoder-probe-videos video { width: 40px; height: 30px; margin: 2px; opacity: .35; }
+  #decoder-probe-videos video.ok { opacity: 1; outline: 2px solid var(--good); }
+  #decoder-probe-videos video.fail { opacity: 1; outline: 2px solid var(--bad); }
+  #error-log { max-height: 140px; overflow: auto; font-family: var(--mono); font-size: 11px; color: var(--bad); white-space: pre-wrap; }
+  #log { max-height: 220px; overflow: auto; font-family: var(--mono); font-size: 11.5px; color: var(--dim); white-space: pre-wrap; }
+  .kill-banner { padding: 12px 14px; border-radius: 8px; font-weight: 600; margin-bottom: 8px; }
+  .kill-banner.pass { background: rgba(63,208,138,.12); border: 1px solid var(--good); color: var(--good); }
+  .kill-banner.fail { background: rgba(255,107,107,.12); border: 1px solid var(--bad); color: var(--bad); }
+  .kill-banner.measuring { background: rgba(255,184,77,.12); border: 1px solid var(--warn); color: var(--warn); }
+  code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  details summary { cursor: pointer; color: var(--accent); margin-bottom: 8px; }
+  .footer-note { color: var(--dim); font-size: 12px; margin-top: 24px; }
+  .score-box { font-family: var(--mono); font-size: 13px; padding: 8px 0; }
+</style>
+</head>
+<body>
+
+<h1>S0.4 — Contention Spike</h1>
+<p class="sub">
+  Measures whether the v1 runtime mix (webcam CV worker + 2 playing videos + React UI + rAF loop) can hold 60fps,
+  and probes browser capabilities relevant to the COOP/COEP ADR decision. All numbers on this page are live
+  measurements taken in your current browser session — nothing here is fabricated or precomputed.
+</p>
+
+<details>
+  <summary>Operator instructions</summary>
+  <div class="panel" style="margin-bottom:16px">
+    <ol>
+      <li>Serve this directory over HTTP (camera access needs a secure context: <code>localhost</code> is fine).
+        Two options are provided:
+        <ul>
+          <li><code>python3 -m http.server 8000</code> from <code>spikes/</code> — plain HTTP, <code>crossOriginIsolated</code> will read <code>false</code>.</li>
+          <li><code>python3 serve-coi.py</code> (same directory) — sends <code>Cross-Origin-Opener-Policy: same-origin</code> and
+            <code>Cross-Origin-Embedder-Policy: require-corp</code>, so you can compare capability probes with <code>crossOriginIsolated: true</code>.</li>
+        </ul>
+      </li>
+      <li>Open <code>http://localhost:8000/s04-contention.html</code>.</li>
+      <li>Capability probes and the decoder-count probe run automatically (or click their buttons if you skipped them).</li>
+      <li>Click <b>Start camera</b> to grant webcam access and start real HandLandmarker inference, or click
+        <b>Run synthetic CV test</b> to exercise the same worker/model pipeline without a camera (useful for headless verification).</li>
+      <li>Use the duty-cycle buttons (Idle 5fps / Full-rate / Window burst) to switch CV load patterns and watch the
+        fps meter, long-task counter, and per-mode p5/p50 table accumulate real samples. Leave each mode running
+        10–30s for stable percentiles.</li>
+      <li>Click <b>Export JSON</b> / <b>Export CSV</b> to save the full result set for the ADR writeup.</li>
+    </ol>
+  </div>
+</details>
+
+<div class="grid">
+  <div class="panel wide">
+    <h2>Capability probe</h2>
+    <div class="row" style="margin-bottom:8px">
+      <button id="btn-run-caps">Re-run capability probes</button>
+      <button id="btn-export-json">Export all results (JSON)</button>
+      <button id="btn-export-csv">Export mode-stats (CSV)</button>
+    </div>
+    <table id="caps-table">
+      <thead><tr><th>Capability</th><th>Value</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel wide">
+    <h2>Decoder count probe</h2>
+    <p class="sub" style="margin-bottom:8px">
+      Generates a short encoded WebM clip via <code>MediaRecorder</code> from a canvas, then attaches it to N
+      &lt;video&gt; elements (N = 1..8) and checks whether each one's <code>currentTime</code> actually advances
+      after ~700ms — i.e. whether the browser's concurrent video decoder budget is exceeded.
+    </p>
+    <div class="row" style="margin-bottom:8px">
+      <button id="btn-run-decoder">Run decoder probe (up to 8)</button>
+      <span id="decoder-status" class="pill info">not run</span>
+    </div>
+    <div id="decoder-probe-videos" class="video-row"></div>
+    <table id="decoder-table" style="margin-top:8px">
+      <thead><tr><th>N concurrent</th><th>currentTime advanced</th><th>readyState</th><th>result</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel wide">
+    <h2>Contention workload</h2>
+    <div class="video-row" style="margin-bottom:12px">
+      <figure><video id="video-a" width="160" height="120" autoplay muted playsinline></video><figcaption>video A (canvas captureStream, 30fps)</figcaption></figure>
+      <figure><video id="video-b" width="160" height="120" autoplay muted playsinline></video><figcaption>video B (canvas captureStream, 30fps)</figcaption></figure>
+      <figure><video id="cv-video" width="160" height="120" muted playsinline style="display:none"></video><figcaption>CV source (hidden, main-thread fallback only)</figcaption></figure>
+      <figure id="react-score-root"></figure>
+    </div>
+
+    <div class="row" style="margin-bottom:8px">
+      <button id="btn-start-camera">Start camera (real webcam)</button>
+      <button id="btn-synthetic">Run synthetic CV test (no camera)</button>
+      <button id="btn-stop-cv">Stop CV</button>
+      <span id="cv-mode-pill" class="pill info">CV: not started</span>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <span class="metric-label" style="align-self:center;margin-right:6px">Duty cycle:</span>
+      <button id="btn-mode-idle" class="active">Idle (5 fps)</button>
+      <button id="btn-mode-full">Full-rate</button>
+      <button id="btn-mode-burst">Window burst (600ms / 2s)</button>
+    </div>
+
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); margin-bottom:12px">
+      <div><div class="metric" id="fps-live">--</div><div class="metric-label">live fps (rAF)</div></div>
+      <div><div class="metric" id="longtask-live">0</div><div class="metric-label">long tasks (current mode)</div></div>
+      <div><div class="metric" id="handcount-live">--</div><div class="metric-label">hands detected (last frame)</div></div>
+      <div><div class="metric" id="burst-state">--</div><div class="metric-label">burst window state</div></div>
+    </div>
+
+    <div id="kill-banner" class="kill-banner measuring">MEASURING — collect at least ~10s of samples per mode.</div>
+
+    <table id="mode-table">
+      <thead><tr><th>Mode</th><th class="num">samples</th><th class="num">p5 fps</th><th class="num">p50 fps</th><th class="num">long tasks</th><th class="num">long task ms</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="row" style="margin-top:8px">
+      <button id="btn-reset-stats">Reset accumulated stats</button>
+    </div>
+  </div>
+
+  <div class="panel wide">
+    <h2>MediaPipe WASM build</h2>
+    <table id="mp-table">
+      <thead><tr><th>Field</th><th>Value</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="sub" style="margin-top:8px">
+      tasks-vision does not expose an API to directly confirm which WASM variant (SIMD/threads) loaded. The
+      "inferred build" row is derived from <code>crossOriginIsolated</code> + <code>SharedArrayBuffer</code>
+      availability (threaded WASM requires both); the "init succeeded without crossOriginIsolated" row is a real
+      pass/fail observation from this session, not an inference.
+    </p>
+  </div>
+
+  <div class="panel wide">
+    <h2>Log</h2>
+    <div id="log"></div>
+    <h2 style="margin-top:12px">Page errors (window.onerror / unhandledrejection)</h2>
+    <div id="error-log">(none)</div>
+  </div>
+</div>
+
+<p class="footer-note">
+  Kill criterion: sustained 60fps main thread with CV duty-cycled (idle mode p50 &ge; 59 fps and p5 &ge; 55 fps,
+  measured over &ge; 10s). Burst mode is expected to dip during the 600ms full-rate window — it is reported
+  separately and is not part of the pass/fail gate.
+</p>
+
+<!-- React (CDN, production build) -->
+<script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------
+  // Shared state
+  // ---------------------------------------------------------------------
+  const S04 = window.__s04 = {
+    capabilities: null,
+    decoderProbe: [],
+    mediapipe: { initSucceeded: null, initError: null, cvMode: 'not started', crossOriginIsolatedAtInit: null },
+    modeStats: {
+      idle:  { samples: [], longTasks: 0, longTaskMs: 0 },
+      full:  { samples: [], longTasks: 0, longTaskMs: 0 },
+      burst: { samples: [], longTasks: 0, longTaskMs: 0 },
+    },
+    lastHandCount: null,
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const logEl = $('log');
+  const errEl = $('error-log');
+
+  function log(msg) {
+    const t = new Date().toISOString().split('T')[1].replace('Z', '');
+    logEl.textContent = `[${t}] ${msg}\n` + logEl.textContent;
+  }
+
+  window.addEventListener('error', (e) => {
+    errEl.textContent = (errEl.textContent === '(none)' ? '' : errEl.textContent) +
+      `[error] ${e.message} @ ${e.filename}:${e.lineno}\n`;
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    errEl.textContent = (errEl.textContent === '(none)' ? '' : errEl.textContent) +
+      `[unhandledrejection] ${e.reason && e.reason.message || e.reason}\n`;
+  });
+
+  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+  function downloadBlob(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  function computeStats(samples) {
+    if (!samples.length) return { p5: null, p50: null, n: 0 };
+    const sorted = samples.slice().sort((a, b) => a - b);
+    const pick = (p) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * sorted.length)))];
+    return { p5: pick(5), p50: pick(50), n: sorted.length };
+  }
+
+  // ---------------------------------------------------------------------
+  // Capability probes
+  // ---------------------------------------------------------------------
+  function testVideoFrameTransfer() {
+    return new Promise((resolve) => {
+      try {
+        if (typeof VideoFrame === 'undefined' || typeof Worker === 'undefined') return resolve(false);
+        const canvas = document.createElement('canvas');
+        canvas.width = 16; canvas.height = 16;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#f0f'; ctx.fillRect(0, 0, 16, 16);
+        const frame = new VideoFrame(canvas, { timestamp: 0 });
+        const workerCode = "self.onmessage = (e) => { const f = e.data.frame; const ok = (f instanceof VideoFrame); if (ok) { try { f.close(); } catch(_){} } self.postMessage({ok}); };";
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(blob));
+        const timeout = setTimeout(() => { worker.terminate(); resolve(false); }, 2000);
+        worker.onmessage = (e) => { clearTimeout(timeout); worker.terminate(); resolve(!!e.data.ok); };
+        worker.onerror = () => { clearTimeout(timeout); resolve(false); };
+        worker.postMessage({ frame }, [frame]);
+      } catch (e) { resolve(false); }
+    });
+  }
+
+  async function runCapabilityProbes() {
+    log('running capability probes...');
+    const r = {};
+    r.crossOriginIsolated = (typeof self !== 'undefined' && self.crossOriginIsolated === true);
+    r.sharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+    r.offscreenCanvas = typeof OffscreenCanvas !== 'undefined';
+    r.mediaStreamTrackProcessor = typeof MediaStreamTrackProcessor !== 'undefined';
+    r.requestVideoFrameCallback = typeof HTMLVideoElement !== 'undefined' && 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+    r.webCodecsVideoFrame = typeof VideoFrame !== 'undefined';
+    r.mediaRecorder = typeof MediaRecorder !== 'undefined';
+    r.worker = typeof Worker !== 'undefined';
+    r.moduleWorkerSupportProbe = 'see note: tested implicitly by CV worker init below';
+    r.hardwareConcurrency = navigator.hardwareConcurrency || null;
+    r.userAgent = navigator.userAgent;
+
+    r.audioContext = {};
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        const ac = new AC();
+        r.audioContext.supported = true;
+        r.audioContext.state = ac.state;
+        r.audioContext.outputLatency = ('outputLatency' in ac) ? ac.outputLatency : null;
+        r.audioContext.baseLatency = ('baseLatency' in ac) ? ac.baseLatency : null;
+        r.audioContext.getOutputTimestampSupported = typeof ac.getOutputTimestamp === 'function';
+        if (r.audioContext.getOutputTimestampSupported) {
+          try { r.audioContext.getOutputTimestampSample = ac.getOutputTimestamp(); } catch (e) { r.audioContext.getOutputTimestampSample = null; }
+        }
+        await ac.close();
+      } else {
+        r.audioContext.supported = false;
+      }
+    } catch (e) {
+      r.audioContext.error = String(e && e.message || e);
+    }
+
+    r.webCodecsTransferToWorker = await testVideoFrameTransfer();
+
+    S04.capabilities = r;
+    renderCapsTable(r);
+    log('capability probes done.');
+  }
+
+  function fmtVal(v) {
+    if (v === true) return '<span class="pill ok">yes</span>';
+    if (v === false) return '<span class="pill no">no</span>';
+    if (v === null || v === undefined) return '<span class="pill warn">n/a</span>';
+    if (typeof v === 'object') return `<code>${escapeHtml(JSON.stringify(v))}</code>`;
+    return escapeHtml(String(v));
+  }
+  function escapeHtml(s) { return s.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function renderCapsTable(r) {
+    const rows = [
+      ['crossOriginIsolated', r.crossOriginIsolated],
+      ['SharedArrayBuffer available', r.sharedArrayBuffer],
+      ['OffscreenCanvas', r.offscreenCanvas],
+      ['MediaStreamTrackProcessor', r.mediaStreamTrackProcessor],
+      ['requestVideoFrameCallback', r.requestVideoFrameCallback],
+      ['WebCodecs VideoFrame constructor', r.webCodecsVideoFrame],
+      ['WebCodecs VideoFrame transfer to Worker (live test)', r.webCodecsTransferToWorker],
+      ['MediaRecorder', r.mediaRecorder],
+      ['Worker', r.worker],
+      ['navigator.hardwareConcurrency', r.hardwareConcurrency],
+      ['AudioContext supported', r.audioContext.supported],
+      ['AudioContext.state (at probe time)', r.audioContext.state],
+      ['AudioContext.outputLatency', r.audioContext.outputLatency],
+      ['AudioContext.baseLatency', r.audioContext.baseLatency],
+      ['AudioContext.getOutputTimestamp supported', r.audioContext.getOutputTimestampSupported],
+      ['userAgent', r.userAgent],
+    ];
+    const tbody = $('caps-table').querySelector('tbody');
+    tbody.innerHTML = rows.map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${fmtVal(v)}</td></tr>`).join('');
+  }
+
+  // ---------------------------------------------------------------------
+  // Decoder count probe
+  // ---------------------------------------------------------------------
+  function generateTestClip() {
+    return new Promise((resolve, reject) => {
+      if (typeof MediaRecorder === 'undefined') return reject(new Error('MediaRecorder unsupported'));
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 48;
+      const ctx = canvas.getContext('2d');
+      let hue = 0;
+      const stream = canvas.captureStream(15);
+      let mime = 'video/webm;codecs=vp8';
+      if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+      if (!MediaRecorder.isTypeSupported(mime)) return reject(new Error('no supported webm mime'));
+      const chunks = [];
+      const rec = new MediaRecorder(stream, { mimeType: mime });
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      let drawInterval;
+      rec.onstop = () => {
+        clearInterval(drawInterval);
+        resolve(URL.createObjectURL(new Blob(chunks, { type: mime })));
+      };
+      rec.onerror = (e) => { clearInterval(drawInterval); reject(e.error || new Error('MediaRecorder error')); };
+      drawInterval = setInterval(() => {
+        hue = (hue + 12) % 360;
+        ctx.fillStyle = `hsl(${hue},80%,50%)`;
+        ctx.fillRect(0, 0, 64, 48);
+      }, 66);
+      rec.start();
+      setTimeout(() => rec.stop(), 1500);
+    });
+  }
+
+  async function runDecoderProbe(maxN) {
+    maxN = maxN || 8;
+    const statusEl = $('decoder-status');
+    statusEl.textContent = 'generating clip...';
+    statusEl.className = 'pill info';
+    const tbody = $('decoder-table').querySelector('tbody');
+    tbody.innerHTML = '';
+    const container = $('decoder-probe-videos');
+    container.innerHTML = '';
+    let blobUrl;
+    try {
+      blobUrl = await generateTestClip();
+    } catch (e) {
+      statusEl.textContent = 'failed: ' + e.message;
+      statusEl.className = 'pill no';
+      log('decoder probe: clip generation failed: ' + e.message);
+      return;
+    }
+    statusEl.textContent = 'running...';
+    const rows = [];
+    let firstStall = null;
+    for (let n = 1; n <= maxN; n++) {
+      const v = document.createElement('video');
+      v.src = blobUrl; v.muted = true; v.loop = true; v.playsInline = true;
+      container.appendChild(v);
+      let ok = false, readyState = -1;
+      try {
+        await v.play();
+        const t0 = v.currentTime;
+        await sleep(750);
+        const t1 = v.currentTime;
+        readyState = v.readyState;
+        ok = (t1 > t0) && !v.paused && v.readyState >= 2;
+      } catch (e) {
+        ok = false;
+      }
+      v.className = ok ? 'ok' : 'fail';
+      if (!ok && firstStall === null) firstStall = n;
+      rows.push({ n, advanced: ok, readyState });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${n}</td><td>${fmtVal(ok)}</td><td>${readyState}</td><td>${ok ? 'playing' : 'stalled/failed'}</td>`;
+      tbody.appendChild(tr);
+    }
+    S04.decoderProbe = rows;
+    statusEl.textContent = firstStall ? `first stall at N=${firstStall}` : `all ${maxN} played concurrently`;
+    statusEl.className = firstStall ? 'pill warn' : 'pill ok';
+    log(`decoder probe done: ${statusEl.textContent}`);
+  }
+
+  // ---------------------------------------------------------------------
+  // Contention videos (two independently-animated canvases -> captureStream)
+  // ---------------------------------------------------------------------
+  function setupContentionVideos() {
+    [['video-a', '#4cf', '#0b1420'], ['video-b', '#fc4', '#150f05']].forEach(([id, color, bg], i) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 160; canvas.height = 120;
+      const ctx = canvas.getContext('2d');
+      let t = i * 30;
+      function draw() {
+        t += 1;
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, 160, 120);
+        const x = (Math.sin(t / (18 + i * 4)) * 0.5 + 0.5) * 130 + 10;
+        const y = (Math.cos(t / (24 + i * 3)) * 0.5 + 0.5) * 90 + 15;
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill();
+        requestAnimationFrame(draw);
+      }
+      draw();
+      const stream = canvas.captureStream(30);
+      const video = $(id);
+      video.srcObject = stream;
+      video.play().catch((e) => log(`contention video ${id} play() rejected: ${e.message}`));
+    });
+    log('contention videos started (canvas captureStream, 30fps each).');
+  }
+
+  // ---------------------------------------------------------------------
+  // React score display (updates 1x/s)
+  // ---------------------------------------------------------------------
+  function mountReactScore() {
+    if (!window.React || !window.ReactDOM) { log('React failed to load from CDN; score UI skipped.'); return; }
+    const { useState, useEffect, createElement: h } = React;
+    function ScoreDisplay() {
+      const [state, setState] = useState({ p1: 0, p2: 0, tick: 0 });
+      useEffect(() => {
+        const iv = setInterval(() => {
+          setState((s) => ({
+            p1: s.p1 + (Math.random() < 0.5 ? 1 : 0),
+            p2: s.p2 + (Math.random() < 0.5 ? 1 : 0),
+            tick: s.tick + 1,
+          }));
+        }, 1000);
+        return () => clearInterval(iv);
+      }, []);
+      return h('div', { className: 'score-box' },
+        h('div', null, `React UI · tick ${state.tick} (1/s)`),
+        h('div', null, `P1: ${state.p1}  P2: ${state.p2}`)
+      );
+    }
+    ReactDOM.createRoot($('react-score-root')).render(h(ScoreDisplay));
+    log('React score UI mounted (updates 1x/s).');
+  }
+
+  // ---------------------------------------------------------------------
+  // FPS meter + long-task tracking, duty-cycle mode bucketing
+  // ---------------------------------------------------------------------
+  let currentMode = 'idle';
+  let burstCycleStart = 0;
+  let burstActive = false;
+  let lastCvSendTime = 0;
+
+  try {
+    const obs = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const m = S04.modeStats[currentMode];
+        m.longTasks += 1;
+        m.longTaskMs += entry.duration;
+      }
+    });
+    obs.observe({ entryTypes: ['longtask'] });
+    log('PerformanceObserver(longtask) active.');
+  } catch (e) {
+    log('longtask PerformanceObserver unsupported: ' + e.message);
+  }
+
+  let lastFrameTime = performance.now();
+  let liveFpsSmoothed = null;
+  function fpsLoop(now) {
+    const dt = now - lastFrameTime;
+    lastFrameTime = now;
+    if (dt > 0 && dt < 1000) {
+      const fps = 1000 / dt;
+      const m = S04.modeStats[currentMode];
+      m.samples.push(fps);
+      if (m.samples.length > 6000) m.samples.shift();
+      liveFpsSmoothed = liveFpsSmoothed === null ? fps : liveFpsSmoothed * 0.9 + fps * 0.1;
+    }
+    renderLiveMetrics();
+    requestAnimationFrame(fpsLoop);
+  }
+  requestAnimationFrame(fpsLoop);
+
+  function renderLiveMetrics() {
+    $('fps-live').textContent = liveFpsSmoothed ? liveFpsSmoothed.toFixed(1) : '--';
+    $('longtask-live').textContent = String(S04.modeStats[currentMode].longTasks);
+    $('handcount-live').textContent = S04.lastHandCount === null ? '--' : String(S04.lastHandCount);
+    $('burst-state').textContent = currentMode === 'burst' ? (burstActive ? 'FULL' : 'idle') : 'n/a';
+
+    const tbody = $('mode-table').querySelector('tbody');
+    const modes = ['idle', 'full', 'burst'];
+    tbody.innerHTML = modes.map((mode) => {
+      const st = computeStats(S04.modeStats[mode].samples);
+      const lt = S04.modeStats[mode];
+      return `<tr><td>${mode}${mode === currentMode ? ' <span class="pill info">active</span>' : ''}</td>` +
+        `<td class="num">${st.n}</td><td class="num">${st.p5 !== null ? st.p5.toFixed(1) : '--'}</td>` +
+        `<td class="num">${st.p50 !== null ? st.p50.toFixed(1) : '--'}</td>` +
+        `<td class="num">${lt.longTasks}</td><td class="num">${lt.longTaskMs.toFixed(0)}</td></tr>`;
+    }).join('');
+
+    const idleStats = computeStats(S04.modeStats.idle.samples);
+    const banner = $('kill-banner');
+    if (idleStats.n < 150) {
+      banner.className = 'kill-banner measuring';
+      banner.textContent = `MEASURING — idle mode has ${idleStats.n} samples so far, need sustained data (~10s+).`;
+    } else if (idleStats.p50 >= 59 && idleStats.p5 >= 55) {
+      banner.className = 'kill-banner pass';
+      banner.textContent = `PASS — idle mode: p50=${idleStats.p50.toFixed(1)}fps, p5=${idleStats.p5.toFixed(1)}fps over ${idleStats.n} samples.`;
+    } else {
+      banner.className = 'kill-banner fail';
+      banner.textContent = `FAIL — idle mode: p50=${idleStats.p50.toFixed(1)}fps, p5=${idleStats.p5.toFixed(1)}fps over ${idleStats.n} samples (need p50>=59, p5>=55).`;
+    }
+  }
+
+  function setMode(mode) {
+    currentMode = mode;
+    ['idle', 'full', 'burst'].forEach((m) => $(`btn-mode-${m}`).classList.toggle('active', m === mode));
+    if (mode === 'burst') { burstCycleStart = performance.now(); burstActive = false; }
+    log(`duty-cycle mode -> ${mode}`);
+  }
+
+  function wantFrame() {
+    const now = performance.now();
+    let targetIntervalMs;
+    if (currentMode === 'idle') {
+      targetIntervalMs = 200; // 5 fps
+    } else if (currentMode === 'full') {
+      targetIntervalMs = 0;
+    } else {
+      const cycleMs = 2000, burstMs = 600;
+      const elapsed = (now - burstCycleStart) % cycleMs;
+      burstActive = elapsed < burstMs;
+      targetIntervalMs = burstActive ? 0 : 200;
+    }
+    if (targetIntervalMs === 0) { lastCvSendTime = now; return true; }
+    if (now - lastCvSendTime >= targetIntervalMs) { lastCvSendTime = now; return true; }
+    return false;
+  }
+
+  $('btn-mode-idle').onclick = () => setMode('idle');
+  $('btn-mode-full').onclick = () => setMode('full');
+  $('btn-mode-burst').onclick = () => setMode('burst');
+  $('btn-reset-stats').onclick = () => {
+    ['idle', 'full', 'burst'].forEach((m) => { S04.modeStats[m] = { samples: [], longTasks: 0, longTaskMs: 0 }; });
+    log('mode stats reset.');
+  };
+
+  // ---------------------------------------------------------------------
+  // CV pipeline: worker + MediaStreamTrackProcessor / rVFC fallback / main-thread fallback
+  // ---------------------------------------------------------------------
+  const MP_VERSION = 'latest';
+  // jsdelivr needs the "+esm" suffix to serve tasks-vision as a proper ES module for `import`.
+  // The plain (non-+esm) package root is still used for FilesetResolver's raw asset fetches
+  // (wasm loader JS/.wasm binaries, which are not JS-module resources).
+  const MP_MODULE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/+esm`;
+  const MP_WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
+  const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+
+  let cvWorker = null;
+  let cvActive = false;
+  let cvStopFn = null;
+
+  function setCvMode(text) {
+    S04.mediapipe.cvMode = text;
+    $('cv-mode-pill').textContent = 'CV: ' + text;
+    renderMpTable();
+  }
+
+  function renderMpTable() {
+    const mp = S04.mediapipe;
+    const coi = S04.capabilities ? S04.capabilities.crossOriginIsolated : null;
+    const sab = S04.capabilities ? S04.capabilities.sharedArrayBuffer : null;
+    const inferredBuild = (coi && sab)
+      ? 'likely threaded+SIMD (crossOriginIsolated + SharedArrayBuffer both available)'
+      : 'likely single-threaded (SIMD if supported) fallback — crossOriginIsolated/SharedArrayBuffer not both available';
+    const rows = [
+      ['tasks-vision version requested', MP_VERSION],
+      ['CV mode achieved', mp.cvMode],
+      ['HandLandmarker init succeeded', mp.initSucceeded],
+      ['HandLandmarker init error', mp.initError],
+      ['crossOriginIsolated at init time', mp.crossOriginIsolatedAtInit],
+      ['Init succeeded without crossOriginIsolated (real observation)',
+        mp.initSucceeded === true && mp.crossOriginIsolatedAtInit === false ? 'YES — worked fine without COOP/COEP'
+        : (mp.initSucceeded === false && mp.crossOriginIsolatedAtInit === false ? 'NO — failed without COOP/COEP (may require it)'
+        : 'n/a (not yet tested without crossOriginIsolated, or not tested at all)')],
+      ['Inferred WASM build (not API-confirmed)', inferredBuild],
+    ];
+    const tbody = $('mp-table').querySelector('tbody');
+    tbody.innerHTML = rows.map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${fmtVal(v)}</td></tr>`).join('');
+  }
+
+  function initWorker() {
+    return new Promise((resolve, reject) => {
+      const workerSrc = `
+        // Classic worker (not {type:'module'}) on purpose: MediaPipe tasks-vision's
+        // HandLandmarker.createFromOptions() fails with "ModuleFactory not set." inside a
+        // module worker (its wasm glue script expects importScripts()-style classic-worker
+        // loading). Dynamic import() works fine in a classic worker, so we use that instead
+        // of a static import statement.
+        let landmarker = null, ready = false;
+        async function init() {
+          try {
+            const { HandLandmarker, FilesetResolver } = await import("${MP_MODULE_URL}");
+            const vision = await FilesetResolver.forVisionTasks("${MP_WASM_BASE}");
+            landmarker = await HandLandmarker.createFromOptions(vision, {
+              baseOptions: { modelAssetPath: "${MODEL_URL}", delegate: "GPU" },
+              runningMode: "VIDEO",
+              numHands: 2
+            });
+            ready = true;
+            self.postMessage({ type: "ready" });
+          } catch (e) {
+            self.postMessage({ type: "init-error", message: String(e && e.message || e) });
+          }
+        }
+        init();
+        self.onmessage = (e) => {
+          const msg = e.data;
+          if (msg.type === "frame") {
+            const bitmap = msg.bitmap;
+            if (!ready || !landmarker) { try { bitmap.close(); } catch(_){}; return; }
+            try {
+              const result = landmarker.detectForVideo(bitmap, msg.ts);
+              self.postMessage({ type: "result", handCount: result.landmarks ? result.landmarks.length : 0, ts: msg.ts });
+            } catch (err) {
+              self.postMessage({ type: "detect-error", message: String(err && err.message || err) });
+            } finally {
+              try { bitmap.close(); } catch(_){}
+            }
+          }
+        };
+      `;
+      const blob = new Blob([workerSrc], { type: 'application/javascript' });
+      let worker;
+      try {
+        worker = new Worker(URL.createObjectURL(blob));
+      } catch (e) { return reject(e); }
+      const timeout = setTimeout(() => reject(new Error('worker init timeout (15s)')), 15000);
+      worker.onmessage = (e) => {
+        if (e.data.type === 'ready') { clearTimeout(timeout); cvWorker = worker; resolve(worker); }
+        else if (e.data.type === 'init-error') { clearTimeout(timeout); reject(new Error(e.data.message)); }
+        else if (e.data.type === 'result') { S04.lastHandCount = e.data.handCount; }
+        else if (e.data.type === 'detect-error') { log('detect error: ' + e.data.message); }
+      };
+      worker.onerror = (e) => { clearTimeout(timeout); reject(new Error(e.message || 'worker error')); };
+    });
+  }
+
+  async function runTrackProcessorLoop(track) {
+    const processor = new MediaStreamTrackProcessor({ track });
+    const reader = processor.readable.getReader();
+    cvActive = true;
+    async function pump() {
+      if (!cvActive) return;
+      let res;
+      try { res = await reader.read(); } catch (e) { return; }
+      if (res.done) return;
+      const frame = res.value;
+      if (wantFrame()) {
+        try {
+          const bitmap = await createImageBitmap(frame);
+          cvWorker.postMessage({ type: 'frame', bitmap, ts: performance.now() }, [bitmap]);
+        } catch (e) { log('frame bitmap/send failed: ' + e.message); }
+      }
+      try { frame.close(); } catch (_) {}
+      pump();
+    }
+    pump();
+    cvStopFn = () => { cvActive = false; try { reader.cancel(); } catch (_) {} track.stop(); };
+  }
+
+  async function runRvfcLoop(track) {
+    const video = document.createElement('video');
+    video.srcObject = new MediaStream([track]);
+    video.muted = true; video.playsInline = true;
+    await video.play();
+    const canvas = document.createElement('canvas');
+    canvas.width = 320; canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+    cvActive = true;
+    let handle;
+    function onFrame(now, metadata) {
+      if (!cvActive) return;
+      if (wantFrame()) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        createImageBitmap(canvas).then((bitmap) => {
+          cvWorker.postMessage({ type: 'frame', bitmap, ts: performance.now() }, [bitmap]);
+        }).catch((e) => log('rVFC bitmap/send failed: ' + e.message));
+      }
+      handle = video.requestVideoFrameCallback(onFrame);
+    }
+    handle = video.requestVideoFrameCallback(onFrame);
+    cvStopFn = () => { cvActive = false; try { video.cancelVideoFrameCallback(handle); } catch (_) {} track.stop(); video.srcObject = null; };
+  }
+
+  async function runMainThreadLoop(track) {
+    const { HandLandmarker, FilesetResolver } = await import(/* webpackIgnore: true */ MP_MODULE_URL);
+    const vision = await FilesetResolver.forVisionTasks(MP_WASM_BASE);
+    const landmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
+      runningMode: 'VIDEO', numHands: 2,
+    });
+    const video = $('cv-video');
+    video.style.display = '';
+    video.srcObject = new MediaStream([track]);
+    await video.play();
+    cvActive = true;
+    function loop() {
+      if (!cvActive) return;
+      if (wantFrame()) {
+        try {
+          const result = landmarker.detectForVideo(video, performance.now());
+          S04.lastHandCount = result.landmarks ? result.landmarks.length : 0;
+        } catch (e) { log('main-thread detect error: ' + e.message); }
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+    cvStopFn = () => { cvActive = false; track.stop(); video.srcObject = null; video.style.display = 'none'; };
+  }
+
+  async function startCvPipeline(track, { synthetic } = {}) {
+    S04.mediapipe.crossOriginIsolatedAtInit = self.crossOriginIsolated === true;
+    const workerCapable = typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined';
+    try {
+      if (workerCapable) {
+        setCvMode('initializing worker...');
+        await initWorker();
+        S04.mediapipe.initSucceeded = true;
+        if (synthetic) {
+          setCvMode('Worker + synthetic canvas frames + ImageBitmap');
+          runSyntheticLoop();
+        } else if (typeof MediaStreamTrackProcessor !== 'undefined') {
+          setCvMode('Worker + MediaStreamTrackProcessor + ImageBitmap');
+          await runTrackProcessorLoop(track);
+        } else {
+          setCvMode('Worker + requestVideoFrameCallback + ImageBitmap (fallback capture)');
+          await runRvfcLoop(track);
+        }
+      } else {
+        throw new Error('Worker/OffscreenCanvas unsupported');
+      }
+    } catch (e) {
+      log('worker CV path failed (' + e.message + '); falling back to main thread.');
+      S04.mediapipe.initSucceeded = false;
+      S04.mediapipe.initError = e.message;
+      if (synthetic) {
+        setCvMode('Main-thread fallback (synthetic frames, worker failed: ' + e.message + ')');
+        runSyntheticMainThreadLoop();
+      } else if (track) {
+        setCvMode('Main-thread fallback (worker failed: ' + e.message + ')');
+        await runMainThreadLoop(track);
+        S04.mediapipe.initSucceeded = true; // main-thread landmarker itself succeeded
+      } else {
+        setCvMode('failed: ' + e.message);
+      }
+    }
+    renderMpTable();
+  }
+
+  // Synthetic path: no camera needed, exercises the same worker + model end-to-end.
+  function runSyntheticLoop() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 320; canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+    let t = 0;
+    cvActive = true;
+    function tick() {
+      if (!cvActive) return;
+      if (wantFrame()) {
+        t += 1;
+        ctx.fillStyle = '#222'; ctx.fillRect(0, 0, 320, 240);
+        ctx.fillStyle = '#0f8'; ctx.beginPath();
+        ctx.arc(160 + Math.sin(t / 15) * 80, 120, 20, 0, Math.PI * 2); ctx.fill();
+        createImageBitmap(canvas).then((bitmap) => {
+          cvWorker.postMessage({ type: 'frame', bitmap, ts: performance.now() }, [bitmap]);
+        }).catch((e) => log('synthetic bitmap/send failed: ' + e.message));
+      }
+      requestAnimationFrame(tick);
+    }
+    tick();
+    cvStopFn = () => { cvActive = false; };
+  }
+
+  async function runSyntheticMainThreadLoop() {
+    try {
+      const { HandLandmarker, FilesetResolver } = await import(/* webpackIgnore: true */ MP_MODULE_URL);
+      const vision = await FilesetResolver.forVisionTasks(MP_WASM_BASE);
+      const landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
+        runningMode: 'VIDEO', numHands: 2,
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = 320; canvas.height = 240;
+      const ctx = canvas.getContext('2d');
+      let t = 0;
+      cvActive = true;
+      S04.mediapipe.initSucceeded = true;
+      function loop() {
+        if (!cvActive) return;
+        if (wantFrame()) {
+          t += 1;
+          ctx.fillStyle = '#222'; ctx.fillRect(0, 0, 320, 240);
+          ctx.fillStyle = '#0f8'; ctx.beginPath();
+          ctx.arc(160 + Math.sin(t / 15) * 80, 120, 20, 0, Math.PI * 2); ctx.fill();
+          try {
+            const result = landmarker.detectForVideo(canvas, performance.now());
+            S04.lastHandCount = result.landmarks ? result.landmarks.length : 0;
+          } catch (e) { log('synthetic main-thread detect error: ' + e.message); }
+        }
+        requestAnimationFrame(loop);
+      }
+      loop();
+      cvStopFn = () => { cvActive = false; };
+    } catch (e) {
+      S04.mediapipe.initSucceeded = false;
+      S04.mediapipe.initError = e.message;
+      log('synthetic main-thread init failed: ' + e.message);
+      renderMpTable();
+    }
+  }
+
+  $('btn-start-camera').onclick = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: false });
+      log('camera acquired.');
+      await startCvPipeline(stream.getVideoTracks()[0], { synthetic: false });
+    } catch (e) {
+      setCvMode('camera unavailable: ' + e.message);
+      log('getUserMedia failed: ' + e.message);
+    }
+  };
+  $('btn-synthetic').onclick = () => startCvPipeline(null, { synthetic: true });
+  $('btn-stop-cv').onclick = () => { if (cvStopFn) cvStopFn(); setCvMode('stopped'); log('CV stopped.'); };
+
+  // ---------------------------------------------------------------------
+  // Export
+  // ---------------------------------------------------------------------
+  function buildExport() {
+    const modes = {};
+    ['idle', 'full', 'burst'].forEach((m) => {
+      const st = computeStats(S04.modeStats[m].samples);
+      modes[m] = { n: st.n, p5_fps: st.p5, p50_fps: st.p50, longTasks: S04.modeStats[m].longTasks, longTaskMs: S04.modeStats[m].longTaskMs };
+    });
+    return {
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      capabilities: S04.capabilities,
+      decoderProbe: S04.decoderProbe,
+      mediapipe: S04.mediapipe,
+      modeStats: modes,
+    };
+  }
+
+  $('btn-export-json').onclick = () => downloadBlob('s04-contention-results.json', JSON.stringify(buildExport(), null, 2), 'application/json');
+  $('btn-export-csv').onclick = () => {
+    const exp = buildExport();
+    const lines = ['mode,samples,p5_fps,p50_fps,long_tasks,long_task_ms'];
+    Object.entries(exp.modeStats).forEach(([mode, s]) => {
+      lines.push([mode, s.n, s.p5_fps ?? '', s.p50_fps ?? '', s.longTasks, s.longTaskMs.toFixed(1)].join(','));
+    });
+    downloadBlob('s04-contention-mode-stats.csv', lines.join('\n'), 'text/csv');
+  };
+
+  $('btn-run-caps').onclick = () => runCapabilityProbes();
+  $('btn-run-decoder').onclick = () => runDecoderProbe(8);
+
+  // ---------------------------------------------------------------------
+  // Boot
+  // ---------------------------------------------------------------------
+  window.addEventListener('DOMContentLoaded', () => {
+    setupContentionVideos();
+    mountReactScore();
+    renderMpTable();
+    runCapabilityProbes().then(() => renderMpTable());
+    runDecoderProbe(8);
+  });
+})();
+</script>
+</body>
+</html>

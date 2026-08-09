@@ -1,0 +1,155 @@
+{
+  "updatedAt": "2026-08-09T15:50:43.321Z",
+  "missions": [
+    {
+      "id": "session:4c781bf2-7870-44cc-8542-772bf6ddb2d4:none",
+      "source": "session",
+      "name": "none",
+      "objective": "Session mission",
+      "createdAt": "2026-08-08T11:30:03.128Z",
+      "updatedAt": "2026-08-09T15:50:43.321Z",
+      "status": "running",
+      "workerCount": 8,
+      "taskCounts": {
+        "total": 8,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 1,
+        "completed": 7,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "architect:a36dd59",
+          "role": "architect",
+          "ownership": "a36dd597e57793c3b",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-08-09T15:50:43.321Z"
+        },
+        {
+          "name": "morra-critic:amorra-",
+          "role": "morra-critic",
+          "ownership": "amorra-critic-325a83328857502a",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-08-08T12:25:02.573Z"
+        },
+        {
+          "name": "spike-s01-fingers:aspike-",
+          "role": "spike-s01-fingers",
+          "ownership": "aspike-s01-fingers-945ac87bb75651fd",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-08-08T12:38:17.269Z"
+        },
+        {
+          "name": "spike-s02-voice:aspike-",
+          "role": "spike-s02-voice",
+          "ownership": "aspike-s02-voice-fd0e96db0d386c67",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-08-08T14:51:03.472Z"
+        },
+        {
+          "name": "spike-s03-beat:aspike-",
+          "role": "spike-s03-beat",
+          "ownership": "aspike-s03-beat-21e29056a5ad2a04",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-08-08T13:58:55.623Z"
+        },
+        {
+          "name": "spike-s04-contention:aspike-",
+          "role": "spike-s04-contention",
+          "ownership": "aspike-s04-contention-40be4e8c69497f51",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-08-08T12:41:30.495Z"
+        },
+        {
+          "name": "spike-s05-art:aspike-",
+          "role": "spike-s05-art",
+          "ownership": "aspike-s05-art-ac470f8971502973",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-08-08T12:34:07.979Z"
+        },
+        {
+          "name": "s03-step3:as03-st",
+          "role": "s03-step3",
+          "ownership": "as03-step3-74d2caf9fff4e568",
+          "status": "running",
+          "currentStep": null,
+          "latestUpdate": null,
+          "completedSummary": null,
+          "updatedAt": "2026-08-09T15:48:36.470Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-stop:a88814bbbd79ccf3f:2026-08-09T15:47:02.491Z",
+          "at": "2026-08-09T15:47:02.491Z",
+          "kind": "completion",
+          "agent": "architect:a36dd59",
+          "detail": "completed",
+          "sourceKey": "session-stop:a88814bbbd79ccf3f"
+        },
+        {
+          "id": "session-stop:a5b1e0dfdf0be072c:2026-08-09T15:48:19.345Z",
+          "at": "2026-08-09T15:48:19.345Z",
+          "kind": "completion",
+          "agent": "architect:a36dd59",
+          "detail": "completed",
+          "sourceKey": "session-stop:a5b1e0dfdf0be072c"
+        },
+        {
+          "id": "session-start:as03-step3-74d2caf9fff4e568:2026-08-09T15:48:36.470Z",
+          "at": "2026-08-09T15:48:36.470Z",
+          "kind": "update",
+          "agent": "s03-step3:as03-st",
+          "detail": "started s03-step3:as03-st",
+          "sourceKey": "session-start:as03-step3-74d2caf9fff4e568"
+        },
+        {
+          "id": "session-stop:afc7d74a13c0764b7:2026-08-09T15:50:33.169Z",
+          "at": "2026-08-09T15:50:33.169Z",
+          "kind": "completion",
+          "agent": "architect:a36dd59",
+          "detail": "completed",
+          "sourceKey": "session-stop:afc7d74a13c0764b7"
+        },
+        {
+          "id": "session-stop:afc7d74a13c0764b7:2026-08-09T15:50:39.559Z",
+          "at": "2026-08-09T15:50:39.559Z",
+          "kind": "completion",
+          "agent": "architect:a36dd59",
+          "detail": "completed",
+          "sourceKey": "session-stop:afc7d74a13c0764b7"
+        },
+        {
+          "id": "session-stop:afc7d74a13c0764b7:2026-08-09T15:50:43.321Z",
+          "at": "2026-08-09T15:50:43.321Z",
+          "kind": "completion",
+          "agent": "architect:a36dd59",
+          "detail": "completed",
+          "sourceKey": "session-stop:afc7d74a13c0764b7"
+        }
+      ]
+    }
+  ]
+}

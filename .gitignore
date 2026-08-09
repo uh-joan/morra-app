@@ -1,0 +1,18 @@
+# dependencies / build
+node_modules/
+dist/
+
+# large model binaries (re-fetch via spikes/models/fetch-*.sh)
+spikes/models/*.zip
+
+# PRIVATE: user voice recordings — never commit (corpus governance)
+spikes/corpus-jani/
+*.wav
+
+# art pipeline artifacts
+spikes/s05-art/out/
+spikes/s05-art/final/
+spikes/s05-art/character.blend*
+
+# OS noise
+.DS_Store

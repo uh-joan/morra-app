@@ -1,0 +1,16 @@
+{
+  "_comment": "EXAMPLE scaffold — frame numbers and action names are placeholders. Update the 'action' fields to match the actual action/pose-asset names in your character.blend (see README.md sections 2-3), and frame_start/frame_end once the windup and throw animations are actually authored and you know their real durations.",
+  "windup": {
+    "action": "windup",
+    "frame_start": 1,
+    "frame_end": 24
+  },
+  "throws": {
+    "1": { "action": "throw1", "frame_start": 1, "frame_end": 30 },
+    "2": { "action": "throw2", "frame_start": 1, "frame_end": 30 },
+    "3": { "action": "throw3", "frame_start": 1, "frame_end": 30 },
+    "4": { "action": "throw4", "frame_start": 1, "frame_end": 30 },
+    "5": { "action": "throw5", "frame_start": 1, "frame_end": 30 }
+  },
+  "reveal_variants_ms": [300, 150]
+}

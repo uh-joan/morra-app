@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd /private/tmp/claude-501/-Users-janisaez-code-morra/4c781bf2-7870-44cc-8542-772bf6ddb2d4/scratchpad && node test-step8-pure.mjs\"}",
+  "error": "Exit code 1\nPASS: hand held at the same count for the whole window -> heldOver:true (not scored as an onset)\nPASS: fist held then a fresh throw -> valid onset at the transition (t=100), not window start\nPASS: held-over run at window open is skipped in favor of a later genuine transition\nPASS: no stable run anywhere -> null\nPASS: energy already above threshold at buffer start -> backdated onset at 0ms, flagged preWindow:true\nPASS: normal mid-buffer onset (t=499ms) correctly flagged preWindow:fals...",
+  "timestamp": "2026-08-09T09:22:13.117Z",
+  "retry_count": 1
+}

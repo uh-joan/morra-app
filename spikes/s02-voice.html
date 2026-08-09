@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S0.2 — Voice KWS Spike (Morra Micatio)</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171b21; --border: #2a2f38; --text: #e6e9ef; --muted: #92999f;
+    --accent: #4da3ff; --good: #35c58c; --bad: #ff5d6c; --warn: #f0b429;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, system-ui, sans-serif; }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  header h1 { font-size: 16px; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--muted); font-size: 12px; }
+  nav { display: flex; gap: 4px; padding: 10px 20px 0; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  nav button { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 14px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 13px; }
+  nav button.active { color: var(--text); background: var(--panel); border-bottom-color: var(--panel); }
+  main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+  section.tab { display: none; }
+  section.tab.active { display: block; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .panel h2 { margin: 0 0 10px; font-size: 14px; }
+  .panel h3 { margin: 14px 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+  input[type=text], input[type=number], select { background: #0d1014; border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 4px; font-size: 13px; }
+  input[type=checkbox] { transform: scale(1.1); }
+  button.btn { background: var(--accent); color: #06121f; border: none; padding: 7px 14px; border-radius: 5px; font-size: 13px; cursor: pointer; font-weight: 600; }
+  button.btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: 400; }
+  button.btn.danger { background: var(--bad); color: #200; }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { border: 1px solid var(--border); padding: 5px 8px; text-align: center; }
+  th { background: #1c2129; color: var(--muted); font-weight: 500; }
+  td.name { text-align: left; color: var(--muted); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge.pass { background: rgba(53,197,140,.18); color: var(--good); }
+  .badge.fail { background: rgba(255,93,108,.18); color: var(--bad); }
+  .badge.warn { background: rgba(240,180,41,.18); color: var(--warn); }
+  .badge.na { background: rgba(146,153,159,.18); color: var(--muted); }
+  #log { background: #0a0c0f; border: 1px solid var(--border); border-radius: 6px; padding: 10px; max-height: 220px; overflow-y: auto; font: 11px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
+  .log-err { color: var(--bad); }
+  .log-warn { color: var(--warn); }
+  .log-ok { color: var(--good); }
+  .meter { height: 10px; background: #0a0c0f; border-radius: 5px; overflow: hidden; width: 220px; border: 1px solid var(--border); }
+  .meter > i { display: block; height: 100%; background: var(--accent); width: 0%; }
+  .grid-heat { display: inline-grid; gap: 2px; margin-top: 6px; }
+  .cell { width: 34px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 3px; background: #23292f; color: var(--muted); }
+  .cell.ok { background: rgba(53,197,140,.35); color: #fff; }
+  .cell.partial { background: rgba(240,180,41,.35); color: #fff; }
+  .small { font-size: 11px; color: var(--muted); }
+  .flex-fill { flex: 1; }
+  .gate-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+  .gate-list li { display: flex; justify-content: space-between; gap: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+  a.dl { color: var(--accent); }
+  audio { height: 28px; }
+  .note { border-left: 3px solid var(--accent); padding: 8px 12px; background: rgba(77,163,255,.08); border-radius: 0 6px 6px 0; font-size: 12px; margin-bottom: 10px; }
+  .warn-note { border-left-color: var(--warn); background: rgba(240,180,41,.08); }
+  code { background: #0a0c0f; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>S0.2 — Shouted Voice KWS Spike (throwaway, morra micatio Step 0)</h1>
+  <p>vosk-browser (grammar-restricted) vs. shouted Italian/English number words. All results below come from real recordings and real recognizer runs — nothing here is simulated data. See <b>Setup</b> tab first.</p>
+</header>
+
+<nav>
+  <button data-tab="setup" class="active">1. Setup / Model</button>
+  <button data-tab="recorder">2. Corpus Recorder</button>
+  <button data-tab="corpus">3. Corpus &amp; Coverage</button>
+  <button data-tab="scoring">4. Batch Scoring</button>
+  <button data-tab="streaming">5. Streaming Probe (R9)</button>
+  <button data-tab="human">6. Human-Ambiguity Check</button>
+  <button data-tab="export">7. Export / Import</button>
+</nav>
+
+<main>
+
+<!-- ============================= TAB: SETUP ============================= -->
+<section class="tab active" id="tab-setup">
+  <div class="panel">
+    <h2>Model loading</h2>
+    <div class="note">
+      <b>Empirically confirmed 2026-08-08</b> (headless Chrome + real model files, before this page existed):
+      the <code>KaldiRecognizer(sampleRate, grammar)</code> grammar parameter genuinely restricts output on
+      <code>vosk-model-small-it-0.22</code> — an out-of-vocabulary word ("undici") and an unrelated sentence
+      ("buongiorno come stai") were both forced into the closed vocabulary (→ "dieci", → "sei") instead of being
+      transcribed freely. Without a grammar, the same inputs were transcribed correctly/freely. <b>Caveat:</b> the
+      <code>[unk]</code> reject token never fired in that test — out-of-vocabulary speech gets forced to the
+      <i>nearest</i> in-vocabulary word rather than reliably rejected. Treat <code>[unk]</code> as unreliable for
+      the "reject class" requirement; a confidence/duration heuristic will likely be needed on top.
+      <b>Catalan update (2026-08-08, real Montse/ca_ES TTS via <code>vosk-model-small-ca-0.4</code>):</b> grammar
+      restriction is confirmed here too (in-vocab words transcribed correctly with or without a grammar; an
+      unrelated sentence "bon dia com estàs" was forced into the closed vocabulary). Notably different from
+      Italian: <code>[unk]</code> <i>did</i> fire correctly for that out-of-vocabulary sentence on the Catalan
+      model — so the reject-class reliability may be model-specific, not a general vosk-browser property; don't
+      assume Italian's [unk] behavior generalizes to other languages.
+    </div>
+    <div class="note warn-note">
+      <b>CORS gotcha (also confirmed empirically):</b> <code>alphacephei.com</code> (the official Vosk model host)
+      sends no <code>Access-Control-Allow-Origin</code> header, so this page cannot fetch the Italian or Catalan
+      models directly from there — the browser fetch fails with a generic "Failed to fetch". The default Italian
+      and Catalan model URLs below point at same-origin copies in <code>spikes/models/</code> instead (fetched once
+      via <code>spikes/models/fetch-it-model.sh</code> / <code>fetch-ca-model.sh</code>; the .zip works as-is, no
+      .tar.gz conversion needed — the extractor auto-detects format). The English model defaults to a mirror that
+      <i>does</i> send permissive CORS headers, so it loads straight from its CDN with no self-hosting.
+    </div>
+    <div class="row">
+      <div>
+        <label>Language / vocabulary</label>
+        <select id="modelLang">
+          <option value="it" selected>Italian (due…dieci, morra, tutta)</option>
+          <option value="en">English (two…ten)</option>
+          <option value="ca">Catalan (dos…deu, tot)</option>
+        </select>
+      </div>
+      <div class="flex-fill" style="min-width:340px">
+        <label>Model URL (same-origin or CORS-enabled required)</label>
+        <input type="text" id="modelUrl" style="width:100%">
+      </div>
+      <button class="btn" id="btnLoadModel">Load model</button>
+    </div>
+    <div class="row small" id="modelStatus">No model loaded yet.</div>
+    <div class="meter"><i id="modelProgressBar"></i></div>
+    <h3>Serving reminder</h3>
+    <p class="small">This page must be served over http(s), not opened as <code>file://</code> — Worker/fetch/IndexedDB
+      behave inconsistently or are blocked under <code>file://</code> in Chrome. From <code>spikes/</code> run:
+      <code>python3 -m http.server 8080</code>, then open <code>http://localhost:8080/s02-voice.html</code>.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Kill-bar summary (updates live as you run tabs 4–6)</h2>
+    <ul class="gate-list" id="gateSummary"></ul>
+  </div>
+
+  <div class="panel">
+    <h2>Activity log</h2>
+    <div id="log"></div>
+  </div>
+</section>
+
+<!-- ============================= TAB: RECORDER ============================= -->
+<section class="tab" id="tab-recorder">
+  <div class="panel">
+    <h2>Mini-corpus recorder</h2>
+    <p class="small">Target: 2 speakers × all words in a language × ≥5 shouted reps each (spoken reps optional, for contrast).
+      Recording is captured via Web Audio (<code>ScriptProcessorNode</code> — deprecated but dependency-free) at the
+      device's native rate, then resampled to 16 kHz mono PCM16 WAV on stop, matching what vosk-browser expects.</p>
+    <div class="row">
+      <div><label>Speaker name</label><input type="text" id="recSpeaker" placeholder="e.g. jani"></div>
+      <div><label>Language</label>
+        <select id="recLang"><option value="it">Italian</option><option value="en">English</option><option value="ca">Catalan</option></select>
+      </div>
+      <div><label>Word</label><select id="recWord"></select></div>
+      <div><label>Style</label>
+        <select id="recStyle"><option value="1">Shouted</option><option value="0">Spoken (normal)</option></select>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" id="btnRecStart">● Start recording</button>
+      <button class="btn danger" id="btnRecStop" disabled>■ Stop &amp; save</button>
+      <div class="meter"><i id="levelMeter"></i></div>
+      <span class="small" id="recTimer">0.0s</span>
+    </div>
+    <div class="row small" id="recStatus"></div>
+  </div>
+</section>
+
+<!-- ============================= TAB: CORPUS ============================= -->
+<section class="tab" id="tab-corpus">
+  <div class="panel">
+    <h2>Coverage</h2>
+    <div class="row">
+      <label style="margin:0">Language: </label>
+      <select id="covLang"><option value="it">Italian</option><option value="en">English</option><option value="ca">Catalan</option></select>
+    </div>
+    <div id="coverageGrid"></div>
+    <p class="small">Cell = shouted-rep count for that (speaker, word). Green ≥5 (target met), amber 1–4, grey 0.</p>
+  </div>
+  <div class="panel">
+    <h2>All recordings (<span id="corpusCount">0</span>)</h2>
+    <div class="row">
+      <button class="btn secondary" id="btnRefreshCorpus">Refresh</button>
+      <button class="btn danger" id="btnClearCorpus">Delete ALL recordings</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="corpusTable">
+        <thead><tr><th>id</th><th>speaker</th><th>lang</th><th>word</th><th>style</th><th>dur (ms)</th><th>play</th><th>del</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= TAB: SCORING ============================= -->
+<section class="tab" id="tab-scoring">
+  <div class="panel">
+    <h2>Batch scoring</h2>
+    <p class="small">Runs the currently-loaded model (Setup tab) over every stored utterance matching its language.
+      One fresh <code>KaldiRecognizer</code> per utterance, full buffer fed in one <code>acceptWaveformFloat</code>
+      call + <code>retrieveFinalResult()</code>, timed close-to-close. This is the "batch" (non-incremental) baseline —
+      see the Streaming Probe tab for the incremental/R9 measurement.</p>
+    <div class="row">
+      <button class="btn" id="btnRunBatch">Run batch scoring</button>
+      <span class="small" id="batchStatus"></span>
+    </div>
+    <div id="batchGates"></div>
+    <h3>Confusion matrix (rows = true word, cols = predicted)</h3>
+    <div style="overflow-x:auto"><table id="confMatrix"></table></div>
+    <h3>Per-class accuracy</h3>
+    <div style="overflow-x:auto"><table id="perClassTable"></table></div>
+  </div>
+</section>
+
+<!-- ============================= TAB: STREAMING ============================= -->
+<section class="tab" id="tab-streaming">
+  <div class="panel">
+    <h2>Streaming probe (R9 — critical)</h2>
+    <p class="small">
+      Simulates the product's incremental capture window: for each utterance, the first 80% of its samples are fed
+      to the recognizer incrementally in 4096-sample chunks (as they'd arrive from a live mic ring buffer) <i>before</i>
+      a simulated "window close" timestamp. At that timestamp we feed the remaining 20% + call
+      <code>retrieveFinalResult()</code>, and time from the timestamp to the resulting <code>result</code> event.
+      This isolates post-close compute (parsing/finalization), which is what the ≤70&nbsp;ms product budget is
+      actually spent on — pre-close feeding has its own (separate) budget and doesn't count here, per R9's intent.
+    </p>
+    <div class="row">
+      <button class="btn" id="btnRunStreaming">Run streaming probe</button>
+      <span class="small" id="streamingStatus"></span>
+    </div>
+    <div id="streamingGates"></div>
+    <div style="overflow-x:auto"><table id="streamingTable"></table></div>
+  </div>
+</section>
+
+<!-- ============================= TAB: HUMAN ============================= -->
+<section class="tab" id="tab-human">
+  <div class="panel">
+    <h2>Human-ambiguity check</h2>
+    <p class="small">Kill-only condition: if a <i>human</i> can't reliably tell the recorded words apart, a recognizer
+      never will — that indicts the corpus, not vosk. Plays a random stored utterance; you guess the word blind.
+      Target: ≥95% human accuracy over a reasonable sample (n≥20 recommended).</p>
+    <div class="row">
+      <button class="btn" id="btnNextClip">Play random clip</button>
+      <span class="small" id="humanClipInfo"></span>
+    </div>
+    <div class="row" id="humanGuessButtons"></div>
+    <div class="row small" id="humanFeedback"></div>
+    <h3>Running score</h3>
+    <div class="row small" id="humanScore">0 / 0 (—)</div>
+  </div>
+</section>
+
+<!-- ============================= TAB: EXPORT ============================= -->
+<section class="tab" id="tab-export">
+  <div class="panel">
+    <h2>Corpus export / import</h2>
+    <p class="small">Export writes <code>manifest.json</code> plus one .wav download per utterance (browser may prompt
+      to allow multiple downloads — accept it). Import accepts a manifest.json + its .wav files selected together.</p>
+    <div class="row">
+      <button class="btn" id="btnExportCorpus">Export corpus (manifest + WAVs)</button>
+      <label class="btn secondary" style="cursor:pointer">Import corpus files
+        <input type="file" id="importFiles" multiple accept=".json,.wav" style="display:none">
+      </label>
+    </div>
+    <div class="row small" id="exportStatus"></div>
+  </div>
+  <div class="panel">
+    <h2>Results export</h2>
+    <div class="row">
+      <button class="btn secondary" id="btnExportBatchCsv">Batch scoring → CSV</button>
+      <button class="btn secondary" id="btnExportBatchJson">Batch scoring → JSON</button>
+      <button class="btn secondary" id="btnExportStreamCsv">Streaming probe → CSV</button>
+      <button class="btn secondary" id="btnExportStreamJson">Streaming probe → JSON</button>
+      <button class="btn secondary" id="btnExportHumanJson">Human check → JSON</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script type="module">
+/* =========================================================================
+ * Constants
+ * ========================================================================= */
+const VOCAB = {
+  it: ["due","tre","quattro","cinque","sei","sette","otto","nove","dieci","morra","tutta"],
+  en: ["two","three","four","five","six","seven","eight","nine","ten"],
+  // Catalan morra is played to 10; ten is called "deu" or "tot" (all) — there is
+  // no "morra" call in Catalan (native-speaker correction, 2026-08-08).
+  ca: ["dos","tres","quatre","cinc","sis","set","vuit","nou","deu","tot"],
+};
+const REJECT_TOKEN = "[unk]";
+const SAMPLE_RATE = 16000;
+const DEFAULT_MODEL_URL = {
+  it: "models/vosk-model-small-it-0.22.zip", // same-origin copy; alphacephei.com has no CORS headers (confirmed)
+  en: "https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz", // CORS-enabled mirror
+  ca: "models/vosk-model-small-ca-0.4.zip", // same-origin copy; alphacephei.com has no CORS headers (confirmed, same as IT)
+};
+const VOSK_CDN_URL = "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
+
+// Kill bars from the plan (.omc/plans/morra-micatio-vertical-slice.md, Step 0 / S0.2)
+const BARS = {
+  accuracy: 0.80,
+  downloadBytes: 60 * 1024 * 1024,
+  heapBytes: 300 * 1024 * 1024,
+  batchLatencyMs: 250,
+  streamingLatencyMs: 100,
+  humanAccuracy: 0.95,
+};
+
+/* =========================================================================
+ * Logging
+ * ========================================================================= */
+const logEl = document.getElementById('log');
+function log(msg, level = 'info') {
+  const line = document.createElement('div');
+  const ts = new Date().toISOString().split('T')[1].replace('Z', '');
+  line.className = level === 'error' ? 'log-err' : level === 'warn' ? 'log-warn' : level === 'ok' ? 'log-ok' : '';
+  line.textContent = `[${ts}] ${msg}`;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+  console[level === 'error' ? 'error' : 'log'](msg);
+}
+window.addEventListener('error', (e) => log(`window error: ${e.message}`, 'error'));
+window.addEventListener('unhandledrejection', (e) => log(`unhandled rejection: ${e.reason}`, 'error'));
+
+/* =========================================================================
+ * Tabs
+ * ========================================================================= */
+document.querySelectorAll('nav button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('section.tab').forEach((s) => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+  });
+});
+
+/* =========================================================================
+ * IndexedDB corpus store
+ * ========================================================================= */
+const DB_NAME = 'morra_voice_corpus';
+const DB_VERSION = 1;
+const STORE = 'utterances';
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const os = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+        os.createIndex('language', 'language');
+        os.createIndex('word', 'word');
+        os.createIndex('speaker', 'speaker');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbAdd(entry) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).add(entry).onsuccess = (e) => res(e.target.result);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbAll() {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbDelete(id) {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id).onsuccess = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbClear() {
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).clear().onsuccess = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* =========================================================================
+ * WAV encode / decode / resample helpers
+ * ========================================================================= */
+function writeAsciiString(view, offset, str) {
+  for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+}
+function encodeWavPCM16(float32Array, sampleRate) {
+  const bytesPerSample = 2, blockAlign = bytesPerSample;
+  const dataSize = float32Array.length * bytesPerSample;
+  const buf = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buf);
+  writeAsciiString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeAsciiString(view, 8, 'WAVE');
+  writeAsciiString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeAsciiString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+  let offset = 44;
+  for (let i = 0; i < float32Array.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, float32Array[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([buf], { type: 'audio/wav' });
+}
+async function resampleTo16kMono(float32Array, srcSampleRate) {
+  if (srcSampleRate === SAMPLE_RATE) return float32Array;
+  const duration = float32Array.length / srcSampleRate;
+  const offlineCtx = new OfflineAudioContext(1, Math.max(1, Math.ceil(duration * SAMPLE_RATE)), SAMPLE_RATE);
+  const srcBuffer = offlineCtx.createBuffer(1, float32Array.length, srcSampleRate);
+  srcBuffer.copyToChannel(float32Array, 0);
+  const srcNode = offlineCtx.createBufferSource();
+  srcNode.buffer = srcBuffer;
+  srcNode.connect(offlineCtx.destination);
+  srcNode.start();
+  const rendered = await offlineCtx.startRendering();
+  return rendered.getChannelData(0).slice();
+}
+// Decodes an arbitrary audio Blob (our own WAVs, or imported ones) to mono Float32 @ 16kHz.
+async function decodeBlobToFloat32Mono16k(blob) {
+  const arrayBuf = await blob.arrayBuffer();
+  const offlineCtx = new OfflineAudioContext(1, 1, SAMPLE_RATE);
+  const decoded = await offlineCtx.decodeAudioData(arrayBuf.slice(0));
+  if (decoded.sampleRate === SAMPLE_RATE && decoded.numberOfChannels === 1) {
+    return decoded.getChannelData(0);
+  }
+  const duration = decoded.duration;
+  const resampleCtx = new OfflineAudioContext(1, Math.max(1, Math.ceil(duration * SAMPLE_RATE)), SAMPLE_RATE);
+  const src = resampleCtx.createBufferSource();
+  src.buffer = decoded;
+  src.connect(resampleCtx.destination);
+  src.start();
+  const rendered = await resampleCtx.startRendering();
+  return rendered.getChannelData(0);
+}
+
+/* =========================================================================
+ * Recorder
+ * ========================================================================= */
+let recCtx = null, recSource = null, recProcessor = null, recStream = null;
+let recChunks = [], recording = false, recStartedAt = 0, recTimerHandle = null;
+let lastRms = 0;
+
+function populateWordSelect(sel, lang) {
+  sel.innerHTML = '';
+  for (const w of VOCAB[lang]) {
+    const opt = document.createElement('option');
+    opt.value = w; opt.textContent = w;
+    sel.appendChild(opt);
+  }
+}
+const recLangSel = document.getElementById('recLang');
+const recWordSel = document.getElementById('recWord');
+populateWordSelect(recWordSel, recLangSel.value);
+recLangSel.addEventListener('change', () => populateWordSelect(recWordSel, recLangSel.value));
+
+document.getElementById('btnRecStart').addEventListener('click', async () => {
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+    });
+    recCtx = new (window.AudioContext || window.webkitAudioContext)();
+    recSource = recCtx.createMediaStreamSource(recStream);
+    recProcessor = recCtx.createScriptProcessor(4096, 1, 1);
+    recChunks = [];
+    recProcessor.onaudioprocess = (e) => {
+      const data = e.inputBuffer.getChannelData(0);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+      lastRms = Math.sqrt(sum / data.length);
+      if (recording) recChunks.push(new Float32Array(data));
+    };
+    const silentGain = recCtx.createGain();
+    silentGain.gain.value = 0;
+    recSource.connect(recProcessor);
+    recProcessor.connect(silentGain);
+    silentGain.connect(recCtx.destination);
+    recording = true;
+    recStartedAt = performance.now();
+    document.getElementById('btnRecStart').disabled = true;
+    document.getElementById('btnRecStop').disabled = false;
+    document.getElementById('recStatus').textContent = 'Recording…';
+    const meterEl = document.getElementById('levelMeter');
+    const timerEl = document.getElementById('recTimer');
+    recTimerHandle = setInterval(() => {
+      meterEl.style.width = Math.min(100, lastRms * 400) + '%';
+      timerEl.textContent = ((performance.now() - recStartedAt) / 1000).toFixed(1) + 's';
+    }, 100);
+    log('Recording started.');
+  } catch (e) {
+    log(`getUserMedia failed: ${e.message}`, 'error');
+    document.getElementById('recStatus').textContent = `Mic error: ${e.message}`;
+  }
+});
+
+document.getElementById('btnRecStop').addEventListener('click', async () => {
+  recording = false;
+  clearInterval(recTimerHandle);
+  document.getElementById('btnRecStart').disabled = false;
+  document.getElementById('btnRecStop').disabled = true;
+  try {
+    recProcessor.disconnect();
+    recSource.disconnect();
+    recStream.getTracks().forEach((t) => t.stop());
+    const total = recChunks.reduce((a, c) => a + c.length, 0);
+    const merged = new Float32Array(total);
+    let off = 0;
+    for (const c of recChunks) { merged.set(c, off); off += c.length; }
+    const srcRate = recCtx.sampleRate;
+    await recCtx.close();
+    if (total === 0) {
+      document.getElementById('recStatus').textContent = 'Nothing recorded (0 samples) — not saved.';
+      return;
+    }
+    const resampled = await resampleTo16kMono(merged, srcRate);
+    const wav = encodeWavPCM16(resampled, SAMPLE_RATE);
+    const entry = {
+      speaker: document.getElementById('recSpeaker').value.trim() || 'unknown',
+      language: recLangSel.value,
+      word: recWordSel.value,
+      shouted: document.getElementById('recStyle').value === '1',
+      durationMs: Math.round((resampled.length / SAMPLE_RATE) * 1000),
+      createdAt: new Date().toISOString(),
+      wav,
+    };
+    const id = await idbAdd(entry);
+    document.getElementById('recStatus').textContent =
+      `Saved #${id}: ${entry.speaker}/${entry.language}/${entry.word}/${entry.shouted ? 'shouted' : 'spoken'} (${entry.durationMs} ms)`;
+    log(`Saved utterance #${id} (${entry.durationMs} ms).`, 'ok');
+  } catch (e) {
+    log(`Stop/save failed: ${e.message}`, 'error');
+    document.getElementById('recStatus').textContent = `Save error: ${e.message}`;
+  }
+});
+
+/* =========================================================================
+ * Corpus tab: list, coverage, delete
+ * ========================================================================= */
+async function refreshCorpusUI() {
+  const all = await idbAll();
+  document.getElementById('corpusCount').textContent = all.length;
+  const tbody = document.querySelector('#corpusTable tbody');
+  tbody.innerHTML = '';
+  for (const u of all.sort((a, b) => a.id - b.id)) {
+    const tr = document.createElement('tr');
+    const audioUrl = URL.createObjectURL(u.wav);
+    tr.innerHTML = `
+      <td>${u.id}</td><td>${u.speaker}</td><td>${u.language}</td><td>${u.word}</td>
+      <td>${u.shouted ? 'shouted' : 'spoken'}</td><td>${u.durationMs}</td>
+      <td><audio controls src="${audioUrl}"></audio></td>
+      <td><button class="btn danger" data-del="${u.id}" style="padding:3px 8px">x</button></td>`;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('[data-del]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      await idbDelete(parseInt(b.dataset.del, 10));
+      refreshCorpusUI();
+      renderCoverage();
+    });
+  });
+  return all;
+}
+async function renderCoverage() {
+  const lang = document.getElementById('covLang').value;
+  const all = (await idbAll()).filter((u) => u.language === lang);
+  const speakers = [...new Set(all.map((u) => u.speaker))].sort();
+  const words = VOCAB[lang];
+  const grid = document.getElementById('coverageGrid');
+  const cols = speakers.length || 1;
+  grid.style.gridTemplateColumns = `70px repeat(${cols}, 60px)`;
+  grid.innerHTML = '';
+  const corner = document.createElement('div');
+  corner.className = 'cell'; corner.style.background = 'transparent'; corner.textContent = '';
+  grid.appendChild(corner);
+  for (const sp of speakers) {
+    const h = document.createElement('div');
+    h.className = 'cell'; h.style.background = 'transparent'; h.style.color = 'var(--muted)';
+    h.textContent = sp.slice(0, 8);
+    grid.appendChild(h);
+  }
+  if (speakers.length === 0) {
+    grid.innerHTML += '<div class="small" style="grid-column:1/-1">No recordings for this language yet.</div>';
+    return;
+  }
+  for (const w of words) {
+    const label = document.createElement('div');
+    label.className = 'cell'; label.style.background = 'transparent'; label.style.color = 'var(--muted)';
+    label.style.justifyContent = 'flex-start';
+    label.textContent = w;
+    grid.appendChild(label);
+    for (const sp of speakers) {
+      const count = all.filter((u) => u.speaker === sp && u.word === w && u.shouted).length;
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + (count >= 5 ? 'ok' : count > 0 ? 'partial' : '');
+      cell.textContent = count;
+      grid.appendChild(cell);
+    }
+  }
+}
+document.getElementById('btnRefreshCorpus').addEventListener('click', () => { refreshCorpusUI(); renderCoverage(); });
+document.getElementById('covLang').addEventListener('change', renderCoverage);
+document.getElementById('btnClearCorpus').addEventListener('click', async () => {
+  if (!confirm('Delete ALL recorded utterances? This cannot be undone.')) return;
+  await idbClear();
+  refreshCorpusUI(); renderCoverage();
+});
+
+/* =========================================================================
+ * Model loading (fetch-with-progress -> blob: URL -> Vosk.createModel)
+ * ========================================================================= */
+let currentModel = null, currentModelLang = null, currentModelInfo = null;
+let heapBaselineBytes = null;
+
+async function ensureVoskLoaded() {
+  if (window.Vosk) return window.Vosk;
+  log('Loading vosk-browser from CDN…');
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = VOSK_CDN_URL;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Failed to load vosk-browser script from CDN — check network/CDN availability.'));
+    document.head.appendChild(s);
+  });
+  if (!window.Vosk) throw new Error('vosk-browser script loaded but window.Vosk is undefined.');
+  return window.Vosk;
+}
+
+async function fetchModelBlob(url, onProgress) {
+  const t0 = performance.now();
+  let resp;
+  try {
+    resp = await fetch(url);
+  } catch (e) {
+    throw new Error(
+      `fetch("${url}") threw before any HTTP status was seen — almost always a CORS block ` +
+      `(host doesn't send Access-Control-Allow-Origin) or a network/path error. Original: ${e.message}`
+    );
+  }
+  if (!resp.ok) throw new Error(`Model fetch failed: HTTP ${resp.status} for ${url}`);
+  const total = parseInt(resp.headers.get('Content-Length') || '0', 10);
+  const reader = resp.body.getReader();
+  const chunks = [];
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (onProgress) onProgress(received, total);
+  }
+  const blob = new Blob(chunks);
+  return { blob, downloadMs: performance.now() - t0, bytes: received || blob.size };
+}
+
+function fmtBytes(n) { return (n / (1024 * 1024)).toFixed(1) + ' MB'; }
+
+document.getElementById('modelLang').addEventListener('change', (e) => {
+  document.getElementById('modelUrl').value = DEFAULT_MODEL_URL[e.target.value];
+});
+document.getElementById('modelUrl').value = DEFAULT_MODEL_URL.it;
+
+document.getElementById('btnLoadModel').addEventListener('click', async () => {
+  const lang = document.getElementById('modelLang').value;
+  const url = document.getElementById('modelUrl').value.trim();
+  const statusEl = document.getElementById('modelStatus');
+  const bar = document.getElementById('modelProgressBar');
+  const btn = document.getElementById('btnLoadModel');
+  btn.disabled = true;
+  bar.style.width = '0%';
+  try {
+    statusEl.textContent = `Loading vosk-browser runtime…`;
+    const Vosk = await ensureVoskLoaded();
+    if (performance.memory) heapBaselineBytes = performance.memory.usedJSHeapSize;
+
+    statusEl.textContent = `Downloading model from ${url}…`;
+    log(`Fetching model: ${url}`);
+    const { blob, downloadMs, bytes } = await fetchModelBlob(url, (received, total) => {
+      const pct = total ? (received / total) * 100 : 0;
+      bar.style.width = pct + '%';
+      statusEl.textContent = `Downloading… ${fmtBytes(received)}${total ? ' / ' + fmtBytes(total) : ''}`;
+    });
+    log(`Downloaded ${fmtBytes(bytes)} in ${(downloadMs / 1000).toFixed(1)}s.`, 'ok');
+
+    const blobUrl = URL.createObjectURL(blob);
+    statusEl.textContent = `Extracting + loading model into WASM…`;
+    const t0 = performance.now();
+    const model = await Vosk.createModel(blobUrl, 0);
+    const loadMs = performance.now() - t0;
+
+    currentModel = model;
+    currentModelLang = lang;
+    currentModelInfo = { url, bytes, downloadMs, loadMs };
+    if (performance.memory) {
+      currentModelInfo.heapAfterLoadBytes = performance.memory.usedJSHeapSize;
+      currentModelInfo.heapDeltaBytes = currentModelInfo.heapAfterLoadBytes - heapBaselineBytes;
+    }
+    statusEl.innerHTML =
+      `<b>Loaded</b> [${lang}] ${fmtBytes(bytes)} downloaded in ${(downloadMs / 1000).toFixed(1)}s, ` +
+      `extracted+loaded in ${loadMs.toFixed(0)}ms.` +
+      (performance.memory ? ` JS heap Δ: ${fmtBytes(currentModelInfo.heapDeltaBytes)} (proxy, see note below).`
+        : ' performance.memory unavailable in this browser — heap not measured.');
+    log(`Model ready: ${lang}, ${fmtBytes(bytes)}, load ${loadMs.toFixed(0)}ms.`, 'ok');
+  } catch (e) {
+    statusEl.textContent = `ERROR: ${e.message}`;
+    log(`Model load failed: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    updateGateSummary();
+  }
+});
+
+/* =========================================================================
+ * Recognition primitives
+ * ========================================================================= */
+function grammarFor(lang) { return JSON.stringify([...VOCAB[lang], REJECT_TOKEN]); }
+
+async function recognizeBatch(float32) {
+  const rec = new currentModel.KaldiRecognizer(SAMPLE_RATE, grammarFor(currentModelLang));
+  const t0 = performance.now();
+  const resultPromise = new Promise((resolve) => rec.on('result', (m) => resolve(m)));
+  rec.acceptWaveformFloat(float32, SAMPLE_RATE);
+  rec.retrieveFinalResult();
+  const m = await resultPromise;
+  const latencyMs = performance.now() - t0;
+  rec.remove();
+  return { text: (m.result && m.result.text) || '', latencyMs };
+}
+
+async function recognizeStreaming(float32) {
+  const rec = new currentModel.KaldiRecognizer(SAMPLE_RATE, grammarFor(currentModelLang));
+  const splitIdx = Math.floor(float32.length * 0.8);
+  const CHUNK = 4096;
+  for (let i = 0; i < splitIdx; i += CHUNK) {
+    rec.acceptWaveformFloat(float32.subarray(i, Math.min(i + CHUNK, splitIdx)), SAMPLE_RATE);
+  }
+  const tClose = performance.now();
+  const resultPromise = new Promise((resolve) => rec.on('result', (m) => resolve(m)));
+  rec.acceptWaveformFloat(float32.subarray(splitIdx), SAMPLE_RATE);
+  rec.retrieveFinalResult();
+  const m = await resultPromise;
+  const latencyMs = performance.now() - tClose;
+  rec.remove();
+  return { text: (m.result && m.result.text) || '', latencyMs };
+}
+
+function percentile(sortedArr, p) {
+  if (sortedArr.length === 0) return NaN;
+  const idx = Math.min(sortedArr.length - 1, Math.floor((p / 100) * sortedArr.length));
+  return sortedArr[idx];
+}
+
+/* =========================================================================
+ * Batch scoring
+ * ========================================================================= */
+let lastBatchResults = [];
+
+document.getElementById('btnRunBatch').addEventListener('click', async () => {
+  const statusEl = document.getElementById('batchStatus');
+  if (!currentModel) { statusEl.textContent = 'Load a model first (Setup tab).'; return; }
+  const all = (await idbAll()).filter((u) => u.language === currentModelLang);
+  if (all.length === 0) { statusEl.textContent = `No stored utterances for language "${currentModelLang}".`; return; }
+
+  document.getElementById('btnRunBatch').disabled = true;
+  lastBatchResults = [];
+  let peakHeap = performance.memory ? performance.memory.usedJSHeapSize : null;
+
+  for (let i = 0; i < all.length; i++) {
+    const u = all[i];
+    statusEl.textContent = `Scoring ${i + 1} / ${all.length}…`;
+    const float32 = await decodeBlobToFloat32Mono16k(u.wav);
+    const { text, latencyMs } = await recognizeBatch(float32);
+    if (performance.memory) peakHeap = Math.max(peakHeap, performance.memory.usedJSHeapSize);
+    const predicted = text.trim().split(/\s+/).filter(Boolean);
+    const predWord = predicted.length === 1 ? predicted[0] : (predicted.length === 0 ? '(empty)' : predicted.join(' '));
+    lastBatchResults.push({
+      id: u.id, speaker: u.speaker, language: u.language, trueWord: u.word, shouted: u.shouted,
+      predWord, correct: predWord === u.word, latencyMs,
+    });
+  }
+  statusEl.textContent = `Done: ${all.length} utterances scored.`;
+  if (peakHeap !== null) currentModelInfo.peakHeapDuringBatchBytes = peakHeap;
+  document.getElementById('btnRunBatch').disabled = false;
+  renderBatchResults();
+  updateGateSummary();
+});
+
+function renderBatchResults() {
+  const results = lastBatchResults;
+  const words = VOCAB[currentModelLang];
+  const predClasses = [...words, '(empty)', '(other)'];
+
+  // Confusion matrix
+  const matrix = {};
+  for (const w of words) { matrix[w] = {}; for (const p of predClasses) matrix[w][p] = 0; }
+  let correct = 0;
+  const perClassTotal = {}, perClassCorrect = {};
+  for (const w of words) { perClassTotal[w] = 0; perClassCorrect[w] = 0; }
+  for (const r of results) {
+    if (!(r.trueWord in matrix)) continue;
+    const p = predClasses.includes(r.predWord) ? r.predWord : '(other)';
+    matrix[r.trueWord][p]++;
+    perClassTotal[r.trueWord]++;
+    if (r.correct) { correct++; perClassCorrect[r.trueWord]++; }
+  }
+  const accuracy = results.length ? correct / results.length : 0;
+
+  const confTable = document.getElementById('confMatrix');
+  let html = '<thead><tr><th class="name">true \\ pred</th>' + predClasses.map((p) => `<th>${p}</th>`).join('') + '</tr></thead><tbody>';
+  for (const w of words) {
+    html += `<tr><td class="name">${w}</td>` + predClasses.map((p) => `<td>${matrix[w][p]}</td>`).join('') + '</tr>';
+  }
+  html += '</tbody>';
+  confTable.innerHTML = html;
+
+  const perClassTable = document.getElementById('perClassTable');
+  let html2 = '<thead><tr><th>word</th><th>n</th><th>correct</th><th>accuracy</th></tr></thead><tbody>';
+  for (const w of words) {
+    const acc = perClassTotal[w] ? (perClassCorrect[w] / perClassTotal[w]) : NaN;
+    html2 += `<tr><td>${w}</td><td>${perClassTotal[w]}</td><td>${perClassCorrect[w]}</td><td>${isNaN(acc) ? '—' : (acc * 100).toFixed(0) + '%'}</td></tr>`;
+  }
+  html2 += '</tbody>';
+  perClassTable.innerHTML = html2;
+
+  const latencies = results.map((r) => r.latencyMs).sort((a, b) => a - b);
+  const p50 = percentile(latencies, 50), p95 = percentile(latencies, 95);
+
+  const gatesEl = document.getElementById('batchGates');
+  gatesEl.innerHTML = `<ul class="gate-list">
+    <li>Overall accuracy vs ≥80% bar <span class="badge ${accuracy >= BARS.accuracy ? 'pass' : 'fail'}">${(accuracy * 100).toFixed(1)}%</span></li>
+    <li>Model download size vs ≤60MB bar <span class="badge ${currentModelInfo.bytes <= BARS.downloadBytes ? 'pass' : 'fail'}">${fmtBytes(currentModelInfo.bytes)}</span></li>
+    <li>Batch time-to-result p95 vs ≤250ms bar <span class="badge ${p95 <= BARS.batchLatencyMs ? 'pass' : 'fail'}">p50 ${p50.toFixed(0)}ms / p95 ${p95.toFixed(0)}ms</span></li>
+    <li>JS heap proxy vs ≤300MB bar <span class="badge ${!performance.memory ? 'na' : (currentModelInfo.peakHeapDuringBatchBytes <= BARS.heapBytes ? 'pass' : 'fail')}">
+      ${!performance.memory ? 'unavailable in this browser' : fmtBytes(currentModelInfo.peakHeapDuringBatchBytes)}</span></li>
+  </ul>
+  <p class="small">n=${results.length}. Heap figure is <code>performance.memory.usedJSHeapSize</code> (Chrome-only), a proxy — it
+  is not a certified measurement of the WASM linear memory vosk-browser allocates, since that memory isn't separately exposed.</p>`;
+
+  window.__lastBatchSummary = { accuracy, n: results.length, p50, p95 };
+  updateGateSummary();
+}
+
+/* =========================================================================
+ * Streaming probe (R9)
+ * ========================================================================= */
+let lastStreamingResults = [];
+
+document.getElementById('btnRunStreaming').addEventListener('click', async () => {
+  const statusEl = document.getElementById('streamingStatus');
+  if (!currentModel) { statusEl.textContent = 'Load a model first (Setup tab).'; return; }
+  const all = (await idbAll()).filter((u) => u.language === currentModelLang);
+  if (all.length === 0) { statusEl.textContent = `No stored utterances for language "${currentModelLang}".`; return; }
+
+  document.getElementById('btnRunStreaming').disabled = true;
+  lastStreamingResults = [];
+  for (let i = 0; i < all.length; i++) {
+    const u = all[i];
+    statusEl.textContent = `Probing ${i + 1} / ${all.length}…`;
+    const float32 = await decodeBlobToFloat32Mono16k(u.wav);
+    const { text, latencyMs } = await recognizeStreaming(float32);
+    lastStreamingResults.push({
+      id: u.id, speaker: u.speaker, language: u.language, trueWord: u.word, shouted: u.shouted,
+      predWord: text, correct: text.trim() === u.word, latencyMs,
+    });
+  }
+  statusEl.textContent = `Done: ${all.length} utterances probed.`;
+  document.getElementById('btnRunStreaming').disabled = false;
+  renderStreamingResults();
+});
+
+function renderStreamingResults() {
+  const results = lastStreamingResults;
+  const latencies = results.map((r) => r.latencyMs).sort((a, b) => a - b);
+  const p50 = percentile(latencies, 50), p95 = percentile(latencies, 95);
+  const gatesEl = document.getElementById('streamingGates');
+  gatesEl.innerHTML = `<ul class="gate-list">
+    <li>Close→result latency p50/p95 vs ≤100ms bar
+      <span class="badge ${p95 <= BARS.streamingLatencyMs ? 'pass' : 'fail'}">p50 ${p50.toFixed(1)}ms / p95 ${p95.toFixed(1)}ms</span></li>
+  </ul><p class="small">n=${results.length}. "Close" = the simulated window-close timestamp, right after the first 80% of
+  each utterance's samples were fed incrementally in 4096-sample chunks; latency is time to the recognizer's
+  <code>result</code> event after that point (final 20% + <code>retrieveFinalResult()</code>).</p>`;
+
+  const table = document.getElementById('streamingTable');
+  let html = '<thead><tr><th>id</th><th>speaker</th><th>true</th><th>pred</th><th>correct</th><th>latency (ms)</th></tr></thead><tbody>';
+  for (const r of results) {
+    html += `<tr><td>${r.id}</td><td>${r.speaker}</td><td>${r.trueWord}</td><td>${r.predWord || '(empty)'}</td>
+      <td>${r.correct ? '✓' : '✗'}</td><td>${r.latencyMs.toFixed(1)}</td></tr>`;
+  }
+  html += '</tbody>';
+  table.innerHTML = html;
+
+  window.__lastStreamingSummary = { n: results.length, p50, p95 };
+  updateGateSummary();
+}
+
+/* =========================================================================
+ * Human-ambiguity check
+ * ========================================================================= */
+let humanScore = { correct: 0, total: 0 };
+let humanCurrent = null;
+let humanResults = [];
+
+document.getElementById('btnNextClip').addEventListener('click', async () => {
+  const all = await idbAll();
+  if (all.length === 0) { document.getElementById('humanClipInfo').textContent = 'No recordings yet.'; return; }
+  humanCurrent = all[Math.floor(Math.random() * all.length)];
+  const url = URL.createObjectURL(humanCurrent.wav);
+  const audio = new Audio(url);
+  audio.play();
+  document.getElementById('humanClipInfo').textContent = `Playing utterance #${humanCurrent.id} (${humanCurrent.language}, ${humanCurrent.shouted ? 'shouted' : 'spoken'})…`;
+  document.getElementById('humanFeedback').textContent = '';
+  const btnRow = document.getElementById('humanGuessButtons');
+  btnRow.innerHTML = '';
+  for (const w of VOCAB[humanCurrent.language]) {
+    const b = document.createElement('button');
+    b.className = 'btn secondary';
+    b.textContent = w;
+    b.addEventListener('click', () => submitHumanGuess(w));
+    btnRow.appendChild(b);
+  }
+  const dontKnow = document.createElement('button');
+  dontKnow.className = 'btn secondary';
+  dontKnow.textContent = "can't tell";
+  dontKnow.addEventListener('click', () => submitHumanGuess('(unsure)'));
+  btnRow.appendChild(dontKnow);
+});
+
+function submitHumanGuess(guess) {
+  if (!humanCurrent) return;
+  const correct = guess === humanCurrent.word;
+  humanScore.total++;
+  if (correct) humanScore.correct++;
+  humanResults.push({ id: humanCurrent.id, trueWord: humanCurrent.word, guess, correct });
+  document.getElementById('humanFeedback').textContent =
+    `You said "${guess}" — actual was "${humanCurrent.word}" — ${correct ? 'correct' : 'WRONG'}.`;
+  const pct = humanScore.total ? (humanScore.correct / humanScore.total) * 100 : 0;
+  document.getElementById('humanScore').innerHTML =
+    `${humanScore.correct} / ${humanScore.total} (${pct.toFixed(1)}%) ` +
+    `<span class="badge ${humanScore.total >= 10 ? (pct / 100 >= BARS.humanAccuracy ? 'pass' : 'fail') : 'na'}">
+      ${humanScore.total >= 10 ? (pct / 100 >= BARS.humanAccuracy ? 'PASS' : 'FAIL vs 95% bar') : 'need n≥10'}</span>`;
+  humanCurrent = null;
+  updateGateSummary();
+}
+
+/* =========================================================================
+ * Gate summary (Setup tab)
+ * ========================================================================= */
+function updateGateSummary() {
+  const el = document.getElementById('gateSummary');
+  const items = [];
+  const b = window.__lastBatchSummary;
+  const s = window.__lastStreamingSummary;
+  const h = humanScore;
+  items.push(['Batch accuracy ≥80%', b ? `${(b.accuracy * 100).toFixed(1)}% (n=${b.n})` : 'not run', b ? b.accuracy >= BARS.accuracy : null]);
+  items.push(['Model download ≤60MB', currentModelInfo ? fmtBytes(currentModelInfo.bytes) : 'no model loaded', currentModelInfo ? currentModelInfo.bytes <= BARS.downloadBytes : null]);
+  items.push(['JS heap proxy ≤300MB', (currentModelInfo && currentModelInfo.peakHeapDuringBatchBytes) ? fmtBytes(currentModelInfo.peakHeapDuringBatchBytes) : (performance.memory ? 'not run' : 'unavailable'), (currentModelInfo && currentModelInfo.peakHeapDuringBatchBytes) ? currentModelInfo.peakHeapDuringBatchBytes <= BARS.heapBytes : null]);
+  items.push(['Batch time-to-result p95 ≤250ms', b ? `${b.p95.toFixed(0)}ms` : 'not run', b ? b.p95 <= BARS.batchLatencyMs : null]);
+  items.push(['Streaming (R9) close→result p95 ≤100ms', s ? `${s.p95.toFixed(1)}ms` : 'not run', s ? s.p95 <= BARS.streamingLatencyMs : null]);
+  items.push(['Human corpus ambiguity ≥95% (kill-only)', h.total ? `${((h.correct / h.total) * 100).toFixed(1)}% (n=${h.total})` : 'not run', h.total >= 10 ? (h.correct / h.total) >= BARS.humanAccuracy : null]);
+
+  el.innerHTML = items.map(([label, val, pass]) =>
+    `<li><span>${label}</span><span>${val} <span class="badge ${pass === null ? 'na' : pass ? 'pass' : 'fail'}">${pass === null ? '—' : pass ? 'PASS' : 'FAIL'}</span></span></li>`
+  ).join('');
+}
+updateGateSummary();
+
+/* =========================================================================
+ * Export / import
+ * ========================================================================= */
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function toCsv(rows, columns) {
+  const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const lines = [columns.join(',')];
+  for (const r of rows) lines.push(columns.map((c) => esc(r[c])).join(','));
+  return lines.join('\n');
+}
+
+document.getElementById('btnExportCorpus').addEventListener('click', async () => {
+  const all = await idbAll();
+  if (all.length === 0) { document.getElementById('exportStatus').textContent = 'Nothing to export.'; return; }
+  const manifest = all.map((u) => ({
+    id: u.id, speaker: u.speaker, language: u.language, word: u.word, shouted: u.shouted,
+    durationMs: u.durationMs, createdAt: u.createdAt, filename: `utt_${u.id}_${u.speaker}_${u.language}_${u.word}_${u.shouted ? 'shouted' : 'spoken'}.wav`,
+  }));
+  downloadBlob(new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' }), 'manifest.json');
+  document.getElementById('exportStatus').textContent = `Exporting manifest.json + ${all.length} WAV files — accept the browser's "allow multiple downloads" prompt if shown.`;
+  for (let i = 0; i < all.length; i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    downloadBlob(all[i].wav, manifest[i].filename);
+  }
+  document.getElementById('exportStatus').textContent = `Exported manifest.json + ${all.length} WAV files.`;
+});
+
+document.getElementById('importFiles').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  const manifestFile = files.find((f) => f.name.endsWith('.json'));
+  const statusEl = document.getElementById('exportStatus');
+  if (!manifestFile) { statusEl.textContent = 'Select manifest.json together with the .wav files.'; return; }
+  const manifest = JSON.parse(await manifestFile.text());
+  let imported = 0;
+  for (const entry of manifest) {
+    const wavFile = files.find((f) => f.name === entry.filename);
+    if (!wavFile) { log(`Import: missing file for manifest entry ${entry.filename}`, 'warn'); continue; }
+    await idbAdd({
+      speaker: entry.speaker, language: entry.language, word: entry.word, shouted: entry.shouted,
+      durationMs: entry.durationMs, createdAt: entry.createdAt || new Date().toISOString(), wav: wavFile,
+    });
+    imported++;
+  }
+  statusEl.textContent = `Imported ${imported} / ${manifest.length} utterances.`;
+  refreshCorpusUI(); renderCoverage();
+});
+
+document.getElementById('btnExportBatchCsv').addEventListener('click', () => {
+  if (!lastBatchResults.length) return alert('Run batch scoring first.');
+  downloadBlob(new Blob([toCsv(lastBatchResults, ['id', 'speaker', 'language', 'trueWord', 'shouted', 'predWord', 'correct', 'latencyMs'])], { type: 'text/csv' }), 'batch_scoring_results.csv');
+});
+document.getElementById('btnExportBatchJson').addEventListener('click', () => {
+  if (!lastBatchResults.length) return alert('Run batch scoring first.');
+  downloadBlob(new Blob([JSON.stringify({ modelInfo: currentModelInfo, results: lastBatchResults }, null, 2)], { type: 'application/json' }), 'batch_scoring_results.json');
+});
+document.getElementById('btnExportStreamCsv').addEventListener('click', () => {
+  if (!lastStreamingResults.length) return alert('Run streaming probe first.');
+  downloadBlob(new Blob([toCsv(lastStreamingResults, ['id', 'speaker', 'language', 'trueWord', 'shouted', 'predWord', 'correct', 'latencyMs'])], { type: 'text/csv' }), 'streaming_probe_results.csv');
+});
+document.getElementById('btnExportStreamJson').addEventListener('click', () => {
+  if (!lastStreamingResults.length) return alert('Run streaming probe first.');
+  downloadBlob(new Blob([JSON.stringify({ modelInfo: currentModelInfo, results: lastStreamingResults }, null, 2)], { type: 'application/json' }), 'streaming_probe_results.json');
+});
+document.getElementById('btnExportHumanJson').addEventListener('click', () => {
+  if (!humanResults.length) return alert('Run the human-ambiguity check first.');
+  downloadBlob(new Blob([JSON.stringify({ score: humanScore, results: humanResults }, null, 2)], { type: 'application/json' }), 'human_ambiguity_results.json');
+});
+
+/* =========================================================================
+ * Init
+ * ========================================================================= */
+refreshCorpusUI();
+renderCoverage();
+log('Page ready. Serve over http(s), then: Setup → Load model; Recorder → build corpus; Corpus → check coverage; Scoring/Streaming/Human → run gates.');
+
+// Debug hook for automated/headless verification of this spike page only — not part of the product surface.
+window.__debug = {
+  idbAdd, idbAll, idbClear, encodeWavPCM16, decodeBlobToFloat32Mono16k, VOCAB, refreshCorpusUI, renderCoverage,
+  recognizeBatch, grammarFor,
+  getModelState: () => ({ lang: currentModelLang, info: currentModelInfo, loaded: !!currentModel }),
+  // Test-only: run recognition with an explicit grammar override (or none), to A/B grammar-restriction claims.
+  recognizeWithGrammar: async (float32, grammarJsonOrNull) => {
+    const rec = grammarJsonOrNull
+      ? new currentModel.KaldiRecognizer(SAMPLE_RATE, grammarJsonOrNull)
+      : new currentModel.KaldiRecognizer(SAMPLE_RATE);
+    const resultPromise = new Promise((resolve) => rec.on('result', (m) => resolve(m)));
+    rec.acceptWaveformFloat(float32, SAMPLE_RATE);
+    rec.retrieveFinalResult();
+    const m = await resultPromise;
+    rec.remove();
+    return (m.result && m.result.text) || '';
+  },
+};
+</script>
+</body>
+</html>

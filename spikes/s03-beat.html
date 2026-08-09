@@ -1,0 +1,3237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S0.3 — Beat-Sync Spike</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #101317;
+    --panel: #181c22;
+    --panel-2: #1f242c;
+    --border: #2a313b;
+    --text: #e7ebf0;
+    --dim: #8a94a3;
+    --accent: #4fb3ff;
+    --good: #35d07f;
+    --bad: #ff5c6c;
+    --warn: #ffb84f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 16px;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--dim); margin: 0 0 10px; }
+  .sub { color: var(--dim); margin: 0 0 16px; font-size: 12px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 300px 1fr 320px;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  label { color: var(--dim); font-size: 12px; }
+  input[type=text], select, input[type=number] {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+  button {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: #06131f; border-color: var(--accent); font-weight: 600; }
+  button.danger { background: var(--bad); color: #250406; border-color: var(--bad); }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 12px; margin-bottom: 4px; }
+  .kv .k { color: var(--dim); }
+  .kv .v { text-align: right; font-variant-numeric: tabular-nums; }
+  .pulse-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 0; }
+  .pulse {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #2c3542, #12161b);
+    border: 3px solid var(--border);
+    transition: transform .08s ease-out, background .08s ease-out, border-color .08s ease-out;
+  }
+  .pulse.fire {
+    background: radial-gradient(circle at 35% 30%, #6fd3ff, var(--accent));
+    border-color: #bfe8ff;
+    transform: scale(1.18);
+  }
+  video#camPreview { width: 100%; border-radius: 8px; background: #000; transform: scaleX(-1); }
+  .meter-bar { height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .meter-fill { height: 100%; width: 0%; background: var(--accent); }
+  .meter-fill.hot { background: var(--warn); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  tbody tr.hit td { color: var(--good); }
+  tbody tr.miss td { color: var(--bad); }
+  .log-scroll { max-height: 260px; overflow-y: auto; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.ok { background: rgba(53,208,127,.15); color: var(--good); }
+  .badge.no { background: rgba(255,92,108,.15); color: var(--bad); }
+  .badge.dim { background: rgba(138,148,163,.15); color: var(--dim); }
+  .badge.warn { background: rgba(255,184,79,.15); color: var(--warn); }
+
+  .status-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .status-chip {
+    display: flex; flex-direction: column; gap: 1px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; min-width: 108px;
+  }
+  .status-chip .label { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); }
+  .status-chip .detail { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .status-chip.ok { border-color: rgba(53,208,127,.5); }
+  .status-chip.ok .detail { color: var(--good); }
+  .status-chip.warn { border-color: rgba(255,184,79,.5); }
+  .status-chip.warn .detail { color: var(--warn); }
+  .status-chip.bad { border-color: rgba(255,92,108,.5); }
+  .status-chip.bad .detail { color: var(--bad); }
+  .status-chip.dim .detail { color: var(--dim); }
+
+  .error-panel {
+    display: none;
+    background: rgba(255,92,108,.08); border: 1px solid var(--bad); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 12px; font-size: 12px;
+  }
+  .error-panel .error-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .error-panel .error-head strong { color: var(--bad); }
+  .error-panel ul { list-style: none; margin: 0; padding: 0; max-height: 160px; overflow-y: auto; }
+  .error-panel li { padding: 3px 0; border-top: 1px solid rgba(255,92,108,.2); }
+  .error-panel li:first-child { border-top: none; }
+  .error-panel .err-sub { color: var(--dim); font-weight: 600; }
+  .error-panel .err-time { color: var(--dim); font-size: 10px; }
+  .error-panel button { font-size: 11px; padding: 3px 8px; }
+
+  .video-wrap { position: relative; }
+  .hand-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); pointer-events: none; }
+  .hand-indicator {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 999px; background: rgba(138,148,163,.15); color: var(--dim);
+  }
+  .hand-indicator.on { background: rgba(53,208,127,.15); color: var(--good); }
+  .hand-indicator .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .hero-panel { margin-bottom: 14px; }
+  .hero-body { display: flex; flex-direction: column; gap: 20px; }
+  /* step 12: face-off layout — player left, rival right, stacks below ~900px. */
+  .face-off { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .face-off { grid-template-columns: 1fr; } }
+  .player-side { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .hero-video { flex: 1 1 320px; max-width: 480px; }
+  .big-number-wrap { flex: 1 1 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 260px; }
+  .big-duo { display: flex; align-items: flex-end; gap: 18px; justify-content: center; flex-wrap: wrap; }
+  .big-item { display: flex; flex-direction: column; align-items: center; }
+  .big-number { font-size: 180px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--dim); }
+  .big-number.live { color: var(--accent); }
+  .big-number.err { color: var(--bad); font-size: 56px; line-height: 1.2; text-align: center; }
+  .big-number-label { font-size: 15px; color: var(--dim); margin-top: 8px; text-transform: uppercase; letter-spacing: .05em; }
+  .ready-pill {
+    margin-top: 10px; padding: 6px 16px; border-radius: 999px; font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .03em; text-align: center;
+    border: 2px solid var(--border); background: var(--panel-2); color: var(--dim);
+    transition: background .15s ease-out, border-color .15s ease-out, color .15s ease-out;
+  }
+  .ready-pill.armed { background: rgba(53,208,127,.15); color: var(--good); border-color: var(--good); }
+  .ready-pill.not-armed { background: rgba(255,184,79,.15); color: var(--warn); border-color: var(--warn); }
+  .ready-pill.analyzing { background: rgba(79,179,255,.15); color: var(--accent); border-color: var(--accent); }
+  .big-word { font-size: 84px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--dim); }
+  .big-word.heard { color: var(--warn); }
+  .big-word.unk { color: var(--dim); }
+  .big-word.err { color: var(--bad); font-size: 34px; line-height: 1.2; text-align: center; }
+
+  .shout-wrap { flex: 1 1 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 220px; gap: 10px; }
+  .shout-badge {
+    font-size: 26px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    padding: 18px 20px; border-radius: 14px; text-align: center; min-width: 190px;
+    background: var(--panel-2); color: var(--dim); border: 2px solid var(--border);
+    transition: transform .12s ease-out, background .12s ease-out, color .12s ease-out, border-color .12s ease-out, box-shadow .12s ease-out;
+  }
+  .shout-badge.listening { color: var(--accent); border-color: rgba(79,179,255,.4); }
+  .shout-badge.flash {
+    background: radial-gradient(circle, #ffe8bb, var(--warn));
+    color: #2a1700; border-color: #fff2d6;
+    transform: scale(1.28);
+    box-shadow: 0 0 28px 6px rgba(255,184,79,.65);
+    font-size: 32px;
+  }
+  .shout-badge.err { background: rgba(255,92,108,.12); color: var(--bad); border-color: var(--bad); font-size: 20px; }
+  .voice-meter { position: relative; width: 100%; height: 16px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+  .voice-meter .fill { height: 100%; width: 0%; background: var(--accent); border-radius: 7px 0 0 7px; transition: width .05s linear; }
+  .voice-meter .fill.hot { background: var(--warn); }
+  .voice-meter .thresh-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--bad); left: 0%; }
+  .onset-info { font-size: 11px; color: var(--dim); text-align: center; min-height: 14px; font-variant-numeric: tabular-nums; }
+
+  /* step 12: rival panel — same visual grammar as the player's side (picture
+   * + hand + voice), face-to-face with it in .face-off. */
+  .rival-side { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .rival-avatar-frame {
+    width: 100%; max-width: 300px; aspect-ratio: 4/3;
+    background: radial-gradient(circle at 50% 30%, #241a12, #14100c);
+    border: 1px solid var(--border); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .rival-avatar { font-size: 96px; line-height: 1; }
+  .rival-hand-wrap { display: flex; align-items: center; gap: 10px; }
+  .hand-svg { width: 100px; height: 128px; display: block; }
+  .hand-svg .palm { fill: var(--text); opacity: .92; }
+  .hand-svg .finger { fill: var(--text); opacity: .92; }
+  .hand-svg .finger.extended { fill: var(--warn); opacity: 1; }
+  .rival-hand-digit { font-size: 84px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--dim); }
+  .rival-hand-digit.revealed { color: var(--warn); }
+  .rival-commit-status { font-size: 12px; color: var(--dim); text-align: center; font-variant-numeric: tabular-nums; }
+
+  .hitrate { font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .hitrate.pass { color: var(--good); }
+  .hitrate.fail { color: var(--bad); }
+  .bar { height: 10px; background: var(--panel-2); border-radius: 5px; overflow: hidden; border: 1px solid var(--border); position: relative; }
+  .bar .fill { height: 100%; background: var(--accent); }
+  .bar .kill-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--warn); left: 85%; }
+
+  .beat-wrap { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .hero-pulse {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #2c3542, #12161b);
+    border: 2px solid var(--border);
+    transition: transform .08s ease-out, background .08s ease-out, border-color .08s ease-out;
+  }
+  .hero-pulse.fire {
+    background: radial-gradient(circle at 35% 30%, #6fd3ff, var(--accent));
+    border-color: #bfe8ff;
+    transform: scale(1.25);
+  }
+  .hero-prompt { font-size: 12px; color: var(--dim); text-align: center; min-height: 14px; }
+  .verdict-card {
+    width: 100%; text-align: center; padding: 12px 10px; border-radius: 12px; box-sizing: border-box;
+    background: var(--panel-2); border: 2px solid var(--border);
+    transition: transform .12s ease-out, background .12s ease-out, border-color .12s ease-out, box-shadow .12s ease-out;
+  }
+  .verdict-card .verdict-result { font-size: 26px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--dim); }
+  .verdict-card .verdict-detail { font-size: 11px; color: var(--dim); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .verdict-card .verdict-word { font-size: 13px; color: var(--warn); margin-top: 3px; font-weight: 700; }
+  .verdict-card.hit { border-color: var(--good); background: rgba(53,208,127,.14); box-shadow: 0 0 20px 3px rgba(53,208,127,.35); transform: scale(1.03); }
+  .verdict-card.hit .verdict-result { color: var(--good); }
+  .verdict-card.miss { border-color: var(--bad); background: rgba(255,92,108,.14); box-shadow: 0 0 20px 3px rgba(255,92,108,.35); transform: scale(1.03); }
+  .verdict-card.miss .verdict-result { color: var(--bad); }
+  .verdict-card.err { border-color: var(--bad); background: rgba(255,92,108,.12); }
+  .verdict-card.err .verdict-result { color: var(--bad); font-size: 18px; }
+  .verdict-card.idle .verdict-result { color: var(--dim); }
+  .verdict-card.pending { border-color: var(--accent); }
+  .verdict-card.pending .verdict-result { color: var(--accent); }
+  .verdict-card.incomplete { border-color: var(--warn); }
+  .verdict-card.incomplete .verdict-result { color: var(--warn); font-size: 20px; }
+  .hero-tally { width: 100%; }
+  .hero-tally .hitrate { font-size: 26px; text-align: left; }
+  #gamePanel { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .scoreboard { font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
+  #roundResultCard { width: 100%; }
+  details summary { cursor: pointer; color: var(--dim); font-size: 12px; margin: 8px 0; }
+  details.harness-toggle {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;
+  }
+  details.harness-toggle summary {
+    font-size: 13px; font-weight: 600; color: var(--text); margin: 0;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  details.harness-toggle[open] summary { margin-bottom: 12px; }
+  .status { font-size: 12px; padding: 6px 8px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--border); margin-bottom: 8px; }
+  .status.err { color: var(--bad); border-color: var(--bad); }
+  .status.ok { color: var(--good); border-color: var(--good); }
+  canvas#driftChart { width: 100%; height: 160px; background: var(--panel-2); border-radius: 6px; border: 1px solid var(--border); }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .sessions-list { font-size: 12px; }
+  .sessions-list li { margin-bottom: 3px; }
+  code { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>S0.3 — Beat-Sync Spike</h1>
+<p class="sub">Kill-bar question: can a human throw fingers AND shout a number within ±200&nbsp;ms of an audible beat, ≥85% of the time?
+This rig is retained as the future corpus-capture harness — treat it as production-adjacent, not throwaway.</p>
+
+<div class="panel hero-panel" id="handMirror">
+  <div class="row" style="justify-content:space-between; margin-bottom:8px;">
+    <h2 style="margin:0;">Hand + Voice Mirror</h2>
+    <div class="row" style="margin:0;">
+      <button id="btnModeSync" class="primary">Sync mode (no beat)</button>
+      <button id="btnModeBeat">Beat mode</button>
+    </div>
+  </div>
+  <div class="row" style="justify-content:space-between; margin-bottom:12px;">
+    <div class="row" style="margin:0;">
+      <button id="btnCam" class="primary">Start Camera</button>
+      <button id="btnMic" class="primary">Start Mic</button>
+      <button id="btnLoadVosk">Load Voice Recognition (CA)</button>
+    </div>
+    <div class="row" id="beatModeControls" style="margin:0; display:none;">
+      <label for="heroCadence" style="white-space:nowrap;">Cadence</label>
+      <select id="heroCadence">
+        <option value="5.0">5.0 s</option>
+        <option value="3.0">3.0 s</option>
+        <option value="2.0" selected>2.0 s</option>
+        <option value="1.5">1.5 s</option>
+        <option value="1.2">1.2 s</option>
+      </select>
+      <button id="btnHeroBeat" class="primary">Start Beat</button>
+    </div>
+    <div class="row" id="syncModeControls" style="margin:0;">
+      <label for="syncCoOccurrenceMs" style="white-space:nowrap;">Co-occurrence window ±ms</label>
+      <input id="syncCoOccurrenceMs" type="number" step="50" min="100" max="1000" value="400" style="width:70px;">
+      <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; margin-left:8px;">
+        <input type="checkbox" id="chkPlayVsOpponent" checked>
+        Play vs opponent
+      </label>
+    </div>
+    <button id="btnExportDebug">Export debug log (JSON)</button>
+  </div>
+  <div id="voskStatus" class="status" style="display:none;"></div>
+  <div class="hero-body">
+    <div class="face-off">
+      <div class="player-side">
+        <div class="hero-video">
+          <div class="video-wrap">
+            <video id="camPreview" autoplay muted playsinline></video>
+            <canvas id="handOverlay" class="hand-overlay"></canvas>
+          </div>
+          <div class="row" style="margin-top:6px; margin-bottom:0;">
+            <span id="handIndicator" class="hand-indicator"><span class="dot"></span><span id="handIndicatorText">no hand</span></span>
+          </div>
+        </div>
+        <div class="big-number-wrap">
+          <div class="big-duo">
+            <div class="big-item">
+              <div id="bigNumber" class="big-number">–</div>
+              <div id="bigNumberLabel" class="big-number-label">no hand</div>
+            </div>
+            <div class="big-item">
+              <div id="bigWord" class="big-word">–</div>
+              <div id="bigWordLabel" class="big-number-label">voice rec off</div>
+            </div>
+          </div>
+          <div id="readyPill" class="ready-pill" style="display:none;">Llest — tira!</div>
+        </div>
+        <div class="shout-wrap">
+          <div id="shoutBadge" class="shout-badge idle">mic off</div>
+          <div class="voice-meter" id="voiceMeter">
+            <div id="voiceMeterFill" class="fill"></div>
+            <div id="voiceThreshMark" class="thresh-mark"></div>
+          </div>
+          <div class="row" style="margin:0; gap:6px; align-items:center; flex-wrap:nowrap;">
+            <label for="tuneVadMult" style="white-space:nowrap;">Sensitivity</label>
+            <input id="tuneVadMult" type="range" min="2" max="20" step="0.5" value="6" style="width:130px;">
+          </div>
+          <div id="onsetInfo" class="onset-info">no onset yet</div>
+        </div>
+      </div>
+      <div class="rival-side" id="rivalSide" style="display:none;">
+        <div class="rival-avatar-frame">
+          <div class="rival-avatar" id="rivalAvatar">🧔</div>
+        </div>
+        <div class="rival-hand-wrap">
+          <div id="rivalHandSvg"></div>
+          <div id="rivalHandDigit" class="rival-hand-digit">?</div>
+        </div>
+        <div id="rivalWord" class="big-word">…</div>
+        <div id="aiCommitStatus" class="rival-commit-status">—</div>
+      </div>
+    </div>
+    <div class="beat-wrap">
+      <div id="heroPulse" class="hero-pulse" style="display:none;"></div>
+      <div id="heroPrompt" class="hero-prompt">Throw and shout together — whenever you're ready.</div>
+      <div id="beatModeHints" style="display:none;">
+        <div class="hero-prompt" style="opacity:.75;">Tip: use headphones — the mic can otherwise pick up the beat click through your speakers.</div>
+        <div id="heroCalibrationInfo" class="hero-prompt" style="opacity:.75;"></div>
+        <div id="heroCoachHint" class="hero-prompt" style="display:none; color:var(--warn); font-weight:600;">Torna al puny entre cops! (return to a fist between throws)</div>
+      </div>
+      <div id="gamePanel" style="display:none; width:100%;">
+        <div class="scoreboard" id="scoreboard">Tu 0 — 0 Rival</div>
+        <div id="roundResultCard" class="verdict-card idle">
+          <div class="verdict-result" id="roundResultText">–</div>
+          <div class="verdict-detail" id="roundResultDetail">Throw and call your number!</div>
+        </div>
+        <div id="gameEndBanner" style="display:none; text-align:center; margin-top:8px;">
+          <div id="gameEndText" class="hero-prompt" style="font-weight:700; font-size:16px;"></div>
+          <button id="btnPlayAgain" class="primary" style="margin-top:6px;">Torna a jugar</button>
+        </div>
+      </div>
+      <div id="verdictCard" class="verdict-card idle">
+        <div class="verdict-result" id="verdictResult">–</div>
+        <div class="verdict-detail" id="verdictDetail">waiting for a throw…</div>
+        <div class="verdict-word" id="verdictWord" style="display:none;"></div>
+      </div>
+      <div class="hero-tally">
+        <div class="row" style="justify-content:space-between; margin:0;">
+          <div class="hitrate" id="heroHitRate">—</div>
+          <div id="heroThrowCount" style="font-size:14px; font-weight:700; color:var(--dim);">0 throws</div>
+        </div>
+        <div class="bar" style="margin-top:4px;"><div id="heroHitBarFill" class="fill"></div><div class="kill-mark" id="heroKillMark" style="display:none;"></div></div>
+        <div id="syncMedianDelta" class="hero-prompt" style="margin-top:4px; display:none;"></div>
+        <div id="syncNaturalLead" class="hero-prompt" style="margin-top:2px; opacity:.75; display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="statusStrip" class="status-strip">
+  <div class="status-chip dim" id="chipCamera"><span class="label">Camera</span><span class="detail">idle</span></div>
+  <div class="status-chip dim" id="chipModel"><span class="label">Model</span><span class="detail">not loaded</span></div>
+  <div class="status-chip dim" id="chipHand"><span class="label">Hand</span><span class="detail">—</span></div>
+  <div class="status-chip dim" id="chipMic"><span class="label">Mic</span><span class="detail">idle</span></div>
+  <div class="status-chip dim" id="chipVad"><span class="label">VAD</span><span class="detail">—</span></div>
+  <div class="status-chip dim" id="chipEcho"><span class="label">Echo?</span><span class="detail">—</span></div>
+  <div class="status-chip dim" id="chipVosk"><span class="label">Voice Rec</span><span class="detail">not loaded</span></div>
+  <div class="status-chip dim" id="chipMetronome"><span class="label">Metronome</span><span class="detail">stopped</span></div>
+  <div class="status-chip dim" id="chipClock"><span class="label">Clock</span><span class="detail">unsampled</span></div>
+</div>
+
+<div id="errorPanel" class="error-panel">
+  <div class="error-head">
+    <strong id="errorHeadText">Errors</strong>
+    <button id="btnClearErrors">Clear</button>
+  </div>
+  <ul id="errorList"></ul>
+</div>
+
+<details class="harness-toggle" id="fullHarness">
+<summary>Full beat-sync harness (metronome, voice VAD, tester sessions) — click to expand</summary>
+<div class="grid">
+
+  <!-- LEFT: metronome + clock diagnostics -->
+  <div class="col" style="display:flex; flex-direction:column; gap:14px;">
+
+    <div class="panel">
+      <h2>Metronome</h2>
+      <div class="row">
+        <label for="cadence">Cadence</label>
+        <select id="cadence">
+          <option value="5.0">5.0 s</option>
+          <option value="3.0">3.0 s</option>
+          <option value="2.0" selected>2.0 s</option>
+          <option value="1.5">1.5 s</option>
+          <option value="1.2">1.2 s</option>
+        </select>
+      </div>
+      <div class="row">
+        <button id="btnMetronome" class="primary">Start Metronome</button>
+      </div>
+      <div class="pulse-wrap">
+        <div id="pulse" class="pulse"></div>
+        <div id="beatCount" class="sub" style="margin:0;">beat #0</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Clock Diagnostics</h2>
+      <div class="kv">
+        <div class="k">AudioContext state</div><div class="v" id="dxState">—</div>
+        <div class="k">sampleRate</div><div class="v" id="dxSampleRate">—</div>
+        <div class="k">baseLatency</div><div class="v" id="dxBaseLatency">—</div>
+        <div class="k">outputLatency supported</div><div class="v" id="dxOutSupported">—</div>
+        <div class="k">outputLatency</div><div class="v" id="dxOutLatency">—</div>
+        <div class="k">ctx↔perf mapping</div><div class="v" id="dxMapping">—</div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="btnDrift">Start 5-min Drift Test</button>
+      </div>
+      <div id="driftStatus" class="status" style="display:none;"></div>
+      <canvas id="driftChart" width="280" height="160"></canvas>
+    </div>
+
+    <div class="panel">
+      <h2>8-Tap Latency Calibration</h2>
+      <p class="sub" style="margin:0 0 8px;">Tap (click the circle or press <code>Space</code>) in time with the beat, 8 times. Feeds Δ<sub>user</sub> (step 7: now applied to the hit test below — a channel passes if it's within ±200ms of Δ<sub>user</sub>, not raw zero).</p>
+      <div class="row">
+        <button id="btnCalibrate">Start Calibration</button>
+        <span id="calProgress" class="badge dim">0 / 8</span>
+      </div>
+      <div class="kv">
+        <div class="k">Median offset (Δ<sub>user</sub>)</div><div class="v" id="calMedian">—</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MIDDLE: sensors + live feedback -->
+  <div class="col" style="display:flex; flex-direction:column; gap:14px;">
+
+    <div class="panel">
+      <h2>Sensors</h2>
+      <p class="sub" style="margin:0 0 8px;">Camera and mic controls, plus the voice-sensitivity slider, live in the Hand + Voice Mirror above. This panel shows the underlying detector state used by the full harness.</p>
+      <div id="sensorStatus" class="status" style="display:none;"></div>
+      <div class="row" style="align-items:flex-start;">
+        <div style="flex:1; min-width:180px;">
+          <div class="kv">
+            <div class="k">fingertip velocity (norm/s)</div><div class="v" id="handVel">—</div>
+            <div class="k">hand state (throw-onset detector)</div><div class="v" id="handState">idle</div>
+          </div>
+          <div class="meter-bar"><div id="handVelMeterFill" class="meter-fill"></div></div>
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div class="kv">
+            <div class="k">mic RMS</div><div class="v" id="micRms">—</div>
+            <div class="k">threshold</div><div class="v" id="micThresh">—</div>
+          </div>
+          <div class="meter-bar"><div id="micMeterFill" class="meter-fill"></div></div>
+          <details style="margin-top:8px;">
+            <summary>Tuning (advanced)</summary>
+            <div class="kv">
+              <div class="k">Hand: HIGH velocity</div><div class="v"><input id="tuneHighV" type="number" step="0.1" value="0.9" style="width:70px;"></div>
+              <div class="k">Hand: LOW velocity</div><div class="v"><input id="tuneLowV" type="number" step="0.05" value="0.25" style="width:70px;"></div>
+              <div class="k">Hand: settle ms</div><div class="v"><input id="tuneSettleMs" type="number" step="10" value="50" style="width:70px;"></div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Live Feedback</h2>
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div class="hitrate" id="hitRate">—</div>
+          <div class="sub" style="margin:0;">hit rate (both channels ≤ ±200 ms)</div>
+        </div>
+        <div style="text-align:right;">
+          <div id="throwCount" style="font-size:22px; font-weight:700;">0 / 40</div>
+          <div class="sub" style="margin:0;">throws this session</div>
+        </div>
+      </div>
+      <div class="bar" style="margin-top:6px;"><div id="hitBarFill" class="fill"></div><div class="kill-mark"></div></div>
+      <div class="kv" style="margin-top:10px;">
+        <div class="k">last hand offset</div><div class="v" id="lastHand">—</div>
+        <div class="k">last voice offset</div><div class="v" id="lastVoice">—</div>
+        <div class="k">last throw</div><div class="v" id="lastResult">—</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Throw Log</h2>
+      <div class="log-scroll">
+        <table>
+          <thead><tr><th>#</th><th>hand ms</th><th>voice ms</th><th>result</th></tr></thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: session/protocol -->
+  <div class="col" style="display:flex; flex-direction:column; gap:14px;">
+
+    <div class="panel">
+      <h2>Tester Session</h2>
+      <div class="row">
+        <label for="testerName">Name</label>
+        <input id="testerName" type="text" placeholder="tester name">
+      </div>
+      <div class="row">
+        <button id="btnStartSession" class="primary">Start Session (40 throws)</button>
+        <button id="btnStopSession" disabled>Stop Session</button>
+      </div>
+      <div id="sessionStatus" class="status" style="display:none;"></div>
+      <div class="kv">
+        <div class="k">sessions completed</div><div class="v" id="sessionCountLbl">0 / 5</div>
+      </div>
+      <ul id="sessionsList" class="sessions-list"></ul>
+    </div>
+
+    <div class="panel">
+      <h2>Export</h2>
+      <div class="row">
+        <button id="btnExportThrows">Export Throws CSV</button>
+        <button id="btnExportDrift">Export Drift CSV</button>
+      </div>
+      <p class="sub" style="margin:8px 0 0;">Throws CSV includes every session in this page load. Drift CSV is available after a drift run completes.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Notes</h2>
+      <p class="sub" style="margin:0;">
+        Scheduler: Worker-driven lookahead (never main-thread <code>setInterval</code> for audio).
+        Hand onset = fingertip-velocity spike then settle (stabilization instant, not the spike peak).
+        Voice onset = energy-threshold VAD with adaptive noise floor, timestamped at the AudioWorklet render-quantum boundary.
+        Both channels are converted to the <code>performance.now()</code> timeline via the AudioContext clock mapping before comparison to the audible beat time (scheduled time + <code>outputLatency</code>).
+      </p>
+    </div>
+
+  </div>
+
+</div>
+</details>
+
+<script type="module">
+"use strict";
+
+/* ---------------------------------------------------------------------
+ * Pure logic (no DOM/Worker/AudioContext dependencies) — kept isolated
+ * so it can be lifted into a node script for scheduler-math unit tests.
+ * ------------------------------------------------------------------- */
+
+function median(arr) {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+// Given a beat interval and the set of ctxTimes already scheduled, returns
+// the list of additional beat ctxTimes needed so the horizon reaches
+// (currentTime + scheduleAheadS). Mirrors the scheduler's while-loop.
+function computeBeatsToSchedule(nextBeatTime, currentTime, scheduleAheadS, beatIntervalS) {
+  const out = [];
+  let t = nextBeatTime;
+  while (t < currentTime + scheduleAheadS) {
+    out.push(t);
+    t += beatIntervalS;
+  }
+  return { beats: out, nextBeatTime: t };
+}
+
+function mapContextToPerformance(sample, contextTime) {
+  if (!sample) return null;
+  return sample.performanceTime + (contextTime - sample.contextTime) * 1000;
+}
+
+function findNearestUnclaimed(candidates, targetTime, windowMs) {
+  let best = null, bestDist = Infinity;
+  for (const c of candidates) {
+    if (c.claimed) continue;
+    const d = Math.abs(c.time - targetTime);
+    if (d <= windowMs && d < bestDist) { best = c; bestDist = d; }
+  }
+  return best;
+}
+
+// step 7: hit test is calibration-aware — a channel passes if its offset is
+// within thresholdMs of the user's own Δ_user (8-tap median), not raw zero.
+// calibrationDeltaMs may be null/undefined (no calibration run yet), which
+// falls back to the original raw-zero test.
+function channelWithinThreshold(offsetMs, thresholdMs, calibrationDeltaMs) {
+  if (offsetMs == null) return false;
+  const delta = calibrationDeltaMs || 0;
+  return Math.abs(offsetMs - delta) <= thresholdMs;
+}
+function isHit(handOffsetMs, voiceOffsetMs, thresholdMs, calibrationDeltaMs) {
+  return channelWithinThreshold(handOffsetMs, thresholdMs, calibrationDeltaMs) &&
+    channelWithinThreshold(voiceOffsetMs, thresholdMs, calibrationDeltaMs);
+}
+
+// step 7, hand-settle relaxation: fallback onset when the velocity-spike/settle
+// detector never fires — the earliest run of >=minRun consecutive frames (already
+// filtered to the beat's window) whose finger COUNT stayed identical. `frames`
+// is [{t, count}, ...] in chronological order.
+//
+// step 8 fix: a stable run is only a valid THROW onset if something changed
+// right before it (a different count, i.e. a genuine transition) — otherwise
+// it's just a hand the user left held up between throws (real morra ritual is
+// fist-between-beats, snap out on the beat), and reporting its position as an
+// onset silently latches onto whatever moment the window happens to open,
+// which was observed pinning offsets to ~window-start every time. Returns
+// null (nothing stable at all), {heldOver:true} (a stable run existed but had
+// no preceding transition — likely a held-over hand), or {t, heldOver:false}
+// (a real, transition-preceded stable run).
+function findStableCountRun(frames, minRun) {
+  let sawHeldOver = false;
+  for (let i = 0; i + minRun - 1 < frames.length; i++) {
+    let stable = true;
+    for (let j = 1; j < minRun; j++) {
+      if (frames[i + j].count !== frames[i].count) { stable = false; break; }
+    }
+    if (!stable) continue;
+    const hasTransition = i > 0 && frames[i - 1].count !== frames[i].count;
+    if (hasTransition) return { t: frames[i].t, heldOver: false };
+    sawHeldOver = true; // keep scanning — a later, transition-preceded run may still exist
+  }
+  return sawHeldOver ? { heldOver: true } : null;
+}
+
+// step 7, bug: offline voice-onset analysis over an already-extracted audio
+// buffer (float32 mono @ sampleRate), independent of the live streaming VAD.
+// Same sustained-energy-above-adaptive-floor state machine as the VAD worklet
+// (see vadProcessorSrc), just replayed over a static array instead of live
+// render quanta. excludeStartMs/excludeEndMs (if given) blank a band — used to
+// skip the beat's own click, which always sits at a known, fixed position in
+// the buffer since the window is centered on that same click's audible time.
+// step 8 fix: two edge cases observed in real recognized-but-onsetless beats.
+// (1) "pre-window" — the shout started before this window even opened (fits
+// the already-measured anticipation bias), so only a short, already-decaying
+// tail remains inside the window: too short to accumulate a full sustainMs
+// confirmation from a mid-word starting point. If energy is ALREADY above
+// threshold in the very first block, there's no way to observe how long it
+// sustained before the window opened, so trust it and backdate to t=0 rather
+// than losing the onset entirely. (2) floorCap — the adaptive noise floor is
+// now capped so a loud room can't ratchet the threshold up above a real
+// shout's level.
+function findEnergyOnsetInBuffer(float32, sampleRate, opts) {
+  const { blockSize = 128, sustainMs = 60, vadMult = 6, floorMin = 0.015, floorCap = 0.15, excludeStartMs = null, excludeEndMs = null } = opts || {};
+  let noiseFloor = 0.001, above = false, aboveSinceIdx = null, onsetHandled = false;
+  const sustainSamples = Math.max(1, Math.round((sustainMs / 1000) * sampleRate));
+
+  {
+    const n = Math.min(blockSize, float32.length);
+    let sumSq = 0;
+    for (let j = 0; j < n; j++) { const s = float32[j]; sumSq += s * s; }
+    const rms0 = n ? Math.sqrt(sumSq / n) : 0;
+    const threshold0 = Math.min(Math.max(noiseFloor * vadMult, floorMin), floorCap);
+    const inExcludeBand0 = excludeStartMs != null && 0 >= excludeStartMs && 0 <= excludeEndMs;
+    if (n && rms0 > threshold0 && !inExcludeBand0) return { onsetMs: 0, preWindow: true };
+  }
+
+  for (let i = 0; i + blockSize <= float32.length; i += blockSize) {
+    let sumSq = 0;
+    for (let j = 0; j < blockSize; j++) { const s = float32[i + j]; sumSq += s * s; }
+    const rms = Math.sqrt(sumSq / blockSize);
+    if (!above) noiseFloor = noiseFloor * 0.995 + rms * 0.005;
+    const threshold = Math.min(Math.max(noiseFloor * vadMult, floorMin), floorCap);
+    const wasAbove = above;
+    above = rms > threshold;
+    if (above && !wasAbove) { aboveSinceIdx = i; onsetHandled = false; }
+    else if (!above) { aboveSinceIdx = null; onsetHandled = false; }
+    else if (above && aboveSinceIdx != null && !onsetHandled && (i - aboveSinceIdx) >= sustainSamples) {
+      onsetHandled = true;
+      const onsetMs = (aboveSinceIdx / sampleRate) * 1000;
+      const inExcludeBand = excludeStartMs != null && onsetMs >= excludeStartMs && onsetMs <= excludeEndMs;
+      if (!inExcludeBand) return { onsetMs, preWindow: false };
+      // else: this run was our own click — keep scanning for a later, real onset
+    }
+  }
+  return null;
+}
+
+// step 9 (sync mode, no beat): classify a hand-anchored throw once the
+// buffer-derived voice onset (or lack of one) is known. handOnsetPerfTime is
+// the event's anchor; voiceOnsetPerfTime is null if no voice was found
+// anywhere in the extraction window around it.
+function classifySyncThrow(handOnsetPerfTime, voiceOnsetPerfTime, coOccurrenceMs) {
+  if (voiceOnsetPerfTime == null) return { outcome: "hand-only", syncDeltaMs: null, synced: false };
+  const syncDeltaMs = voiceOnsetPerfTime - handOnsetPerfTime;
+  const synced = Math.abs(syncDeltaMs) <= coOccurrenceMs;
+  return { outcome: synced ? "synced" : (syncDeltaMs > 0 ? "voice-late" : "voice-early"), syncDeltaMs, synced };
+}
+
+// step 9: a voice onset detected by the live streaming VAD (used ONLY to spot
+// "shouted but never threw" events, since a genuine throw's timing comes from
+// the hand-anchored buffer analysis above, not this). It's "explained" — and
+// shouldn't spawn its own incomplete-throw entry — if ANY hand onset (pending
+// or resolved) landed within partnerWindowMs of it.
+function isOrphanVoiceOnset(voicePerfTime, handOnsetPerfTimes, partnerWindowMs) {
+  return !handOnsetPerfTimes.some((h) => Math.abs(voicePerfTime - h) <= partnerWindowMs);
+}
+
+// step 11 (first playable round): micatio verdict. total = both hands'
+// fingers; a player scores only if THEIR call matches the total AND the
+// other player's call does NOT (both correct, or neither, is "parata" — no
+// point, matching real morra's tie rule).
+function computeMicatioVerdict(playerFingers, playerCall, aiFingers, aiCall) {
+  const total = playerFingers + aiFingers;
+  const playerCorrect = playerCall === total;
+  const aiCorrect = aiCall === total;
+  let winner;
+  if (playerCorrect && !aiCorrect) winner = "player";
+  else if (aiCorrect && !playerCorrect) winner = "ai";
+  else winner = "parata";
+  return { total, playerCorrect, aiCorrect, winner };
+}
+
+// step 11: Catalan number-call vocabulary, shared between interpreting the
+// player's recognized word and rendering/speaking the AI's own call. "tot"
+// ("all") is a valid alternate call for 10 alongside "deu" — both map the
+// same way when reading the PLAYER's word; the AI always speaks/displays
+// "deu" for 10 (arbitrary but deterministic choice, not a rules asymmetry).
+const CATALAN_NUMBER_WORDS = { dos: 2, tres: 3, quatre: 4, cinc: 5, sis: 6, set: 7, vuit: 8, nou: 9, deu: 10, tot: 10 };
+const NUMBER_TO_CATALAN_CALL = { 2: "dos", 3: "tres", 4: "quatre", 5: "cinc", 6: "sis", 7: "set", 8: "vuit", 9: "nou", 10: "deu" };
+function wordToNumber(word) {
+  if (!word) return null;
+  return CATALAN_NUMBER_WORDS[word.toLowerCase()] ?? null;
+}
+
+// step 13: has the player shown any evidence their hand moved on from the
+// count used in the LAST resolved throw? Hand gone, or a different count
+// (including dropping to a fist), both count as a reset; a static hand held
+// at the exact same count does not. null lastThrownFingerCount means there's
+// no prior throw to reset from (e.g. game just started) — always armed.
+function handHasResetSince(lastThrownFingerCount, currentCount) {
+  if (lastThrownFingerCount == null) return true;
+  if (currentCount == null) return true;
+  return currentCount !== lastThrownFingerCount;
+}
+
+// step 12: a simple, clean inline hand — palm + 5 finger shapes, N extended
+// (a fixed, deterministic order: index, middle, ring, pinky, thumb — matches
+// common Western finger-counting) and the rest folded flush into the palm.
+// count: 1-5 for a revealed hand, null for a closed fist (all folded). Each
+// finger carries class "finger extended" or "finger folded" so tests can
+// assert exact counts per state without inspecting geometry.
+const HAND_FINGER_GEOMETRY = [
+  { name: "index",  x: 20, w: 15, foldedY: 70, extendedY: 14 },
+  { name: "middle", x: 39, w: 15, foldedY: 68, extendedY: 4 },
+  { name: "ring",   x: 58, w: 15, foldedY: 70, extendedY: 16 },
+  { name: "pinky",  x: 77, w: 13, foldedY: 74, extendedY: 34 },
+  { name: "thumb",  x: 4,  w: 15, foldedY: 76, extendedY: 52 },
+];
+const HAND_FINGER_ORDER = ["index", "middle", "ring", "pinky", "thumb"];
+function handSvgMarkup(count) {
+  const extendedSet = new Set(count == null ? [] : HAND_FINGER_ORDER.slice(0, Math.max(0, Math.min(5, count))));
+  const palmTop = 80;
+  const fingerShapes = HAND_FINGER_GEOMETRY.map((f) => {
+    const isExtended = extendedSet.has(f.name);
+    const y = isExtended ? f.extendedY : f.foldedY;
+    const h = palmTop - y + 16; // overlap into the palm for a seamless join
+    return `<rect class="finger ${isExtended ? "extended" : "folded"}" data-finger="${f.name}" x="${f.x}" y="${y}" width="${f.w}" height="${h}" rx="7"></rect>`;
+  }).join("");
+  const label = count == null ? "closed fist" : `${count} finger${count === 1 ? "" : "s"}`;
+  return `<svg class="hand-svg" viewBox="0 0 106 140" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">` +
+    fingerShapes +
+    `<rect class="palm" x="6" y="${palmTop}" width="94" height="52" rx="20"></rect>` +
+    `</svg>`;
+}
+
+/* ---------------------------------------------------------------------
+ * Config
+ * ------------------------------------------------------------------- */
+
+const TICK_MS = 30;                 // worker tick, 25-50ms range
+const SCHEDULE_AHEAD_S = 0.15;      // 100-200ms scheduling horizon
+const THROW_WINDOW_MS = 550;        // window around a beat to accept/finalize an onset
+const HIT_THRESHOLD_MS = 200;
+const THROWS_PER_SESSION = 40;
+const MAX_SESSIONS = 5;
+const DRIFT_DURATION_MS = 5 * 60 * 1000;
+const DRIFT_SAMPLE_INTERVAL_MS = 1000;
+const BEAT_HISTORY_CAP = 400;
+
+// Vosk word recognition (step 4). Same CDN + self-hosted-model pattern as
+// spikes/s02-voice.html: alphacephei blocks CORS, so the Catalan model is a
+// same-origin copy under models/. Grammar restricts output to the morra
+// number words (+ "tot"/"deu" all-in calls) plus the reject class.
+const VOSK_CDN_URL = "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
+const VOSK_MODEL_URL = "models/vosk-model-small-ca-0.4.zip";
+const VOSK_SAMPLE_RATE = 16000;
+const VOSK_GRAMMAR = JSON.stringify(["dos", "tres", "quatre", "cinc", "sis", "set", "vuit", "nou", "deu", "tot", "[unk]"]);
+const REC_PRE_MS = 400; // audio window before the beat's audible instant
+
+// step 7: detector-sensitivity fixes
+const HAND_STABLE_MIN_RUN = 3;        // consecutive stable-count frames required for the fallback hand onset
+const HAND_FRAME_HISTORY_MS = 3000;   // how much finger-count history to retain for that fallback scan
+const OFFLINE_ONSET_SUSTAIN_MS = 60;  // sustained-energy requirement for the buffer-based voice onset
+const BUFFER_CLICK_BAND_MS = 60;      // ± band around the beat's own click to exclude from buffer onset analysis
+const BUFFER_FLOOR_CAP = 0.15;        // step 8: adaptive noise floor cap, so a loud room can't out-shout a real shout
+const HELD_OVER_HINT_STREAK = 2;      // step 8: consecutive held-over beats before coaching the fist-between-throws hint
+
+// step 9/10: sync mode (no beat) — the player throws + shouts self-paced.
+// The event anchor is the hand MOTION START (velocity-spike crossing), not
+// the settle instant — step 9's original settle-anchored version measured
+// systematically-early voice as clipped at the window edge, because the
+// throw's shout starts with the swing, not with the hand coming to rest
+// ~250-300ms later. Timing analysis for the extraction window:
+//   - requestRingExtract is only called once `now >= motionStartPerfTime +
+//     SYNC_POST_MS` has elapsed (see the frame() loop) — mirroring beat
+//     mode's THROW_WINDOW_MS grace period — because the window's END
+//     (motionStart+700ms) is in the FUTURE at the instant the SETTLE fires
+//     (settle itself already lags motion-start by up to ~300ms — HIGH_V->
+//     LOW_V spike duration plus SETTLE_MS — so by settle time we're already
+//     partway through the needed post-window, but not necessarily all the
+//     way). Waiting on the motion-start anchor directly (rather than
+//     estimating a fixed offset from settle) is exact regardless of how long
+//     any individual throw's spike phase ran.
+//   - Once that wait has elapsed, `now` is motionStart+SYNC_POST_MS (+ at
+//     most one rAF tick, ~16ms, of polling slop from frame()). The OLDEST
+//     sample we then need is at motionStart-SYNC_PRE_MS, i.e. (now - (700 +
+//     16) - 400) = at most ~1116ms in the past — still comfortably inside
+//     the 1.5s ring (ringSize = sampleRate*1.5 in the VAD worklet), leaving
+//     ~380ms of margin.
+const SYNC_PRE_MS = 400;
+const SYNC_POST_MS = 700;
+const SYNC_COOCCURRENCE_MS_DEFAULT = 400;
+const SYNC_PARTNER_TIMEOUT_MS = 1500; // how long a voice-only event waits for a hand onset before it's called incomplete
+
+// step 11: first playable round — a morra micatio round vs a committed-then-
+// revealed AI opponent, layered on top of sync mode's existing throw pipeline.
+const GAME_WIN_SCORE = 10;
+
+// Debug telemetry (step 5): a lightweight array push per finalized beat —
+// no rendering cost in the hot loop. Exported as JSON for offline analysis
+// (e.g. cross-referencing a voice onset time against the recognition
+// window's end time to see if a late shout's tail got clipped).
+const DEBUG_PAGE_VERSION = "s03-beat.html — step 6";
+const debugLog = [];              // one entry per finalized beat (hero or session)
+const debugOrphanOnsets = [];     // hand/voice onsets that matched no open beat window
+const debugSuppressedOnsets = []; // step 6, bug B: onsets suppressed as "that's our own click"
+const cadenceHistory = [];        // {atPerfMs, cadenceS} — every cadence change, including the initial default
+const DEBUG_LOG_CAP = 2000;
+const DEBUG_ORPHAN_CAP = 500;
+const DEBUG_SUPPRESSED_CAP = 500;
+
+// step 6, bug B fix 3: a human can't repeat the same voice offset to within a
+// few ms beat after beat — if recent claimed voice offsets cluster that tightly,
+// it's very likely the mic is picking up the click itself (echo/leakage), not a
+// shout. Recomputed on every finalized beat that has a voice offset.
+const ECHO_WINDOW = 8;
+const ECHO_SPREAD_MS = 20;
+let recentVoiceOffsets = [];
+let echoSuspected = false;
+function updateEchoSuspicion(voiceOffsetMs) {
+  if (voiceOffsetMs == null) return;
+  recentVoiceOffsets.push(voiceOffsetMs);
+  if (recentVoiceOffsets.length > ECHO_WINDOW) recentVoiceOffsets.shift();
+  if (recentVoiceOffsets.length >= 5) {
+    const spread = Math.max(...recentVoiceOffsets) - Math.min(...recentVoiceOffsets);
+    echoSuspected = spread <= ECHO_SPREAD_MS;
+  } else {
+    echoSuspected = false;
+  }
+  setChip(el.chipEcho, echoSuspected ? "suspected!" : "—", echoSuspected ? "bad" : "dim");
+}
+function recordSuppressedClick(t, rms) {
+  debugSuppressedOnsets.push({ atCtxTime: t, rms });
+  if (debugSuppressedOnsets.length > DEBUG_SUPPRESSED_CAP) debugSuppressedOnsets.shift();
+}
+
+/* ---------------------------------------------------------------------
+ * DOM refs
+ * ------------------------------------------------------------------- */
+
+const $ = (id) => document.getElementById(id);
+const el = {
+  cadence: $("cadence"), btnMetronome: $("btnMetronome"), pulse: $("pulse"), beatCount: $("beatCount"),
+  dxState: $("dxState"), dxSampleRate: $("dxSampleRate"), dxBaseLatency: $("dxBaseLatency"),
+  dxOutSupported: $("dxOutSupported"), dxOutLatency: $("dxOutLatency"), dxMapping: $("dxMapping"),
+  btnDrift: $("btnDrift"), driftStatus: $("driftStatus"), driftChart: $("driftChart"),
+  btnCalibrate: $("btnCalibrate"), calProgress: $("calProgress"), calMedian: $("calMedian"),
+  heroCalibrationInfo: $("heroCalibrationInfo"), heroCoachHint: $("heroCoachHint"),
+  btnModeSync: $("btnModeSync"), btnModeBeat: $("btnModeBeat"),
+  beatModeControls: $("beatModeControls"), syncModeControls: $("syncModeControls"), syncCoOccurrenceMs: $("syncCoOccurrenceMs"),
+  beatModeHints: $("beatModeHints"), heroKillMark: $("heroKillMark"), syncMedianDelta: $("syncMedianDelta"),
+  syncNaturalLead: $("syncNaturalLead"),
+  chkPlayVsOpponent: $("chkPlayVsOpponent"), gamePanel: $("gamePanel"), aiCommitStatus: $("aiCommitStatus"),
+  scoreboard: $("scoreboard"), roundResultCard: $("roundResultCard"), roundResultText: $("roundResultText"),
+  roundResultDetail: $("roundResultDetail"), gameEndBanner: $("gameEndBanner"), gameEndText: $("gameEndText"),
+  btnPlayAgain: $("btnPlayAgain"),
+  rivalSide: $("rivalSide"), rivalAvatar: $("rivalAvatar"), rivalHandSvg: $("rivalHandSvg"),
+  rivalHandDigit: $("rivalHandDigit"), rivalWord: $("rivalWord"), readyPill: $("readyPill"),
+  btnCam: $("btnCam"), btnMic: $("btnMic"), sensorStatus: $("sensorStatus"),
+  camPreview: $("camPreview"), handOverlay: $("handOverlay"), handVel: $("handVel"), handState: $("handState"),
+  handVelMeterFill: $("handVelMeterFill"), handIndicator: $("handIndicator"), handIndicatorText: $("handIndicatorText"),
+  bigNumber: $("bigNumber"), bigNumberLabel: $("bigNumberLabel"),
+  bigWord: $("bigWord"), bigWordLabel: $("bigWordLabel"),
+  btnLoadVosk: $("btnLoadVosk"), voskStatus: $("voskStatus"), verdictWord: $("verdictWord"),
+  shoutBadge: $("shoutBadge"), voiceMeterFill: $("voiceMeterFill"), voiceThreshMark: $("voiceThreshMark"), onsetInfo: $("onsetInfo"),
+  micRms: $("micRms"), micThresh: $("micThresh"), micMeterFill: $("micMeterFill"),
+  heroCadence: $("heroCadence"), btnHeroBeat: $("btnHeroBeat"), heroPulse: $("heroPulse"), heroPrompt: $("heroPrompt"),
+  verdictCard: $("verdictCard"), verdictResult: $("verdictResult"), verdictDetail: $("verdictDetail"),
+  heroHitRate: $("heroHitRate"), heroThrowCount: $("heroThrowCount"), heroHitBarFill: $("heroHitBarFill"),
+  tuneHighV: $("tuneHighV"), tuneLowV: $("tuneLowV"), tuneSettleMs: $("tuneSettleMs"), tuneVadMult: $("tuneVadMult"),
+  hitRate: $("hitRate"), throwCount: $("throwCount"), hitBarFill: $("hitBarFill"),
+  lastHand: $("lastHand"), lastVoice: $("lastVoice"), lastResult: $("lastResult"), logBody: $("logBody"),
+  testerName: $("testerName"), btnStartSession: $("btnStartSession"), btnStopSession: $("btnStopSession"),
+  sessionStatus: $("sessionStatus"), sessionCountLbl: $("sessionCountLbl"), sessionsList: $("sessionsList"),
+  btnExportThrows: $("btnExportThrows"), btnExportDrift: $("btnExportDrift"), btnExportDebug: $("btnExportDebug"),
+  errorPanel: $("errorPanel"), errorList: $("errorList"), errorHeadText: $("errorHeadText"), btnClearErrors: $("btnClearErrors"),
+  chipCamera: $("chipCamera"), chipModel: $("chipModel"), chipHand: $("chipHand"), chipMic: $("chipMic"),
+  chipVad: $("chipVad"), chipMetronome: $("chipMetronome"), chipClock: $("chipClock"), chipVosk: $("chipVosk"),
+  chipEcho: $("chipEcho"),
+};
+
+function setStatus(node, msg, kind) {
+  node.style.display = msg ? "block" : "none";
+  node.textContent = msg || "";
+  node.className = "status" + (kind ? " " + kind : "");
+}
+
+/* ---------------------------------------------------------------------
+ * Status strip (per-subsystem badges) + visible error panel.
+ * Nothing async fails silently to the console only — every catch block
+ * in this file also calls reportError() so a real user with devtools
+ * closed can still see what broke.
+ * ------------------------------------------------------------------- */
+
+function setChip(node, text, cls) {
+  node.querySelector(".detail").textContent = text;
+  node.className = "status-chip" + (cls ? " " + cls : " dim");
+}
+
+const errorLog = []; // { atMs, subsystem, message }
+function reportError(subsystem, err) {
+  const message = err && err.message ? err.message : String(err);
+  errorLog.unshift({ atMs: performance.now(), subsystem, message });
+  if (errorLog.length > 30) errorLog.length = 30;
+  renderErrors();
+}
+function renderErrors() {
+  if (!errorLog.length) { el.errorPanel.style.display = "none"; el.errorList.innerHTML = ""; return; }
+  el.errorPanel.style.display = "block";
+  el.errorHeadText.textContent = `Errors (${errorLog.length})`;
+  el.errorList.innerHTML = errorLog.map(e =>
+    `<li><span class="err-time">t+${(e.atMs / 1000).toFixed(1)}s</span> <span class="err-sub">[${e.subsystem}]</span> ${e.message}</li>`
+  ).join("");
+}
+el.btnClearErrors.addEventListener("click", () => { errorLog.length = 0; renderErrors(); });
+window.addEventListener("error", (e) => reportError("window", e.error || e.message));
+window.addEventListener("unhandledrejection", (e) => reportError("promise", e.reason));
+
+/* ---------------------------------------------------------------------
+ * Audio context + clock mapping
+ * ------------------------------------------------------------------- */
+
+const AC = window.AudioContext || window.webkitAudioContext;
+const ctx = new AC();
+
+class ClockMap {
+  constructor(audioCtx) {
+    this.ctx = audioCtx;
+    this.sample = null;   // most recent {contextTime, performanceTime}
+    this.baseline = null; // first sample, for drift measurement
+    this.history = [];    // {elapsedMs, driftMs}
+  }
+  refresh() {
+    if (typeof this.ctx.getOutputTimestamp !== "function") return null;
+    const ts = this.ctx.getOutputTimestamp();
+    if (ts && typeof ts.contextTime === "number" && typeof ts.performanceTime === "number") {
+      this.sample = ts;
+      if (!this.baseline) this.baseline = ts;
+      return ts;
+    }
+    return null;
+  }
+  toPerformanceTime(contextTime) {
+    if (!this.sample) this.refresh();
+    return mapContextToPerformance(this.sample, contextTime);
+  }
+  // Inverse of toPerformanceTime — step 9 (sync mode) needs this because hand
+  // onsets are timestamped on the performance.now() timeline (MediaPipe rVFC),
+  // but requestRingExtract's ring buffer lives on the AudioContext clock.
+  toContextTime(performanceTimeMs) {
+    if (!this.sample) this.refresh();
+    if (!this.sample) return null;
+    return this.sample.contextTime + (performanceTimeMs - this.sample.performanceTime) / 1000;
+  }
+  armBaseline() { this.baseline = null; this.refresh(); }
+  recordDriftSample() {
+    if (typeof this.ctx.getOutputTimestamp !== "function" || !this.baseline) return null;
+    const ts = this.ctx.getOutputTimestamp();
+    const predicted = mapContextToPerformance(this.baseline, ts.contextTime);
+    const drift = ts.performanceTime - predicted;
+    const elapsed = ts.performanceTime - this.baseline.performanceTime;
+    const point = { elapsedMs: elapsed, driftMs: drift };
+    this.history.push(point);
+    this.sample = ts;
+    return point;
+  }
+}
+const clockMap = new ClockMap(ctx);
+
+function outputLatencyEstimate() {
+  if (typeof ctx.outputLatency === "number") return ctx.outputLatency;
+  if (typeof ctx.baseLatency === "number") return ctx.baseLatency;
+  return 0;
+}
+
+function refreshDiagnostics() {
+  el.dxState.textContent = ctx.state;
+  el.dxSampleRate.textContent = ctx.sampleRate + " Hz";
+  el.dxBaseLatency.textContent = typeof ctx.baseLatency === "number" ? (ctx.baseLatency * 1000).toFixed(2) + " ms" : "n/a";
+  const outSupported = typeof ctx.outputLatency === "number";
+  el.dxOutSupported.textContent = outSupported ? "yes" : "no (falling back to baseLatency)";
+  el.dxOutLatency.textContent = outSupported ? (ctx.outputLatency * 1000).toFixed(2) + " ms" : "n/a";
+  el.dxMapping.textContent = clockMap.sample
+    ? `ctx=${clockMap.sample.contextTime.toFixed(3)}s ↔ perf=${clockMap.sample.performanceTime.toFixed(1)}ms`
+    : "not yet sampled";
+
+  if (!clockMap.sample) setChip(el.chipClock, "unsampled", "dim");
+  else setChip(el.chipClock, outSupported ? "outputLatency ok" : "baseLatency fallback", outSupported ? "ok" : "warn");
+}
+
+/* ---------------------------------------------------------------------
+ * Worker-driven lookahead scheduler (Tale-of-Two-Clocks pattern).
+ * The Worker only emits ticks; all audio scheduling math stays on the
+ * main thread where the AudioContext lives.
+ * ------------------------------------------------------------------- */
+
+const workerSrc = `
+  let timerId = null;
+  self.onmessage = (e) => {
+    const { type, intervalMs } = e.data;
+    if (type === "start") {
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(() => self.postMessage({ type: "tick" }), intervalMs);
+    } else if (type === "stop") {
+      if (timerId) clearInterval(timerId);
+      timerId = null;
+    }
+  };
+`;
+const schedulerWorker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: "application/javascript" })));
+
+let metronomeRunning = false;
+let beatIntervalS = 2.0;
+let nextBeatTime = 0;
+let heroMode = "sync"; // "sync" (default, no beat) | "beat" — step 9
+let beatCounter = 0;
+const scheduledBeats = []; // {index, ctxTime, audibleCtxTime, perfTime, audiblePerfTime, visualFired, handClaim, voiceClaim, finalized}
+
+function scheduleClick(ctxTime) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = 880;
+  gain.gain.setValueAtTime(0.0001, ctxTime);
+  gain.gain.exponentialRampToValueAtTime(0.5, ctxTime + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctxTime + 0.08);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(ctxTime);
+  osc.stop(ctxTime + 0.09);
+}
+
+function scheduleBeat(ctxTime) {
+  scheduleClick(ctxTime);
+  clockMap.refresh(); // re-sync ctx<->perf mapping every beat, per spec
+  const audibleCtxTime = ctxTime + outputLatencyEstimate();
+  // step 6, bug B fix 2: tell the VAD worklet exactly when our own click will be
+  // audible so it can blank a band around it — it's OUR sound, we know its time.
+  if (vadNode) vadNode.port.postMessage({ type: "click", ctxTime: audibleCtxTime });
+  const rec = {
+    index: beatCounter++,
+    ctxTime,
+    audibleCtxTime,
+    perfTime: clockMap.toPerformanceTime(ctxTime),
+    audiblePerfTime: clockMap.toPerformanceTime(audibleCtxTime),
+    visualFired: false,
+    handClaim: null,
+    voiceClaim: null,
+    finalized: false,
+  };
+  scheduledBeats.push(rec);
+  if (scheduledBeats.length > BEAT_HISTORY_CAP) scheduledBeats.shift();
+}
+
+function schedulerTick() {
+  const { beats, nextBeatTime: nbt } = computeBeatsToSchedule(nextBeatTime, ctx.currentTime, SCHEDULE_AHEAD_S, beatIntervalS);
+  for (const t of beats) scheduleBeat(t);
+  nextBeatTime = nbt;
+}
+
+schedulerWorker.onmessage = (e) => {
+  if (e.data.type === "tick" && metronomeRunning) schedulerTick();
+};
+
+function syncMetronomeButtons() {
+  el.btnMetronome.textContent = metronomeRunning ? "Stop Metronome" : "Start Metronome";
+  el.btnMetronome.classList.toggle("primary", !metronomeRunning);
+  el.btnHeroBeat.textContent = metronomeRunning ? "Stop Beat" : "Start Beat";
+  el.btnHeroBeat.classList.toggle("primary", !metronomeRunning);
+}
+function startMetronome() {
+  if (metronomeRunning) return;
+  ctx.resume().catch(err => { reportError("metronome", err); renderHeroBeatError(err.message); });
+  clockMap.armBaseline();
+  nextBeatTime = ctx.currentTime + 0.05;
+  metronomeRunning = true;
+  schedulerWorker.postMessage({ type: "start", intervalMs: TICK_MS });
+  syncMetronomeButtons();
+  setChip(el.chipMetronome, `running @ ${beatIntervalS}s`, "ok");
+  updateHeroPrompt();
+  renderCalibrationInfo(); // step 8: re-nudge right when the beat (and thus verdicts) start
+}
+function stopMetronome() {
+  metronomeRunning = false;
+  schedulerWorker.postMessage({ type: "stop" });
+  syncMetronomeButtons();
+  setChip(el.chipMetronome, "stopped", "dim");
+  updateHeroPrompt();
+}
+el.btnMetronome.addEventListener("click", () => metronomeRunning ? stopMetronome() : startMetronome());
+el.btnHeroBeat.addEventListener("click", () => metronomeRunning ? stopMetronome() : startMetronome());
+function setCadence(value) {
+  beatIntervalS = parseFloat(value);
+  el.cadence.value = value;
+  el.heroCadence.value = value;
+  cadenceHistory.push({ atPerfMs: performance.now(), cadenceS: beatIntervalS });
+  if (metronomeRunning) setChip(el.chipMetronome, `running @ ${beatIntervalS}s`, "ok");
+}
+setCadence(el.cadence.value); // record the page's initial default in cadenceHistory
+el.cadence.addEventListener("change", () => setCadence(el.cadence.value));
+el.heroCadence.addEventListener("change", () => setCadence(el.heroCadence.value));
+
+/* ---------------------------------------------------------------------
+ * Drift measurement mode (5 min, target <10ms drift)
+ * ------------------------------------------------------------------- */
+
+let driftActive = false;
+let driftStartedAt = 0;
+let lastDriftSampleAt = 0;
+
+function startDrift() {
+  if (!metronomeRunning) { setStatus(el.driftStatus, "Start the metronome first.", "err"); return; }
+  driftActive = true;
+  driftStartedAt = performance.now();
+  lastDriftSampleAt = 0;
+  clockMap.history = [];
+  clockMap.armBaseline();
+  el.btnDrift.disabled = true;
+  setStatus(el.driftStatus, "Drift test running — 5 minutes…", "ok");
+}
+function finishDrift() {
+  driftActive = false;
+  el.btnDrift.disabled = false;
+  const maxDrift = clockMap.history.reduce((m, p) => Math.max(m, Math.abs(p.driftMs)), 0);
+  const pass = maxDrift < 10;
+  setStatus(el.driftStatus, `Drift test complete. Max |drift| = ${maxDrift.toFixed(2)} ms over 5 min (target <10ms): ${pass ? "PASS" : "FAIL"}.`, pass ? "ok" : "err");
+}
+el.btnDrift.addEventListener("click", startDrift);
+
+function drawDriftChart() {
+  const c = el.driftChart, cx = c.getContext("2d");
+  const w = c.width, h = c.height;
+  cx.clearRect(0, 0, w, h);
+  cx.strokeStyle = "#2a313b"; cx.lineWidth = 1;
+  cx.beginPath(); cx.moveTo(0, h / 2); cx.lineTo(w, h / 2); cx.stroke();
+  const pts = clockMap.history;
+  if (pts.length < 2) return;
+  const maxAbs = Math.max(10, ...pts.map(p => Math.abs(p.driftMs)));
+  const xMax = DRIFT_DURATION_MS;
+  cx.strokeStyle = "#4fb3ff"; cx.lineWidth = 1.5; cx.beginPath();
+  pts.forEach((p, i) => {
+    const x = (p.elapsedMs / xMax) * w;
+    const y = h / 2 - (p.driftMs / maxAbs) * (h / 2 - 8);
+    if (i === 0) cx.moveTo(x, y); else cx.lineTo(x, y);
+  });
+  cx.stroke();
+}
+
+/* ---------------------------------------------------------------------
+ * Visual pulse + throw-window finalization + drift sampling.
+ * Single rAF loop drives all periodic work — no main-thread setInterval
+ * anywhere in this app except inside the dedicated Worker.
+ * ------------------------------------------------------------------- */
+
+function frame(now) {
+  requestAnimationFrame(frame);
+
+  // hero zero-friction mode: fresh run tally whenever cam+mic+beat all just became ready
+  const nowHeroReady = heroReady();
+  if (nowHeroReady && !heroActive) {
+    heroThrows = [];
+    if (!sessionActive) { renderHeroTally(heroThrows); resetHeroVerdict(); }
+  }
+  heroActive = nowHeroReady;
+
+  // step 9 (sync mode): a hand onset's extraction window ends in the FUTURE
+  // relative to the onset itself, so wait for it to actually elapse before
+  // asking the ring buffer for it (see the SYNC_PRE_MS/SYNC_POST_MS comment).
+  for (let i = syncPendingAnalysis.length - 1; i >= 0; i--) {
+    const p = syncPendingAnalysis[i];
+    if (now >= p.handPerfTime + SYNC_POST_MS) {
+      syncPendingAnalysis.splice(i, 1);
+      triggerSyncAudioAnalysis(p.handPerfTime, p.throwEvent, p.debugRec);
+    }
+  }
+
+  // visual pulse, synced to scheduled audio
+  for (const b of scheduledBeats) {
+    if (!b.visualFired && b.audiblePerfTime != null && now >= b.audiblePerfTime) {
+      b.visualFired = true;
+      el.pulse.classList.add("fire");
+      setTimeout(() => el.pulse.classList.remove("fire"), 100);
+      el.heroPulse.classList.add("fire");
+      setTimeout(() => el.heroPulse.classList.remove("fire"), 100);
+      el.beatCount.textContent = "beat #" + b.index;
+      onBeatAudible(b);
+    }
+  }
+
+  // finalize throw windows whose grace period has elapsed
+  for (const b of scheduledBeats) {
+    if (!b.finalized && trackingActive() && b.audiblePerfTime != null && now >= b.audiblePerfTime + THROW_WINDOW_MS) {
+      finalizeBeat(b);
+    }
+  }
+
+  // drift sampling
+  if (driftActive) {
+    const elapsed = now - driftStartedAt;
+    if (now - lastDriftSampleAt >= DRIFT_SAMPLE_INTERVAL_MS) {
+      lastDriftSampleAt = now;
+      clockMap.recordDriftSample();
+      drawDriftChart();
+    }
+    if (elapsed >= DRIFT_DURATION_MS) finishDrift();
+  }
+
+  refreshDiagnostics();
+  updateMicMeterUI();
+}
+requestAnimationFrame(frame);
+
+/* ---------------------------------------------------------------------
+ * 8-tap calibration
+ * ------------------------------------------------------------------- */
+
+let calibrating = false;
+let calTaps = [];
+let calClaimedBeatIndices = new Set();
+
+function startCalibration() {
+  if (!metronomeRunning) { el.calProgress.textContent = "start metronome first"; return; }
+  calibrating = true;
+  calTaps = [];
+  calClaimedBeatIndices = new Set();
+  el.calProgress.textContent = "0 / 8";
+  el.calMedian.textContent = "—";
+}
+function registerTap(tPerf) {
+  if (!calibrating) return;
+  const cands = scheduledBeats
+    .filter(b => b.audiblePerfTime != null && !calClaimedBeatIndices.has(b.index))
+    .map(b => ({ time: b.audiblePerfTime, claimed: false, index: b.index }));
+  const nearest = findNearestUnclaimed(cands, tPerf, 1000);
+  if (!nearest) return;
+  calClaimedBeatIndices.add(nearest.index);
+  calTaps.push(tPerf - nearest.time);
+  el.calProgress.textContent = `${calTaps.length} / 8`;
+  if (calTaps.length >= 8) {
+    calibrating = false;
+    const m = median(calTaps);
+    el.calMedian.textContent = m.toFixed(1) + " ms";
+    window.__calibrationDeltaMs = m;
+    renderCalibrationInfo();
+  }
+}
+el.btnCalibrate.addEventListener("click", startCalibration);
+el.pulse.addEventListener("pointerdown", () => registerTap(performance.now()));
+window.addEventListener("keydown", (e) => { if (e.code === "Space" && calibrating) { e.preventDefault(); registerTap(performance.now()); } });
+
+// step 7: apply calibration to the verdict. window.__calibrationDeltaMs is the
+// existing global the 8-tap flow above already writes to — this just reads it
+// consistently instead of introducing a second source of truth.
+function getCalibrationDeltaMs() {
+  return typeof window.__calibrationDeltaMs === "number" ? window.__calibrationDeltaMs : null;
+}
+function renderCalibrationInfo() {
+  const d = getCalibrationDeltaMs();
+  if (d != null) {
+    el.heroCalibrationInfo.textContent = `Your calibration: ${d >= 0 ? "+" : ""}${d.toFixed(0)}ms (8-tap) — applied to the hit test below.`;
+    el.heroCalibrationInfo.style.color = "";
+    el.heroCalibrationInfo.style.opacity = ".75";
+  } else {
+    // step 8: surfaced harder — amber, full opacity, not just informational
+    // gray — since every verdict until this is set is judged against raw zero.
+    el.heroCalibrationInfo.textContent = "Run the 8-tap calibration for fair verdicts — currently judging against zero.";
+    el.heroCalibrationInfo.style.color = "var(--warn)";
+    el.heroCalibrationInfo.style.opacity = "1";
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Hand tracking (MediaPipe HandLandmarker via CDN, ESM).
+ * Overlay drawing + landmark connections match spikes/s01-fingers.html's
+ * proven convention (green = settled, orange = moving) so the operator
+ * sees the same visual language across spikes.
+ * ------------------------------------------------------------------- */
+
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],
+  [13,17],[17,18],[18,19],[19,20],
+  [0,17]
+];
+
+// Raw per-frame finger count (tip-vs-wrist distance, thumb special-cased
+// against the pinky MCP) — ported verbatim from spikes/s01-fingers.html,
+// which verified this heuristic against a real hand-count test matrix.
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0)); }
+function countFingers(lm) {
+  const wrist = lm[0];
+  const fingers = [[8, 6], [12, 10], [16, 14], [20, 18]];
+  let count = 0;
+  for (const [tip, pip] of fingers) {
+    if (dist(lm[tip], wrist) > dist(lm[pip], wrist) * 1.05) count++;
+  }
+  const thumbTip = lm[4], thumbIp = lm[3], pinkyMcp = lm[17];
+  if (dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05) count++;
+  return count;
+}
+
+function renderBigNumber(count) {
+  el.bigNumber.textContent = String(count);
+  el.bigNumber.className = "big-number live";
+  el.bigNumberLabel.textContent = count === 1 ? "finger" : "fingers";
+}
+function renderBigNumberNoHand() {
+  el.bigNumber.textContent = "–";
+  el.bigNumber.className = "big-number";
+  el.bigNumberLabel.textContent = "no hand";
+}
+function renderBigNumberError(message) {
+  el.bigNumber.textContent = "ERROR";
+  el.bigNumber.className = "big-number err";
+  el.bigNumberLabel.textContent = message;
+}
+
+/* ---------------------------------------------------------------------
+ * Shout mirror (step 2). Same "unmissable, never silent" contract as the
+ * hand mirror above: idle before mic start, a calm "listening…" state
+ * while running, a ~400ms bright flash on every VAD onset, permanent red
+ * ERROR text (never just a console/log line) if the mic or worklet fails.
+ * ------------------------------------------------------------------- */
+
+let shoutFlashTimer = null;
+let shoutHasError = false;
+
+function renderShoutIdle() {
+  shoutHasError = false;
+  el.shoutBadge.textContent = "mic off";
+  el.shoutBadge.className = "shout-badge idle";
+}
+function renderShoutListening() {
+  if (shoutHasError) return;
+  el.shoutBadge.textContent = "listening…";
+  el.shoutBadge.className = "shout-badge listening";
+}
+function triggerShoutFlash(onsetPerfMs, onsetCtxTime) {
+  if (shoutHasError) return;
+  el.shoutBadge.textContent = "SHOUT!";
+  el.shoutBadge.className = "shout-badge flash";
+  if (shoutFlashTimer) clearTimeout(shoutFlashTimer);
+  shoutFlashTimer = setTimeout(renderShoutListening, 400);
+  const elapsedS = Math.max(0, performance.now() - onsetPerfMs) / 1000;
+  el.onsetInfo.textContent = `onset detected — ring-buffer t=${onsetCtxTime.toFixed(3)}s (${elapsedS.toFixed(2)}s ago)`;
+}
+function renderShoutError(message) {
+  shoutHasError = true;
+  if (shoutFlashTimer) { clearTimeout(shoutFlashTimer); shoutFlashTimer = null; }
+  el.shoutBadge.textContent = "ERROR";
+  el.shoutBadge.className = "shout-badge err";
+  el.onsetInfo.textContent = message;
+}
+
+/* ---------------------------------------------------------------------
+ * Beat verdict mirror (step 3). Zero-friction hero mode: as soon as
+ * camera + mic + metronome are all running, every beat's finalized
+ * hand/voice offsets (computed by the SAME finalizeBeat() used by the
+ * formal session below) render here as an unmissable HIT/MISS card plus
+ * a running tally. If a named session is active, the hero mirrors that
+ * session's own throws array exactly — single source of truth.
+ * ------------------------------------------------------------------- */
+
+function heroReady() {
+  return metronomeRunning && handTrackingActive && !!vadNode;
+}
+function trackingActive() {
+  return sessionActive || heroReady();
+}
+function updateHeroPrompt() {
+  if (heroMode === "sync") {
+    if (!handTrackingActive && !vadNode) el.heroPrompt.textContent = "Start camera and mic above — then throw and shout whenever you're ready.";
+    else if (!handTrackingActive) el.heroPrompt.textContent = "Start camera above — then throw and shout whenever you're ready.";
+    else if (!vadNode) el.heroPrompt.textContent = "Start mic above — then throw and shout whenever you're ready.";
+    else el.heroPrompt.textContent = "Throw and shout together — whenever you're ready.";
+    return;
+  }
+  if (!handTrackingActive && !vadNode) el.heroPrompt.textContent = "Start camera and mic above, then Start Beat.";
+  else if (!handTrackingActive) el.heroPrompt.textContent = "Start camera above, then Start Beat.";
+  else if (!vadNode) el.heroPrompt.textContent = "Start mic above, then Start Beat.";
+  else if (!metronomeRunning) el.heroPrompt.textContent = "Start Beat, then throw + shout on the click.";
+  else el.heroPrompt.textContent = "Throw + shout on the click.";
+}
+let verdictThrowRef = null;
+
+function resetHeroVerdict() {
+  verdictThrowRef = null;
+  el.verdictCard.className = "verdict-card idle";
+  el.verdictResult.textContent = "–";
+  el.verdictDetail.textContent = "waiting for beat…";
+  el.verdictWord.style.display = "none";
+  renderBigWordIdle();
+}
+function renderHeroVerdict(t) {
+  verdictThrowRef = t;
+  // step 7: the voice offset/verdict now comes from offline buffer analysis,
+  // which lands ~100-300ms after the beat (same order as word recognition) —
+  // so there's a brief "pending" state where hand is already known but voice
+  // isn't yet, same UX pattern already established for word recognition.
+  el.verdictCard.className = "verdict-card " + (t.voicePending ? "pending" : (t.hit ? "hit" : "miss"));
+  el.verdictResult.textContent = t.voicePending ? "…" : (t.hit ? "HIT" : "MISS");
+  const signed = (ms) => (ms >= 0 ? "+" : "") + ms.toFixed(0) + " ms";
+  const handTxt = t.handOffsetMs != null ? signed(t.handOffsetMs) + (t.handPass ? " ✓" : " ✗") : "no hand";
+  const voiceTxt = t.voicePending ? "analyzing…" : (t.voiceOffsetMs != null ? signed(t.voiceOffsetMs) + (t.voicePass ? " ✓" : " ✗") : "no shout");
+  el.verdictDetail.textContent = `hand ${handTxt} · voice ${voiceTxt}`;
+  if (voskModel) {
+    el.verdictWord.style.display = "block";
+    el.verdictWord.textContent = "recognizing…";
+  } else {
+    el.verdictWord.style.display = "none";
+  }
+}
+function renderHeroBeatError(message) {
+  el.verdictCard.className = "verdict-card err";
+  el.verdictResult.textContent = "ERROR";
+  el.verdictDetail.textContent = message;
+}
+function renderHeroTally(throws) {
+  const total = throws.length;
+  const hits = throws.filter(x => x.hit).length;
+  const rate = total ? hits / total : 0;
+  el.heroThrowCount.textContent = `${total} throw${total === 1 ? "" : "s"}`;
+  el.heroHitRate.textContent = total ? (rate * 100).toFixed(1) + "%" : "—";
+  el.heroHitRate.className = "hitrate" + (total ? (rate >= 0.85 ? " pass" : " fail") : "");
+  el.heroHitBarFill.style.width = Math.min(100, rate * 100) + "%";
+}
+
+/* ---------------------------------------------------------------------
+ * Recognized-word display (step 4). Two places render the same word:
+ * the big number's sibling (unmissable, matches the hand-count treatment)
+ * and the verdict card's detail line. Both are guarded by a "still the
+ * current throw?" reference check, since recognition resolves ~200ms
+ * after the beat and a faster cadence could otherwise let a stale result
+ * clobber the next beat's display.
+ * ------------------------------------------------------------------- */
+
+let bigWordThrowRef = null;
+
+function renderBigWordIdle() {
+  bigWordThrowRef = null;
+  el.bigWord.textContent = "–";
+  el.bigWord.className = "big-word";
+  el.bigWordLabel.textContent = voskModel ? "listening" : "voice rec off";
+}
+function renderBigWordPendingFor(t) {
+  bigWordThrowRef = t;
+  el.bigWord.textContent = "…";
+  el.bigWord.className = "big-word";
+  el.bigWordLabel.textContent = "recognizing…";
+}
+function renderBigWordResultFor(t, word) {
+  if (bigWordThrowRef !== t) return; // a newer beat already started recognizing
+  const heard = word && word !== "?";
+  el.bigWord.textContent = heard ? word : "?";
+  el.bigWord.className = "big-word" + (heard ? " heard" : " unk");
+  el.bigWordLabel.textContent = heard ? "heard" : "no match";
+}
+
+function applyRecognizedWord(t, word) {
+  t.word = word;
+  renderBigWordResultFor(t, word);
+  // step 9: sync mode tracks its own verdict-card ref, separate from beat mode's.
+  const currentRef = heroMode === "sync" ? syncVerdictThrowRef : verdictThrowRef;
+  if (currentRef === t) el.verdictWord.textContent = word && word !== "?" ? `"${word}"` : "?";
+  if (t.kind === "sync") maybeResolveGameRound(t);
+}
+
+// step 7, bug fix: the live streaming VAD (onVoiceOnset -> b.voiceClaim) is now
+// ONLY used to drive the SHOUT! flash UX. The per-beat voice offset/verdict
+// comes from offline analysis of the SAME extracted buffer used for word
+// recognition — one extraction request serves both, and it guarantees
+// "recognizer heard a word" implies "we have an onset" (both read the same
+// samples). Per spec: a per-throw recognition miss shows "?" (not an error
+// card). Only the model-load path gets the red-error treatment. debugRec
+// fields are filled in place as each stage completes, so a partially-finished
+// record (e.g. voice resolved but recognizeWord is still running) is still
+// visible if the debug log is exported mid-run.
+let activeRecognitions = 0;
+
+function triggerBeatAudioAnalysis(b, throwRec, debugRec, mode) {
+  const t0 = performance.now();
+  const rec = {
+    windowStartCtxTime: null, windowEndCtxTime: null, windowStartPerfTime: null, windowEndPerfTime: null,
+    requestedSamples: 0, extractedSamples: 0, extractedDurationMs: 0, coverageOk: null, clamped: null,
+    rawText: null, hasResult: null, finalWord: null, latencyMs: null,
+    recognizerBusyAtStart: activeRecognitions > 0, skipped: false, skipReason: null, error: null,
+    // step 6, bug A instrumentation: prove there's a single shared clock domain
+    // (there is only one AudioContext in this file) and show exactly how much
+    // of the requested window the ring's marker history actually covered.
+    ctxCurrentTimeAtRequest: null, workletCurrentTimeAtRequest: null, markerRangeCtxTime: null,
+    // step 7: offline voice-onset analysis over the same buffer.
+    bufferOnsetFound: false, bufferOnsetMsInWindow: null,
+  };
+  debugRec.recognition = rec;
+
+  if (!vadNode) {
+    finalizeVoiceResult(throwRec, debugRec, mode, null, "mic off", null, false);
+    return;
+  }
+
+  requestRingExtract(b.audibleCtxTime, REC_PRE_MS, THROW_WINDOW_MS)
+    .then((extraction) => {
+      rec.windowStartCtxTime = extraction.windowStartCtxTime;
+      rec.windowEndCtxTime = extraction.windowEndCtxTime;
+      rec.windowStartPerfTime = clockMap.toPerformanceTime(extraction.windowStartCtxTime);
+      rec.windowEndPerfTime = clockMap.toPerformanceTime(extraction.windowEndCtxTime);
+      rec.requestedSamples = extraction.requestedSamples;
+      rec.extractedSamples = extraction.samples ? extraction.samples.length : 0;
+      rec.extractedDurationMs = extraction.samples && extraction.sampleRate ? (extraction.samples.length / extraction.sampleRate) * 1000 : 0;
+      rec.coverageOk = extraction.coverageOk;
+      rec.clamped = extraction.clamped;
+      rec.ctxCurrentTimeAtRequest = extraction.ctxCurrentTimeAtRequest;
+      rec.workletCurrentTimeAtRequest = extraction.workletCurrentTimeAtRequest;
+      rec.markerRangeCtxTime = extraction.markerRangeCtxTime;
+
+      if (!extraction.samples || extraction.samples.length < Math.round((extraction.sampleRate || VOSK_SAMPLE_RATE) * 0.05)) {
+        rec.skipped = true;
+        rec.skipReason = "too little audio in extraction window";
+        rec.latencyMs = performance.now() - t0;
+        finalizeVoiceResult(throwRec, debugRec, mode, null, "no onset", null, false);
+        if (voskModel) applyRecognizedWord(throwRec, "?");
+        return;
+      }
+
+      // The beat's own click always sits at exactly REC_PRE_MS into this
+      // window (the window is centered on that same click's audible time) —
+      // exclude a band around it so we don't score our own metronome sound.
+      const clickPosMs = REC_PRE_MS;
+      const onsetResult = findEnergyOnsetInBuffer(extraction.samples, extraction.sampleRate, {
+        sustainMs: OFFLINE_ONSET_SUSTAIN_MS,
+        vadMult: parseFloat(el.tuneVadMult.value) || 6,
+        floorCap: BUFFER_FLOOR_CAP,
+        excludeStartMs: clickPosMs - BUFFER_CLICK_BAND_MS,
+        excludeEndMs: clickPosMs + BUFFER_CLICK_BAND_MS,
+      });
+      if (onsetResult != null) {
+        rec.bufferOnsetFound = true;
+        rec.bufferOnsetMsInWindow = onsetResult.onsetMs;
+        rec.bufferOnsetPreWindow = onsetResult.preWindow;
+        const onsetCtxTime = extraction.windowStartCtxTime + onsetResult.onsetMs / 1000;
+        const onsetPerfTime = clockMap.toPerformanceTime(onsetCtxTime);
+        finalizeVoiceResult(throwRec, debugRec, mode, onsetPerfTime, null, "buffer", onsetResult.preWindow);
+      } else {
+        finalizeVoiceResult(throwRec, debugRec, mode, null, "no onset", null, false);
+      }
+
+      if (!voskModel) return;
+      activeRecognitions++;
+      return recognizeWord(extraction.samples, extraction.sampleRate)
+        .then(({ rawText, hasResult }) => {
+          rec.rawText = rawText;
+          rec.hasResult = hasResult;
+          const word = (rawText || "").trim();
+          rec.finalWord = word && word !== "[unk]" ? word : "?";
+          rec.latencyMs = performance.now() - t0;
+          applyRecognizedWord(throwRec, rec.finalWord);
+        })
+        .catch((err) => {
+          rec.error = err.message;
+          rec.latencyMs = performance.now() - t0;
+          reportError("vosk-recognize", err);
+          applyRecognizedWord(throwRec, "?");
+        })
+        .finally(() => { activeRecognitions--; });
+    })
+    .catch((err) => {
+      rec.skipped = true;
+      rec.skipReason = "ring extraction failed/timed out";
+      rec.error = err.message;
+      rec.latencyMs = performance.now() - t0;
+      finalizeVoiceResult(throwRec, debugRec, mode, null, "no onset", null, false);
+      if (voskModel) applyRecognizedWord(throwRec, "?");
+    });
+}
+
+// Applies the (possibly null) buffer-derived voice onset to the throw: computes
+// the final offset/pass/hit (calibration-aware), updates the debug record, and
+// re-renders whatever view is still showing this throw. `mode` mirrors
+// finalizeBeat's session/hero split, captured at the time the beat was pushed
+// so this still resolves correctly even if the session has since ended.
+// `preWindow` (step 8): the onset was backdated to the window's start because
+// energy was already elevated at frame 0 — the shout likely started earlier.
+function finalizeVoiceResult(throwRec, debugRec, mode, onsetPerfTime, reasonIfNull, onsetSource, preWindow) {
+  const voiceOffsetMs = onsetPerfTime != null ? onsetPerfTime - debugRec.audiblePerfTime : null;
+  throwRec.voiceOffsetMs = voiceOffsetMs;
+  throwRec.voicePending = false;
+  const calibrationDeltaMs = debugRec.calibrationApplied;
+  throwRec.voicePass = channelWithinThreshold(voiceOffsetMs, HIT_THRESHOLD_MS, calibrationDeltaMs);
+  throwRec.hit = throwRec.handPass && throwRec.voicePass;
+
+  debugRec.voice.offsetMs = voiceOffsetMs;
+  debugRec.voice.onsetPerfTime = onsetPerfTime;
+  debugRec.voice.reason = voiceOffsetMs == null ? reasonIfNull : null;
+  debugRec.voice.onsetSource = voiceOffsetMs != null ? onsetSource : null;
+  debugRec.voice.preWindow = voiceOffsetMs != null ? !!preWindow : null;
+  debugRec.hit = throwRec.hit;
+  updateEchoSuspicion(voiceOffsetMs);
+  debugRec.echoSuspected = echoSuspected;
+
+  if (mode === "session" && currentSession && currentSession.throws.includes(throwRec)) {
+    updateThrowRow(throwRec);
+  } else if (mode === "hero") {
+    renderHeroTally(heroThrows);
+  } else if (mode === "session") {
+    // the session auto-ended (40th throw) before this last throw's voice
+    // analysis resolved — refresh the just-completed session's row + summary.
+    const justEnded = allSessions[allSessions.length - 1];
+    if (justEnded && justEnded.throws.includes(throwRec)) {
+      updateThrowRow(throwRec);
+      const hits = justEnded.throws.filter((x) => x.hit).length;
+      const total = justEnded.throws.length;
+      const rate = total ? (hits / total * 100).toFixed(1) : "0.0";
+      setStatus(el.sessionStatus, `Session complete: ${justEnded.testerName} — ${hits}/${total} (${rate}%).`, total ? (hits / total >= 0.85 ? "ok" : "err") : null);
+    }
+  }
+  if (verdictThrowRef === throwRec) renderHeroVerdict(throwRec);
+}
+
+let heroActive = false;
+let heroThrows = [];
+
+let handLandmarker = null;
+let handTrackingActive = false;
+let handDelegateActive = null; // "GPU" | "CPU"
+let lastHandPos = null, lastHandT = null;
+let handState = "idle";
+let settleStart = null;
+let motionStartPerfTime = null; // step 10: velocity-spike crossing time (idle->spiking) — the throw's true start
+let lastKnownFingerCount = null; // step 10: most recent per-frame count, read at settle time (count is only valid once settled)
+let camFrameTimes = []; // rolling perf.now() timestamps, for the fps readout
+let handFrameHistory = []; // {t, count} per detected-hand frame — step 7 count-stable fallback
+const overlayCtx = el.handOverlay.getContext("2d");
+
+async function initHandLandmarker() {
+  // jsdelivr, not esm.sh: FilesetResolver needs to fetch raw .wasm/loader
+  // files next to the module, which esm.sh's transform pipeline does not serve
+  // (confirmed by testing — esm.sh produces a "ModuleFactory not set" failure).
+  const { HandLandmarker, FilesetResolver } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm");
+  const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  const modelAssetPath = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+  // GPU delegate can throw on real hardware/driver combos that fake devices
+  // never exercise (see spikes/s01-fingers.html, which hit this first) —
+  // retry once on CPU rather than leaving hand tracking dead with no signal.
+  try {
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath, delegate: "GPU" },
+      runningMode: "VIDEO",
+      numHands: 1,
+    });
+    handDelegateActive = "GPU";
+  } catch (gpuErr) {
+    reportError("model", new Error("GPU delegate failed (" + gpuErr.message + "), retrying on CPU"));
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath, delegate: "CPU" },
+      runningMode: "VIDEO",
+      numHands: 1,
+    });
+    handDelegateActive = "CPU";
+  }
+}
+
+async function startCamera() {
+  el.btnCam.disabled = true;
+  setStatus(el.sensorStatus, "Requesting camera…", null);
+  setChip(el.chipCamera, "requesting…", "warn");
+  setChip(el.chipModel, "loading…", "warn");
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 360 } });
+    el.camPreview.srcObject = stream;
+    await el.camPreview.play();
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings ? track.getSettings() : {};
+    el.handOverlay.width = el.camPreview.videoWidth || settings.width || 480;
+    el.handOverlay.height = el.camPreview.videoHeight || settings.height || 360;
+    setChip(el.chipCamera, `${el.handOverlay.width}x${el.handOverlay.height}`, "ok");
+
+    setStatus(el.sensorStatus, "Loading hand-landmark model…", null);
+    await initHandLandmarker();
+
+    handTrackingActive = true;
+    setChip(el.chipModel, `loaded (${handDelegateActive})`, handDelegateActive === "GPU" ? "ok" : "warn");
+    setStatus(el.sensorStatus, `Camera + hand tracking active (${handDelegateActive} delegate).`, "ok");
+    el.camPreview.requestVideoFrameCallback(onVideoFrame);
+    updateHeroPrompt();
+  } catch (err) {
+    setChip(el.chipCamera, "error", "bad");
+    setChip(el.chipModel, "failed", "bad");
+    setStatus(el.sensorStatus, "Camera/hand-model error: " + err.message + " (voice channel + metronome still work).", "err");
+    renderBigNumberError(err.message);
+    reportError("camera/model", err);
+    el.btnCam.disabled = false;
+    updateHeroPrompt();
+  }
+}
+
+let lastMpTimestampMs = -1;
+function monotonicMs(candidateMs) {
+  // MediaPipe's calculator graph requires strictly increasing timestamps;
+  // expectedDisplayTime alone is not guaranteed monotonic (compositor
+  // re-estimates it, and fake/synthetic video sources can jitter it).
+  // Feed the graph a clamped-monotonic value while keeping the real
+  // expectedDisplayTime for the actual offset math below.
+  let t = candidateMs <= lastMpTimestampMs ? lastMpTimestampMs + 1 : candidateMs;
+  lastMpTimestampMs = t;
+  return t;
+}
+
+function updateCameraFps(nowMs) {
+  camFrameTimes.push(nowMs);
+  const cutoff = nowMs - 1000;
+  while (camFrameTimes.length && camFrameTimes[0] < cutoff) camFrameTimes.shift();
+  const fps = camFrameTimes.length;
+  setChip(el.chipCamera, `${el.handOverlay.width}x${el.handOverlay.height} @ ${fps}fps`, "ok");
+}
+
+function drawHandOverlay(lm, settled) {
+  const w = el.handOverlay.width, h = el.handOverlay.height;
+  overlayCtx.clearRect(0, 0, w, h);
+  if (!lm) return;
+  overlayCtx.lineWidth = 2;
+  overlayCtx.strokeStyle = settled ? "#2ea043" : "#d29922";
+  overlayCtx.beginPath();
+  for (const [a, b] of HAND_CONNECTIONS) {
+    overlayCtx.moveTo(lm[a].x * w, lm[a].y * h);
+    overlayCtx.lineTo(lm[b].x * w, lm[b].y * h);
+  }
+  overlayCtx.stroke();
+  overlayCtx.fillStyle = "#58a6ff";
+  for (const p of lm) {
+    overlayCtx.beginPath();
+    overlayCtx.arc(p.x * w, p.y * h, 3, 0, Math.PI * 2);
+    overlayCtx.fill();
+  }
+}
+
+function setHandDetected(detected) {
+  el.handIndicator.classList.toggle("on", detected);
+  el.handIndicatorText.textContent = detected ? "hand detected" : "no hand";
+  setChip(el.chipHand, detected ? `detected (${handState})` : `none (${handState})`, detected ? "ok" : "dim");
+}
+
+function onVideoFrame(now, metadata) {
+  el.camPreview.requestVideoFrameCallback(onVideoFrame);
+  updateCameraFps(now);
+  if (!handTrackingActive || !handLandmarker) return;
+  // expectedDisplayTime is on the performance.now() timeline; mediaTime is
+  // logged for reference but not used for beat comparison (different clock).
+  const t = metadata.expectedDisplayTime ?? now;
+  let result;
+  try {
+    result = handLandmarker.detectForVideo(el.camPreview, monotonicMs(t));
+  } catch (err) {
+    reportError("hand", err);
+    renderBigNumberError(err.message);
+    return;
+  }
+  if (result && result.landmarks && result.landmarks.length) {
+    const lm = result.landmarks[0];
+    setHandDetected(true);
+    drawHandOverlay(lm, handState !== "spiking");
+    const count = countFingers(lm);
+    renderBigNumber(count);
+    lastKnownFingerCount = count;
+    handFrameHistory.push({ t, count });
+    const cutoff = t - HAND_FRAME_HISTORY_MS;
+    while (handFrameHistory.length && handFrameHistory[0].t < cutoff) handFrameHistory.shift();
+    const tips = [4, 8, 12, 16, 20].map(i => lm[i]);
+    const cx = tips.reduce((a, p) => a + p.x, 0) / 5;
+    const cy = tips.reduce((a, p) => a + p.y, 0) / 5;
+    if (lastHandPos && lastHandT != null) {
+      const dt = (t - lastHandT) / 1000;
+      if (dt > 0) {
+        const moveDist = Math.hypot(cx - lastHandPos.x, cy - lastHandPos.y);
+        processHandVelocity(t, moveDist / dt);
+      }
+    }
+    lastHandPos = { x: cx, y: cy }; lastHandT = t;
+    updateReadyPillFromFrame(count);
+  } else {
+    setHandDetected(false);
+    drawHandOverlay(null, false);
+    renderBigNumberNoHand();
+    lastHandPos = null; lastHandT = null;
+    updateReadyPillFromFrame(null);
+  }
+}
+
+// step 13: called on every camera frame (hand-detected or not) to check for
+// reset evidence — only does work while genuinely waiting (armed already ==
+// nothing to do, and re-rendering every frame would be wasteful).
+function updateReadyPillFromFrame(count) {
+  if (!playVsOpponent || heroMode !== "sync" || handArmedForNextThrow) return;
+  if (handHasResetSince(lastThrownFingerCount, count)) {
+    handArmedForNextThrow = true;
+    renderReadyPill();
+  }
+}
+
+function processHandVelocity(t, v) {
+  el.handVel.textContent = v.toFixed(2);
+  el.handVelMeterFill.style.width = Math.min(100, v * 40) + "%";
+  const HIGH_V = parseFloat(el.tuneHighV.value);
+  const LOW_V = parseFloat(el.tuneLowV.value);
+  const SETTLE_MS = parseFloat(el.tuneSettleMs.value);
+
+  if (handState === "idle") {
+    if (v > HIGH_V) { handState = "spiking"; settleStart = null; motionStartPerfTime = t; }
+  } else if (handState === "spiking") {
+    if (v < LOW_V) { handState = "settling"; settleStart = t; }
+  } else if (handState === "settling") {
+    // A re-spike mid-settle is a fresh motion attempt, not a continuation of
+    // the old one — restart the anchor along with settleStart.
+    if (v > HIGH_V) { handState = "spiking"; settleStart = null; motionStartPerfTime = t; }
+    else if (v < LOW_V && settleStart != null && (t - settleStart) >= SETTLE_MS) {
+      onHandOnset(settleStart, motionStartPerfTime, lastKnownFingerCount);
+      handState = "idle";
+      motionStartPerfTime = null;
+    }
+  }
+  el.handState.textContent = handState;
+}
+
+el.btnCam.addEventListener("click", startCamera);
+
+/* ---------------------------------------------------------------------
+ * Vosk word recognition (step 4). Lazy-loaded on button click, exactly
+ * the fetch-with-progress -> blob: URL -> Vosk.createModel(blobUrl, 0)
+ * pipeline verified in spikes/s02-voice.html, ported verbatim. A fresh
+ * grammar-restricted KaldiRecognizer is used per throw (same pattern as
+ * s02's recognizeBatch), fed a 16kHz-mono resample of whatever native
+ * sample rate the VAD AudioWorklet ring buffer was recorded at.
+ * ------------------------------------------------------------------- */
+
+async function ensureVoskLoaded() {
+  if (window.Vosk) return window.Vosk;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = VOSK_CDN_URL;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("Failed to load vosk-browser script from CDN — check network/CDN availability."));
+    document.head.appendChild(s);
+  });
+  if (!window.Vosk) throw new Error("vosk-browser script loaded but window.Vosk is undefined.");
+  return window.Vosk;
+}
+
+async function fetchModelBlob(url, onProgress) {
+  let resp;
+  try {
+    resp = await fetch(url);
+  } catch (e) {
+    throw new Error(`fetch("${url}") threw before any HTTP status was seen — CORS block or network/path error. Original: ${e.message}`);
+  }
+  if (!resp.ok) throw new Error(`Model fetch failed: HTTP ${resp.status} for ${url}`);
+  const total = parseInt(resp.headers.get("Content-Length") || "0", 10);
+  const reader = resp.body.getReader();
+  const chunks = [];
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (onProgress) onProgress(received, total);
+  }
+  return { blob: new Blob(chunks), bytes: received };
+}
+function fmtBytes(n) { return (n / (1024 * 1024)).toFixed(1) + " MB"; }
+
+let voskModel = null;
+let voskLoading = false;
+
+async function loadVoskModel() {
+  if (voskModel || voskLoading) return;
+  voskLoading = true;
+  el.btnLoadVosk.disabled = true;
+  setChip(el.chipVosk, "loading…", "warn");
+  setStatus(el.voskStatus, "Loading vosk-browser runtime…", null);
+  try {
+    const Vosk = await ensureVoskLoaded();
+    setStatus(el.voskStatus, "Downloading Catalan model…", null);
+    const t0 = performance.now();
+    const { blob, bytes } = await fetchModelBlob(VOSK_MODEL_URL, (received, total) => {
+      const pct = total ? (received / total) * 100 : 0;
+      setStatus(el.voskStatus, `Downloading model… ${fmtBytes(received)}${total ? " / " + fmtBytes(total) : ""} (${pct.toFixed(0)}%)`, null);
+    });
+    const downloadMs = performance.now() - t0;
+    const blobUrl = URL.createObjectURL(blob);
+    setStatus(el.voskStatus, "Extracting + loading model into WASM…", null);
+    const t1 = performance.now();
+    voskModel = await Vosk.createModel(blobUrl, 0);
+    const loadMs = performance.now() - t1;
+    setStatus(el.voskStatus, `Voice recognition ready (CA) — ${fmtBytes(bytes)} in ${(downloadMs / 1000).toFixed(1)}s, loaded in ${loadMs.toFixed(0)}ms.`, "ok");
+    el.btnLoadVosk.textContent = "Voice Recognition Loaded (CA)";
+    setChip(el.chipVosk, "loaded", "ok");
+    renderBigWordIdle();
+  } catch (err) {
+    setStatus(el.voskStatus, "Voice recognition load error: " + err.message, "err");
+    setChip(el.chipVosk, "error", "bad");
+    reportError("vosk", err);
+    el.btnLoadVosk.disabled = false;
+  } finally {
+    voskLoading = false;
+  }
+}
+el.btnLoadVosk.addEventListener("click", loadVoskModel);
+
+async function resampleTo16kMono(float32Array, srcSampleRate) {
+  if (srcSampleRate === VOSK_SAMPLE_RATE) return float32Array;
+  const duration = float32Array.length / srcSampleRate;
+  const offlineCtx = new OfflineAudioContext(1, Math.max(1, Math.ceil(duration * VOSK_SAMPLE_RATE)), VOSK_SAMPLE_RATE);
+  const srcBuffer = offlineCtx.createBuffer(1, float32Array.length, srcSampleRate);
+  srcBuffer.copyToChannel(float32Array, 0);
+  const srcNode = offlineCtx.createBufferSource();
+  srcNode.buffer = srcBuffer;
+  srcNode.connect(offlineCtx.destination);
+  srcNode.start();
+  const rendered = await offlineCtx.startRendering();
+  return rendered.getChannelData(0).slice();
+}
+
+// Returns the raw Kaldi result detail (not collapsed to a display string)
+// so callers — and the debug log — can distinguish "no result object at
+// all" from "result object with empty/[unk] text".
+async function recognizeWord(float32, srcSampleRate) {
+  const mono16k = await resampleTo16kMono(float32, srcSampleRate);
+  const rec = new voskModel.KaldiRecognizer(VOSK_SAMPLE_RATE, VOSK_GRAMMAR);
+  const resultPromise = new Promise((resolve) => rec.on("result", (m) => resolve(m)));
+  rec.acceptWaveformFloat(mono16k, VOSK_SAMPLE_RATE);
+  rec.retrieveFinalResult();
+  const m = await resultPromise;
+  rec.remove();
+  const hasResult = !!(m && m.result);
+  const rawText = hasResult && m.result.text != null ? m.result.text : null;
+  return { rawText, hasResult };
+}
+
+/* ---------------------------------------------------------------------
+ * Voice VAD (AudioWorklet, ~1.5s ring buffer, energy threshold).
+ * Extended (step 4) with an "extract" request/response so the main
+ * thread can pull a raw audio window out of the SAME ring buffer the
+ * onset detector already uses — no separate recording path.
+ * ------------------------------------------------------------------- */
+
+const vadProcessorSrc = `
+  class VadProcessor extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      this.ringSize = Math.round(sampleRate * 1.5);
+      this.ring = new Float32Array(this.ringSize);
+      this.ringPos = 0;       // wrapped write cursor, only used to index into "ring"
+      this.totalWritten = 0;  // MONOTONIC sample count, never wraps — the coordinate
+                               // markers/extraction math is done in, to avoid the
+                               // ring-wrap bug where two markers straddling a wrap
+                               // boundary produced a non-monotonic raw index and an
+                               // extraction window could come back with endIdx <= startIdx
+                               // ("0 samples" on ~80% of beats — bug A, step 6 fix).
+      this.noiseFloor = 0.001;
+      this.above = false;
+      this.aboveSinceTime = null;   // ctxTime the current above-threshold run started
+      this.onsetHandled = false;    // debounced/suppressed already for this run?
+      this.sustainMs = 100;         // step 6: require sustained energy before firing an
+                                     // onset — the metronome click is a ~30-80ms blip,
+                                     // a real shout sustains well past this (bug B fix 1)
+      this.clickBandMs = 60;        // step 6: also hard-suppress onsets within this many
+                                     // ms of a scheduled click, since we know its exact
+                                     // time (bug B fix 2)
+      this.clickTimes = [];         // recent/near-future scheduled click ctxTimes
+      this.frameCount = 0;
+      this.mult = 6;
+      this.markers = []; // {ctxTime, writeIndex} at the start of each render quantum — writeIndex is the UNWRAPPED totalWritten count
+      this.maxMarkers = Math.ceil(this.ringSize / 64) + 16;
+      this.port.onmessage = (e) => {
+        if (e.data.type === "tune") this.mult = e.data.mult;
+        else if (e.data.type === "extract") this.handleExtract(e.data);
+        else if (e.data.type === "click") {
+          this.clickTimes.push(e.data.ctxTime);
+          if (this.clickTimes.length > 32) this.clickTimes.shift();
+        }
+      };
+    }
+    handleExtract({ requestId, centerCtxTime, preMs, postMs }) {
+      const startTime = centerCtxTime - preMs / 1000;
+      const endTime = centerCtxTime + postMs / 1000;
+      const coverageOk = this.markers.length > 0 && this.markers[0].ctxTime <= startTime;
+      const markerRangeCtxTime = this.markers.length
+        ? { oldest: this.markers[0].ctxTime, newest: this.markers[this.markers.length - 1].ctxTime }
+        : { oldest: null, newest: null };
+      // Unwrapped coordinate space: writeIndex only ever increases, so idxFor(t) is
+      // guaranteed monotonic in t regardless of how many ring wraps happened between
+      // the chosen anchor markers. Wrapping into "ring" bounds happens only at read time.
+      const idxFor = (t) => {
+        if (!this.markers.length) return null;
+        let best = this.markers[0];
+        for (const mk of this.markers) { if (mk.ctxTime <= t) best = mk; else break; }
+        return Math.round(best.writeIndex + (t - best.ctxTime) * sampleRate);
+      };
+      const startIdxRaw = idxFor(startTime);
+      const endIdxRaw = idxFor(endTime);
+      const base = {
+        requestId, sampleRate, windowStartCtxTime: startTime, windowEndCtxTime: endTime,
+        coverageOk, markerRangeCtxTime, workletCurrentTimeAtRequest: currentTime,
+      };
+      if (startIdxRaw == null || endIdxRaw == null || endIdxRaw <= startIdxRaw) {
+        this.port.postMessage({ type: "extracted", ...base, samples: new Float32Array(0), requestedSamples: 0, clamped: false });
+        return;
+      }
+      // Never read further back than what's actually still resident in the ring.
+      const oldestValidIdx = this.totalWritten - this.ringSize;
+      const clampedStartIdx = Math.max(startIdxRaw, oldestValidIdx);
+      const requestedSamples = endIdxRaw - startIdxRaw;
+      const n = Math.max(0, Math.min(endIdxRaw - clampedStartIdx, this.ringSize));
+      const clamped = n < requestedSamples;
+      const out = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const idx = ((clampedStartIdx + i) % this.ringSize + this.ringSize) % this.ringSize;
+        out[i] = this.ring[idx];
+      }
+      this.port.postMessage({ type: "extracted", ...base, samples: out, requestedSamples, clamped });
+    }
+    process(inputs) {
+      const input = inputs[0];
+      if (input && input[0] && input[0].length) {
+        const ch = input[0];
+        this.markers.push({ ctxTime: currentTime, writeIndex: this.totalWritten });
+        if (this.markers.length > this.maxMarkers) this.markers.shift();
+        let sumSq = 0;
+        for (let i = 0; i < ch.length; i++) {
+          const s = ch[i];
+          this.ring[this.ringPos] = s;
+          this.ringPos = (this.ringPos + 1) % this.ringSize;
+          this.totalWritten++;
+          sumSq += s * s;
+        }
+        const rms = Math.sqrt(sumSq / ch.length);
+        if (!this.above) this.noiseFloor = this.noiseFloor * 0.995 + rms * 0.005;
+        const threshold = Math.max(this.noiseFloor * this.mult, 0.015);
+        const wasAbove = this.above;
+        this.above = rms > threshold;
+        const blockStartTime = currentTime;
+        if (this.above && !wasAbove) {
+          this.aboveSinceTime = blockStartTime;
+          this.onsetHandled = false;
+        } else if (!this.above) {
+          this.aboveSinceTime = null;
+          this.onsetHandled = false;
+        } else if (this.above && this.aboveSinceTime != null && !this.onsetHandled &&
+                   (blockStartTime - this.aboveSinceTime) * 1000 >= this.sustainMs) {
+          this.onsetHandled = true;
+          const nearClick = this.clickTimes.some((ct) => Math.abs(this.aboveSinceTime - ct) * 1000 <= this.clickBandMs);
+          if (nearClick) {
+            this.port.postMessage({ type: "click-suppressed", t: this.aboveSinceTime, rms });
+          } else {
+            this.port.postMessage({ type: "onset", t: this.aboveSinceTime, rms });
+          }
+        }
+        this.frameCount++;
+        if (this.frameCount % 4 === 0) {
+          this.port.postMessage({ type: "level", t: blockStartTime, rms, threshold });
+        }
+      }
+      return true;
+    }
+  }
+  registerProcessor("vad-processor", VadProcessor);
+`;
+
+let vadNode = null;
+let latestMicLevel = { rms: 0, threshold: 0 };
+let lastVoiceOnsetAtPerf = -Infinity;
+
+let extractReqCounter = 0;
+const pendingExtracts = new Map(); // requestId -> { resolve, reject, ctxCurrentTimeAtRequest }
+function requestRingExtract(centerCtxTime, preMs, postMs) {
+  return new Promise((resolve, reject) => {
+    if (!vadNode) { reject(new Error("mic not running")); return; }
+    const requestId = ++extractReqCounter;
+    // Both the metronome click and the VAD worklet run on the SAME AudioContext
+    // (there is only one `ctx` in this file) — capturing ctx.currentTime here
+    // and the worklet's own `currentTime` at message receipt (returned in the
+    // "extracted" reply) lets the debug log prove there's no clock-domain split.
+    const ctxCurrentTimeAtRequest = ctx.currentTime;
+    pendingExtracts.set(requestId, { resolve, reject, ctxCurrentTimeAtRequest });
+    vadNode.port.postMessage({ type: "extract", requestId, centerCtxTime, preMs, postMs });
+    setTimeout(() => {
+      if (pendingExtracts.has(requestId)) { pendingExtracts.delete(requestId); reject(new Error("ring extract timed out")); }
+    }, 1500);
+  });
+}
+
+async function startMic() {
+  el.btnMic.disabled = true;
+  setStatus(el.sensorStatus, "Requesting microphone…", null);
+  setChip(el.chipMic, "requesting…", "warn");
+  el.shoutBadge.textContent = "requesting…";
+  el.shoutBadge.className = "shout-badge idle";
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const src = ctx.createMediaStreamSource(stream);
+    const blobUrl = URL.createObjectURL(new Blob([vadProcessorSrc], { type: "application/javascript" }));
+    await ctx.audioWorklet.addModule(blobUrl);
+    vadNode = new AudioWorkletNode(ctx, "vad-processor");
+    vadNode.onprocessorerror = (e) => {
+      const err = new Error("AudioWorklet processor error");
+      reportError("vad", err);
+      setChip(el.chipVad, "error", "bad");
+      renderShoutError(err.message);
+    };
+    vadNode.port.onmessage = (e) => {
+      const d = e.data;
+      if (d.type === "onset") {
+        const perfT = clockMap.toPerformanceTime(d.t);
+        if (perfT != null) { lastVoiceOnsetAtPerf = perfT; onVoiceOnset(perfT); triggerShoutFlash(perfT, d.t); }
+      } else if (d.type === "level") {
+        latestMicLevel = { rms: d.rms, threshold: d.threshold };
+      } else if (d.type === "click-suppressed") {
+        recordSuppressedClick(d.t, d.rms);
+      } else if (d.type === "extracted") {
+        const pending = pendingExtracts.get(d.requestId);
+        if (pending) {
+          pendingExtracts.delete(d.requestId);
+          pending.resolve({
+            samples: d.samples, sampleRate: d.sampleRate,
+            windowStartCtxTime: d.windowStartCtxTime, windowEndCtxTime: d.windowEndCtxTime,
+            requestedSamples: d.requestedSamples, coverageOk: d.coverageOk, clamped: d.clamped,
+            markerRangeCtxTime: d.markerRangeCtxTime,
+            workletCurrentTimeAtRequest: d.workletCurrentTimeAtRequest,
+            ctxCurrentTimeAtRequest: pending.ctxCurrentTimeAtRequest,
+          });
+        }
+      }
+    };
+    src.connect(vadNode);
+    setChip(el.chipMic, "running", "ok");
+    setStatus(el.sensorStatus, "Mic + voice VAD active.", "ok");
+    renderShoutListening();
+    el.tuneVadMult.dispatchEvent(new Event("change")); // push the slider's current value to the fresh worklet
+    updateHeroPrompt();
+  } catch (err) {
+    setChip(el.chipMic, "error", "bad");
+    setStatus(el.sensorStatus, "Mic error: " + err.message + " (hand channel + metronome still work).", "err");
+    reportError("mic", err);
+    renderShoutError(err.message);
+    el.btnMic.disabled = false;
+    updateHeroPrompt();
+  }
+}
+el.btnMic.addEventListener("click", startMic);
+function pushVadTuning() {
+  if (vadNode) vadNode.port.postMessage({ type: "tune", mult: parseFloat(el.tuneVadMult.value) });
+}
+el.tuneVadMult.addEventListener("input", pushVadTuning);
+el.tuneVadMult.addEventListener("change", pushVadTuning);
+
+function updateMicMeterUI() {
+  el.micRms.textContent = latestMicLevel.rms.toFixed(4);
+  el.micThresh.textContent = latestMicLevel.threshold.toFixed(4);
+  const pct = Math.min(100, latestMicLevel.rms * 400);
+  el.micMeterFill.style.width = pct + "%";
+  el.micMeterFill.classList.toggle("hot", latestMicLevel.rms > latestMicLevel.threshold);
+
+  const threshPct = Math.min(100, latestMicLevel.threshold * 400);
+  el.voiceMeterFill.style.width = pct + "%";
+  el.voiceMeterFill.classList.toggle("hot", latestMicLevel.rms > latestMicLevel.threshold);
+  el.voiceThreshMark.style.left = threshPct + "%";
+
+  if (vadNode) {
+    const firing = (performance.now() - lastVoiceOnsetAtPerf) < 300;
+    setChip(el.chipVad, firing ? "firing!" : `rms ${latestMicLevel.rms.toFixed(3)} / thr ${latestMicLevel.threshold.toFixed(3)}`, firing ? "ok" : "dim");
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Sync mode (step 9, no beat). Default hero experience: the player throws +
+ * shouts self-paced, no metronome. A hand onset (the SAME velocity-settle
+ * detector beat mode uses) is the event anchor; voice onset comes from the
+ * SAME offline buffer-analysis pipeline as beat mode's step 7 fix, just
+ * re-anchored on the hand onset instead of a scheduled beat's click. The
+ * live streaming VAD stays cosmetic for the SHOUT! flash, plus one extra job
+ * here: flagging "shouted but never threw" as its own incomplete event.
+ * ------------------------------------------------------------------- */
+
+function syncReady() { return handTrackingActive && !!vadNode; }
+function getSyncCoOccurrenceMs() {
+  const v = parseFloat(el.syncCoOccurrenceMs.value);
+  return Number.isFinite(v) && v > 0 ? v : SYNC_COOCCURRENCE_MS_DEFAULT;
+}
+
+let syncThrows = [];
+let syncPendingAnalysis = []; // {handPerfTime, throwEvent, debugRec} — waiting for SYNC_POST_MS to elapse (see frame())
+let syncVerdictThrowRef = null;
+
+function resetSyncVerdict() {
+  syncVerdictThrowRef = null;
+  el.verdictCard.className = "verdict-card idle";
+  el.verdictResult.textContent = "–";
+  el.verdictDetail.textContent = "waiting for a throw…";
+  el.verdictWord.style.display = "none";
+  renderBigWordIdle();
+}
+function renderSyncVerdictPending(t) {
+  syncVerdictThrowRef = t;
+  el.verdictCard.className = "verdict-card pending";
+  el.verdictResult.textContent = "…";
+  el.verdictDetail.textContent = "analyzing…";
+  if (voskModel) { el.verdictWord.style.display = "block"; el.verdictWord.textContent = "recognizing…"; }
+  else el.verdictWord.style.display = "none";
+}
+// step 10 fix 3: a preWindow-pinned early delta is a lower bound, not an
+// exact reading — labeled with "≥" so it doesn't read as a precise measurement.
+const SYNC_OUTCOME_LABELS = {
+  synced: "SYNCED",
+  "voice-late": (t) => `voice late by ${Math.abs(t.syncDeltaMs).toFixed(0)}ms`,
+  "voice-early": (t) => `voice early by ${t.voicePreWindow ? "≥" : ""}${Math.abs(t.syncDeltaMs).toFixed(0)}ms`,
+  "hand-only": "ONLY HAND SEEN",
+  "voice-only": "ONLY VOICE HEARD",
+};
+function renderSyncVerdict(t) {
+  syncVerdictThrowRef = t;
+  const cardClass = t.outcome === "synced" ? "hit" : (t.outcome === "hand-only" || t.outcome === "voice-only" ? "incomplete" : "miss");
+  el.verdictCard.className = "verdict-card " + cardClass;
+  const label = SYNC_OUTCOME_LABELS[t.outcome];
+  el.verdictResult.textContent = typeof label === "function" ? label(t) : (label || t.outcome);
+  if (t.outcome === "voice-only") el.verdictDetail.textContent = "no hand onset seen near this shout";
+  else if (t.outcome === "hand-only") el.verdictDetail.textContent = "no voice onset heard near this throw";
+  else if (t.voicePreWindow) el.verdictDetail.textContent = `sync delta: ≤ ${t.syncDeltaMs.toFixed(0)}ms (voice started before the capture window)`;
+  else el.verdictDetail.textContent = `sync delta: ${t.syncDeltaMs >= 0 ? "+" : ""}${t.syncDeltaMs.toFixed(0)}ms`;
+  if (voskModel) {
+    el.verdictWord.style.display = "block";
+    el.verdictWord.textContent = t.word ? (t.word !== "?" ? `"${t.word}"` : "?") : (t.pending ? "recognizing…" : "?");
+  } else {
+    el.verdictWord.style.display = "none";
+  }
+}
+const SYNC_NATURAL_LEAD_MIN_THROWS = 8;
+function renderSyncTally(throws) {
+  const resolved = throws.filter((t) => !t.pending);
+  const total = resolved.length;
+  const synced = resolved.filter((t) => t.outcome === "synced").length;
+  const rate = total ? synced / total : 0;
+  el.heroThrowCount.textContent = `${throws.length} throw${throws.length === 1 ? "" : "s"}`;
+  el.heroHitRate.textContent = total ? (rate * 100).toFixed(1) + "%" : "—";
+  el.heroHitRate.className = "hitrate" + (total ? (rate >= 0.85 ? " pass" : " fail") : "");
+  el.heroHitBarFill.style.width = Math.min(100, rate * 100) + "%";
+  const deltas = resolved.filter((t) => t.syncDeltaMs != null).map((t) => Math.abs(t.syncDeltaMs));
+  if (deltas.length) {
+    el.syncMedianDelta.style.display = "block";
+    el.syncMedianDelta.textContent = `median |Δ|: ${median(deltas).toFixed(0)}ms over ${deltas.length} paired throw${deltas.length === 1 ? "" : "s"}`;
+  } else {
+    el.syncMedianDelta.style.display = "none";
+  }
+  // step 10 fix 4: informational only — excludes preWindow-pinned throws
+  // (lower bounds, not exact readings) so the median stays a real measurement.
+  const confidentSignedDeltas = resolved.filter((t) => t.syncDeltaMs != null && !t.voicePreWindow).map((t) => t.syncDeltaMs);
+  if (confidentSignedDeltas.length >= SYNC_NATURAL_LEAD_MIN_THROWS) {
+    const lead = median(confidentSignedDeltas);
+    el.syncNaturalLead.style.display = "block";
+    el.syncNaturalLead.textContent = `your natural lead: ${lead >= 0 ? "+" : ""}${lead.toFixed(0)}ms (median over ${confidentSignedDeltas.length} throws)`;
+  } else {
+    el.syncNaturalLead.style.display = "none";
+  }
+}
+
+// step 10: the event anchor is motion start, not settle — see the
+// SYNC_PRE_MS config comment for why. settlePerfTime/fingerCount are kept
+// only for display/debug (count is meaningless until the hand has settled).
+function onSyncHandOnset(settlePerfTime, motionStartPerfTime, fingerCount) {
+  if (!syncReady()) return;
+  const anchorPerfTime = motionStartPerfTime != null ? motionStartPerfTime : settlePerfTime;
+  const throwEvent = {
+    kind: "sync", throwIndex: syncThrows.length + 1,
+    handOnsetPerfTime: anchorPerfTime, handSettlePerfTime: settlePerfTime, handFingerCount: fingerCount,
+    voiceOnsetPerfTime: null, voicePreWindow: false,
+    syncDeltaMs: null, outcome: "pending", pending: true, word: null,
+    gameHandled: false, // step 11: guards maybeResolveGameRound against double-processing
+  };
+  syncThrows.push(throwEvent);
+  renderSyncVerdictPending(throwEvent);
+  renderSyncTally(syncThrows);
+  if (voskModel) renderBigWordPendingFor(throwEvent);
+  // step 11/12: a fresh throw starting is what should replace the previous
+  // round's reveal on screen — not the auto-recommit that follows it. The
+  // rival hand flips back to a fist here too, showing whichever commitment
+  // is already sitting in currentAiMove (generated in the background right
+  // after the last round resolved).
+  if (playVsOpponent && heroMode === "sync" && !gameOver) {
+    renderGameRoundAnalyzing();
+    renderRivalCommitted();
+    throwInProgress = true; // step 13
+    renderReadyPill();
+  }
+
+  const debugRec = {
+    mode: "sync",
+    handOnsetPerfTime: anchorPerfTime,
+    hand: {
+      motionStartPerfTime: anchorPerfTime, settlePerfTime, fingerCount,
+      onsetPerfTime: anchorPerfTime, reason: null, settlePath: "velocity-settle",
+    },
+    voice: { offsetMs: null, onsetPerfTime: null, reason: "pending", onsetSource: null, preWindow: null },
+    outcome: "pending", syncDeltaMs: null, coOccurrenceMs: getSyncCoOccurrenceMs(),
+    modelLoaded: !!voskModel, recognition: null,
+  };
+  debugLog.push(debugRec);
+  if (debugLog.length > DEBUG_LOG_CAP) debugLog.shift();
+  throwEvent.debugRec = debugRec; // step 11: lets maybeResolveGameRound attach game.* fields to this same record
+
+  // See the SYNC_PRE_MS/SYNC_POST_MS config comment: extraction is deferred
+  // to frame() until now >= anchorPerfTime + SYNC_POST_MS, since the window's
+  // end is still in the future at the instant the onset fires.
+  syncPendingAnalysis.push({ handPerfTime: anchorPerfTime, throwEvent, debugRec });
+}
+
+function triggerSyncAudioAnalysis(handPerfTime, throwEvent, debugRec) {
+  const t0 = performance.now();
+  const rec = {
+    windowStartCtxTime: null, windowEndCtxTime: null, windowStartPerfTime: null, windowEndPerfTime: null,
+    requestedSamples: 0, extractedSamples: 0, extractedDurationMs: 0, coverageOk: null, clamped: null,
+    rawText: null, hasResult: null, finalWord: null, latencyMs: null,
+    recognizerBusyAtStart: activeRecognitions > 0, skipped: false, skipReason: null, error: null,
+    ctxCurrentTimeAtRequest: null, workletCurrentTimeAtRequest: null, markerRangeCtxTime: null,
+    handOnsetCtxTime: null, bufferOnsetFound: false, bufferOnsetMsInWindow: null,
+  };
+  debugRec.recognition = rec;
+
+  if (!vadNode) { finalizeSyncThrow(throwEvent, debugRec, null); return; }
+
+  const handOnsetCtxTime = clockMap.toContextTime(handPerfTime);
+  rec.handOnsetCtxTime = handOnsetCtxTime;
+  if (handOnsetCtxTime == null) { finalizeSyncThrow(throwEvent, debugRec, null); return; }
+
+  requestRingExtract(handOnsetCtxTime, SYNC_PRE_MS, SYNC_POST_MS)
+    .then((extraction) => {
+      rec.windowStartCtxTime = extraction.windowStartCtxTime;
+      rec.windowEndCtxTime = extraction.windowEndCtxTime;
+      rec.windowStartPerfTime = clockMap.toPerformanceTime(extraction.windowStartCtxTime);
+      rec.windowEndPerfTime = clockMap.toPerformanceTime(extraction.windowEndCtxTime);
+      rec.requestedSamples = extraction.requestedSamples;
+      rec.extractedSamples = extraction.samples ? extraction.samples.length : 0;
+      rec.extractedDurationMs = extraction.samples && extraction.sampleRate ? (extraction.samples.length / extraction.sampleRate) * 1000 : 0;
+      rec.coverageOk = extraction.coverageOk;
+      rec.clamped = extraction.clamped;
+      rec.ctxCurrentTimeAtRequest = extraction.ctxCurrentTimeAtRequest;
+      rec.workletCurrentTimeAtRequest = extraction.workletCurrentTimeAtRequest;
+      rec.markerRangeCtxTime = extraction.markerRangeCtxTime;
+
+      if (!extraction.samples || extraction.samples.length < Math.round((extraction.sampleRate || VOSK_SAMPLE_RATE) * 0.05)) {
+        rec.skipped = true;
+        rec.skipReason = "too little audio in extraction window";
+        rec.latencyMs = performance.now() - t0;
+        finalizeSyncThrow(throwEvent, debugRec, null);
+        if (voskModel) applyRecognizedWord(throwEvent, "?");
+        return;
+      }
+
+      // No metronome click in sync mode, so no exclusion band is needed here.
+      const onsetResult = findEnergyOnsetInBuffer(extraction.samples, extraction.sampleRate, {
+        sustainMs: OFFLINE_ONSET_SUSTAIN_MS,
+        vadMult: parseFloat(el.tuneVadMult.value) || 6,
+        floorCap: BUFFER_FLOOR_CAP,
+      });
+      let voiceOnsetPerfTime = null;
+      let preWindow = false;
+      if (onsetResult != null) {
+        rec.bufferOnsetFound = true;
+        rec.bufferOnsetMsInWindow = onsetResult.onsetMs;
+        rec.bufferOnsetPreWindow = onsetResult.preWindow;
+        const onsetCtxTime = extraction.windowStartCtxTime + onsetResult.onsetMs / 1000;
+        voiceOnsetPerfTime = clockMap.toPerformanceTime(onsetCtxTime);
+        preWindow = onsetResult.preWindow;
+      }
+      finalizeSyncThrow(throwEvent, debugRec, voiceOnsetPerfTime, preWindow);
+
+      if (!voskModel) return;
+      activeRecognitions++;
+      return recognizeWord(extraction.samples, extraction.sampleRate)
+        .then(({ rawText, hasResult }) => {
+          rec.rawText = rawText;
+          rec.hasResult = hasResult;
+          const word = (rawText || "").trim();
+          rec.finalWord = word && word !== "[unk]" ? word : "?";
+          rec.latencyMs = performance.now() - t0;
+          applyRecognizedWord(throwEvent, rec.finalWord);
+        })
+        .catch((err) => {
+          rec.error = err.message;
+          rec.latencyMs = performance.now() - t0;
+          reportError("vosk-recognize", err);
+          applyRecognizedWord(throwEvent, "?");
+        })
+        .finally(() => { activeRecognitions--; });
+    })
+    .catch((err) => {
+      rec.skipped = true;
+      rec.skipReason = "ring extraction failed/timed out";
+      rec.error = err.message;
+      rec.latencyMs = performance.now() - t0;
+      finalizeSyncThrow(throwEvent, debugRec, null);
+      if (voskModel) applyRecognizedWord(throwEvent, "?");
+    });
+}
+
+// step 10 fix 3: preWindow means the buffer's very first block was already
+// above threshold — the true onset is AT OR BEFORE the window's start, so
+// the reported delta (always exactly -SYNC_PRE_MS in that case) is a lower
+// bound, not an exact measurement. Surfaced as voicePreWindow so the UI can
+// show "≥" instead of a falsely-precise number.
+function finalizeSyncThrow(throwEvent, debugRec, voiceOnsetPerfTime, preWindow) {
+  let cls = classifySyncThrow(throwEvent.handOnsetPerfTime, voiceOnsetPerfTime, debugRec.coOccurrenceMs);
+  const isPreWindow = voiceOnsetPerfTime != null && !!preWindow;
+  // A pinned-at-window-start onset is only a LOWER BOUND on how early the
+  // voice really started — with SYNC_PRE_MS == the default co-occurrence
+  // window, the raw math can land exactly on the "synced" boundary, which
+  // would be a false positive (we can't confirm it's genuinely in-window).
+  // Never report a preWindow pin as a confident SYNCED.
+  if (isPreWindow && cls.outcome === "synced") {
+    cls = { outcome: "voice-early", syncDeltaMs: cls.syncDeltaMs, synced: false };
+  }
+  throwEvent.voiceOnsetPerfTime = voiceOnsetPerfTime;
+  throwEvent.syncDeltaMs = cls.syncDeltaMs;
+  throwEvent.outcome = cls.outcome;
+  throwEvent.voicePreWindow = isPreWindow;
+  throwEvent.pending = false;
+
+  debugRec.voice.onsetPerfTime = voiceOnsetPerfTime;
+  debugRec.voice.reason = voiceOnsetPerfTime == null ? "no onset" : null;
+  debugRec.voice.onsetSource = voiceOnsetPerfTime != null ? "buffer" : null;
+  debugRec.voice.preWindow = throwEvent.voicePreWindow;
+  debugRec.outcome = cls.outcome;
+  debugRec.syncDeltaMs = cls.syncDeltaMs;
+
+  renderSyncTally(syncThrows);
+  if (syncVerdictThrowRef === throwEvent) renderSyncVerdict(throwEvent);
+  if (throwEvent.kind === "sync") maybeResolveGameRound(throwEvent);
+}
+
+// A voice-only event: the live VAD fired but no hand onset showed up nearby,
+// so there's no throw to anchor a buffer extraction on. Waits SYNC_PARTNER_
+// TIMEOUT_MS, re-checking in case a hand onset shows up in the meantime,
+// before recording it as incomplete — visible, not silently dropped.
+function recordSyncIncompleteThrow(voicePerfTime) {
+  const throwEvent = {
+    kind: "sync", throwIndex: syncThrows.length + 1,
+    handOnsetPerfTime: null, handSettlePerfTime: null, handFingerCount: null,
+    voiceOnsetPerfTime: voicePerfTime, voicePreWindow: false,
+    syncDeltaMs: null, outcome: "voice-only", pending: false, word: null,
+  };
+  syncThrows.push(throwEvent);
+  renderSyncTally(syncThrows);
+  renderSyncVerdict(throwEvent);
+
+  const debugRec = {
+    mode: "sync", handOnsetPerfTime: null,
+    hand: { motionStartPerfTime: null, settlePerfTime: null, fingerCount: null, onsetPerfTime: null, reason: "no hand", settlePath: null },
+    voice: { onsetPerfTime: voicePerfTime, reason: null, onsetSource: "vad", preWindow: null },
+    outcome: "voice-only", syncDeltaMs: null, coOccurrenceMs: getSyncCoOccurrenceMs(),
+    modelLoaded: !!voskModel, recognition: null,
+  };
+  debugLog.push(debugRec);
+  if (debugLog.length > DEBUG_LOG_CAP) debugLog.shift();
+}
+function onSyncVoiceOnset(voicePerfTime) {
+  if (!syncReady()) return;
+  const handTimesNow = syncThrows.filter((t) => t.handOnsetPerfTime != null).map((t) => t.handOnsetPerfTime);
+  if (!isOrphanVoiceOnset(voicePerfTime, handTimesNow, SYNC_PARTNER_TIMEOUT_MS)) return; // already explained
+  setTimeout(() => {
+    const handTimesLater = syncThrows.filter((t) => t.handOnsetPerfTime != null).map((t) => t.handOnsetPerfTime);
+    if (isOrphanVoiceOnset(voicePerfTime, handTimesLater, SYNC_PARTNER_TIMEOUT_MS)) recordSyncIncompleteThrow(voicePerfTime);
+  }, SYNC_PARTNER_TIMEOUT_MS);
+}
+
+/* ---------------------------------------------------------------------
+ * First playable round (step 11): a morra micatio round vs an AI opponent,
+ * layered on top of sync mode's existing throw pipeline — every hand+voice
+ * event still runs through onSyncHandOnset/finalizeSyncThrow/
+ * applyRecognizedWord exactly as before (so the plain sync-mirror stays
+ * available and unregressed when "Play vs opponent" is off); this section
+ * only ADDS a hook that reads the same resolved throw data.
+ *
+ * Fairness: commit-before-reveal. The AI's move (fingers + call) is chosen
+ * and hashed (SHA-256 of "fingers|call|nonce") BEFORE the player throws;
+ * only the hash is shown. The player's throw resolves independently of that
+ * hash. On reveal we recompute the hash from the now-disclosed fingers/call/
+ * nonce and compare — proving the AI's move couldn't have been chosen (or
+ * changed) after seeing the player's throw.
+ * ------------------------------------------------------------------- */
+
+let playVsOpponent = true; // default on — see setHeroMode/checkbox wiring
+let currentAiMove = null;  // {fingers, guessPlayerFingers, call, nonce, hashHex}
+let gameScore = { player: 0, ai: 0 };
+let gameOver = false;
+
+// step 13: ready indicator — surfaces whether the detector will actually
+// accept a fresh onset right now, derived from real per-frame hand data
+// (handHasResetSince), not a timer.
+let lastThrownFingerCount = null; // the fingerCount used in the most recently RESOLVED throw
+let handArmedForNextThrow = true; // armed from the very start of a game, per spec
+let throwInProgress = false;      // between onSyncHandOnset firing and the round resolving
+
+function renderReadyPill() {
+  const active = playVsOpponent && heroMode === "sync";
+  el.readyPill.style.display = active ? "block" : "none";
+  if (!active) return;
+  if (throwInProgress) {
+    el.readyPill.className = "ready-pill analyzing";
+    el.readyPill.textContent = "Reading your throw…";
+  } else if (handArmedForNextThrow) {
+    el.readyPill.className = "ready-pill armed";
+    el.readyPill.textContent = "Llest — tira!";
+  } else {
+    el.readyPill.className = "ready-pill not-armed";
+    el.readyPill.textContent = "Torna al puny…";
+  }
+  // step 13 fix 3: dim the rival's fresh (unrevealed) commitment while the
+  // player still needs to reset, brighten once armed — "next round live".
+  if (el.aiCommitStatus) el.aiCommitStatus.style.opacity = (!throwInProgress && !handArmedForNextThrow) ? ".45" : "1";
+}
+function markThrowResolvedForReadyPill(playerFingers) {
+  throwInProgress = false;
+  if (playerFingers != null) {
+    lastThrownFingerCount = playerFingers;
+    handArmedForNextThrow = false;
+  }
+  renderReadyPill();
+}
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function verifyCommitment(fingers, call, nonce, expectedHashHex) {
+  const actual = await sha256Hex(`${fingers}|${call}|${nonce}`);
+  return actual === expectedHashHex;
+}
+
+// step 12: computes + stores the commitment only. Deliberately does NOT
+// touch the rival-side or roundResultCard displays — this fires again right
+// after a round resolves (to prep the NEXT round) as well as at throw-start
+// and game-start, and each of those three moments has different display
+// rules (see renderRivalCommitted's call sites and the "next throw start"
+// note below).
+async function commitAiMove() {
+  const fingers = 1 + Math.floor(Math.random() * 5);            // 1-5
+  const guessPlayerFingers = 1 + Math.floor(Math.random() * 5); // 1-5, uniform for now
+  const call = fingers + guessPlayerFingers;                    // 2-10
+  const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
+  const nonce = Array.from(nonceBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  let hashHex;
+  try {
+    hashHex = await sha256Hex(`${fingers}|${call}|${nonce}`);
+  } catch (err) {
+    reportError("game-commit", err);
+    el.aiCommitStatus.textContent = "Commitment error: " + err.message;
+    return;
+  }
+  currentAiMove = { fingers, guessPlayerFingers, call, nonce, hashHex };
+}
+
+// Rival hand shows a fist + the CURRENT commitment's fingerprint (whatever
+// currentAiMove is right now) — used at game start, after a manual reset,
+// and at the next throw's start. Deliberately NOT called automatically
+// inside commitAiMove/resolveGameRound's auto-recommit, so a just-revealed
+// hand/word stays on screen until the player's next throw actually begins.
+function renderRivalCommitted() {
+  if (!currentAiMove) return;
+  el.rivalHandSvg.innerHTML = handSvgMarkup(null);
+  el.rivalHandDigit.textContent = "?";
+  el.rivalHandDigit.className = "rival-hand-digit";
+  el.rivalWord.textContent = "…";
+  el.rivalWord.className = "big-word";
+  el.aiCommitStatus.textContent = `Opponent committed: ${currentAiMove.hashHex.slice(0, 8)}`;
+}
+function renderRivalReveal(move, verified) {
+  el.rivalHandSvg.innerHTML = handSvgMarkup(move.fingers);
+  el.rivalHandDigit.textContent = move.fingers;
+  el.rivalHandDigit.className = "rival-hand-digit revealed";
+  const aiWord = NUMBER_TO_CATALAN_CALL[move.call] || String(move.call);
+  el.rivalWord.textContent = aiWord;
+  el.rivalWord.className = "big-word heard";
+  el.aiCommitStatus.textContent = `Opponent committed: ${move.hashHex.slice(0, 8)} ${verified ? "✓" : "✗ VERIFY FAILED"}`;
+}
+
+function renderGameRoundPending() {
+  el.roundResultCard.className = "verdict-card idle";
+  el.roundResultText.textContent = "–";
+  el.roundResultDetail.textContent = "Throw and call your number!";
+}
+function renderGameRoundAnalyzing() {
+  el.roundResultCard.className = "verdict-card pending";
+  el.roundResultText.textContent = "…";
+  el.roundResultDetail.textContent = "Reading your throw…";
+}
+function renderGameIncomplete(playerFingers, word) {
+  el.roundResultCard.className = "verdict-card incomplete";
+  el.roundResultText.textContent = "INCOMPLETE — try again";
+  const reason = playerFingers == null ? "no hand seen" : (word == null || word === "?" ? "no call word heard" : "unrecognized call");
+  const commitTxt = currentAiMove ? currentAiMove.hashHex.slice(0, 8) : "—";
+  el.roundResultDetail.textContent = `${reason} — same commitment stands (${commitTxt})`;
+}
+function renderGameReveal(move, verified, playerFingers, playerCallNumber, verdict, playerWord) {
+  const aiWord = NUMBER_TO_CATALAN_CALL[move.call] || String(move.call);
+  el.roundResultCard.className = "verdict-card " + (verdict.winner === "player" ? "hit" : verdict.winner === "ai" ? "miss" : "pending");
+  el.roundResultText.textContent = verdict.winner === "player" ? "TU GUANYES!" : verdict.winner === "ai" ? "RIVAL GUANYA" : "PARATA";
+  el.roundResultDetail.textContent =
+    `tu: ${playerFingers} dits + "${playerWord}"(${playerCallNumber}) · rival: ${move.fingers} dits + ${aiWord}(${move.call}) · total ${verdict.total}` +
+    (verified ? " · commitment ✓" : " · COMMITMENT VERIFY FAILED ✗");
+}
+function renderScoreboard() {
+  el.scoreboard.textContent = `Tu ${gameScore.player} — ${gameScore.ai} Rival`;
+}
+function showGameEndBanner(winner) {
+  gameOver = true;
+  el.gameEndBanner.style.display = "block";
+  el.gameEndText.textContent = winner === "player"
+    ? `Has guanyat ${gameScore.player}-${gameScore.ai}!`
+    : `Ha guanyat el rival ${gameScore.ai}-${gameScore.player}.`;
+  el.aiCommitStatus.textContent = "Partit acabat.";
+}
+function resetGame() {
+  gameScore = { player: 0, ai: 0 };
+  gameOver = false;
+  el.gameEndBanner.style.display = "none";
+  renderScoreboard();
+  renderGameRoundPending();
+  // step 13: a fresh game reads ready immediately, per spec.
+  lastThrownFingerCount = null;
+  handArmedForNextThrow = true;
+  throwInProgress = false;
+  renderReadyPill();
+  // No prior reveal to preserve here — safe to show the fresh commitment immediately.
+  if (playVsOpponent && heroMode === "sync") commitAiMove().then(renderRivalCommitted);
+}
+el.btnPlayAgain.addEventListener("click", resetGame);
+
+// Best-effort Catalan/Spanish TTS for the AI's call — silent if no matching
+// voice is installed (this is a spike; we don't ship voice packs).
+function speakAiCall(call) {
+  if (!("speechSynthesis" in window)) return;
+  const word = NUMBER_TO_CATALAN_CALL[call];
+  if (!word) return;
+  try {
+    const voices = speechSynthesis.getVoices();
+    const voice = voices.find((v) => /^ca(-|_|$)/i.test(v.lang)) || voices.find((v) => /^es(-|_|$)/i.test(v.lang));
+    if (!voice) return; // no ca-ES/es voice installed — stay silent, text already shows the word
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.voice = voice;
+    utter.lang = voice.lang;
+    speechSynthesis.speak(utter);
+  } catch (err) {
+    reportError("game-tts", err); // never let TTS failure break the round
+  }
+}
+
+async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumber) {
+  const move = currentAiMove;
+  if (!move) return; // no commitment yet (shouldn't normally happen once the game is running)
+  let verified = false;
+  try {
+    verified = await verifyCommitment(move.fingers, move.call, move.nonce, move.hashHex);
+  } catch (err) {
+    reportError("game-verify", err);
+  }
+  const verdict = computeMicatioVerdict(playerFingers, playerCallNumber, move.fingers, move.call);
+  if (verdict.winner === "player") gameScore.player++;
+  else if (verdict.winner === "ai") gameScore.ai++;
+
+  renderGameReveal(move, verified, playerFingers, playerCallNumber, verdict, word);
+  renderRivalReveal(move, verified);
+  renderScoreboard();
+  speakAiCall(move.call);
+  markThrowResolvedForReadyPill(playerFingers); // step 13
+
+  if (throwEvent.debugRec) {
+    throwEvent.debugRec.game = {
+      aiFingers: move.fingers, aiCall: move.call, aiGuessPlayerFingers: move.guessPlayerFingers,
+      commitmentHash: move.hashHex, nonce: move.nonce, verified,
+      playerFingers, playerWord: word, playerCallNumber,
+      total: verdict.total, playerCorrect: verdict.playerCorrect, aiCorrect: verdict.aiCorrect,
+      verdictWinner: verdict.winner, scoreAfter: { player: gameScore.player, ai: gameScore.ai },
+    };
+  }
+
+  if (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE) {
+    showGameEndBanner(gameScore.player >= GAME_WIN_SCORE ? "player" : "ai");
+  } else {
+    commitAiMove(); // prepare the next round's commitment right away
+  }
+}
+
+// Hooked from both finalizeSyncThrow (handles the "vosk never loaded, word
+// will never arrive" case) and applyRecognizedWord (the normal path, once
+// recognition actually lands). Runs at most once per throw (gameHandled guard).
+async function maybeResolveGameRound(throwEvent) {
+  if (!playVsOpponent || heroMode !== "sync" || gameOver) return;
+  if (!throwEvent || throwEvent.kind !== "sync" || throwEvent.gameHandled) return;
+  if (throwEvent.pending) return; // hand/voice still resolving
+  if (voskModel && throwEvent.word == null) return; // recognition still in flight — wait for applyRecognizedWord
+
+  throwEvent.gameHandled = true;
+  const playerFingers = throwEvent.handFingerCount;
+  const playerCallNumber = wordToNumber(throwEvent.word);
+  if (playerFingers == null || playerCallNumber == null) {
+    renderGameIncomplete(playerFingers, throwEvent.word);
+    if (throwEvent.debugRec) throwEvent.debugRec.game = { incomplete: true, playerFingers, playerWord: throwEvent.word };
+    markThrowResolvedForReadyPill(playerFingers); // step 13
+    return; // AI's commitment stays exactly as-is — same hash, next throw retries against it
+  }
+  await resolveGameRound(throwEvent, playerFingers, throwEvent.word, playerCallNumber);
+}
+
+el.chkPlayVsOpponent.addEventListener("change", () => {
+  playVsOpponent = el.chkPlayVsOpponent.checked;
+  el.gamePanel.style.display = playVsOpponent ? "flex" : "none";
+  el.rivalSide.style.display = playVsOpponent && heroMode === "sync" ? "flex" : "none";
+  if (playVsOpponent && !gameOver && !currentAiMove) commitAiMove().then(renderRivalCommitted);
+  renderReadyPill();
+});
+
+function setHeroMode(mode) {
+  if (heroMode === mode) return;
+  heroMode = mode;
+  el.btnModeSync.classList.toggle("primary", mode === "sync");
+  el.btnModeBeat.classList.toggle("primary", mode === "beat");
+  el.beatModeControls.style.display = mode === "beat" ? "flex" : "none";
+  el.syncModeControls.style.display = mode === "sync" ? "flex" : "none";
+  el.beatModeHints.style.display = mode === "beat" ? "block" : "none";
+  el.heroPulse.style.display = mode === "beat" ? "" : "none";
+  el.heroKillMark.style.display = mode === "beat" ? "" : "none";
+  el.gamePanel.style.display = mode === "sync" && playVsOpponent ? "flex" : "none";
+  el.rivalSide.style.display = mode === "sync" && playVsOpponent ? "flex" : "none";
+
+  if (mode === "sync" && metronomeRunning) stopMetronome();
+
+  if (mode === "sync") {
+    resetSyncVerdict();
+    renderSyncTally(syncThrows);
+    if (playVsOpponent && !gameOver) {
+      if (currentAiMove) renderRivalCommitted(); // already committed while we were away — show it, don't burn a new one
+      else commitAiMove().then(renderRivalCommitted);
+    }
+  } else {
+    resetHeroVerdict();
+    renderHeroTally(heroThrows);
+  }
+  renderReadyPill(); // unconditional: hides itself in beat mode, shows/updates in sync mode
+  updateHeroPrompt();
+}
+el.btnModeSync.addEventListener("click", () => setHeroMode("sync"));
+el.btnModeBeat.addEventListener("click", () => setHeroMode("beat"));
+
+/* ---------------------------------------------------------------------
+ * Onset -> beat matching, throw finalization, session/protocol state
+ * ------------------------------------------------------------------- */
+
+let sessionActive = false;
+let currentSession = null; // { testerName, throws: [] }
+const allSessions = [];
+
+function onBeatAudible(_b) { /* hook point, currently only drives the visual pulse timing above */ }
+
+// Onsets that land outside every open beat window (or land inside one that's
+// already claimed) are silently dropped by the matcher above — that silence
+// is exactly what hides window-clipping bugs. Log them for the debug export.
+function recordOrphanOnset(channel, tPerf, cands) {
+  let nearestBeatIndex = null, nearestDeltaMs = null;
+  for (const c of cands) {
+    const d = tPerf - c.time;
+    if (nearestDeltaMs == null || Math.abs(d) < Math.abs(nearestDeltaMs)) { nearestDeltaMs = d; nearestBeatIndex = c.ref.index; }
+  }
+  debugOrphanOnsets.push({
+    channel, atPerfMs: tPerf, nearestBeatIndex, nearestBeatDeltaMs: nearestDeltaMs,
+    reason: cands.length ? `outside ±${THROW_WINDOW_MS}ms window (or nearest beat already claimed)` : "no open beat windows",
+  });
+  if (debugOrphanOnsets.length > DEBUG_ORPHAN_CAP) debugOrphanOnsets.shift();
+}
+
+// settlePerfTime: velocity-settle instant (used as-is for beat-mode window
+// matching, unchanged). motionStartPerfTime/fingerCount (step 10): sync mode
+// only — see onSyncHandOnset for why the anchor moved off settle time.
+function onHandOnset(settlePerfTime, motionStartPerfTime, fingerCount) {
+  if (heroMode === "sync") { onSyncHandOnset(settlePerfTime, motionStartPerfTime, fingerCount); return; }
+  if (!trackingActive()) return;
+  const tPerf = settlePerfTime;
+  const cands = scheduledBeats
+    .filter(b => !b.finalized && b.handClaim == null && b.audiblePerfTime != null)
+    .map(b => ({ time: b.audiblePerfTime, claimed: false, ref: b }));
+  const best = findNearestUnclaimed(cands, tPerf, THROW_WINDOW_MS);
+  if (best) best.ref.handClaim = tPerf;
+  else recordOrphanOnset("hand", tPerf, cands);
+}
+function onVoiceOnset(tPerf) {
+  if (heroMode === "sync") { onSyncVoiceOnset(tPerf); return; }
+  if (!trackingActive()) return;
+  const cands = scheduledBeats
+    .filter(b => !b.finalized && b.voiceClaim == null && b.audiblePerfTime != null)
+    .map(b => ({ time: b.audiblePerfTime, claimed: false, ref: b }));
+  const best = findNearestUnclaimed(cands, tPerf, THROW_WINDOW_MS);
+  if (best) best.ref.voiceClaim = tPerf;
+  else recordOrphanOnset("voice", tPerf, cands);
+}
+
+function handOffsetReason() {
+  if (!handTrackingActive) return "camera off";
+  if (!lastHandPos) return "no hand";
+  return "no settle";
+}
+function voiceOffsetReason() {
+  if (!vadNode) return "mic off";
+  return "no onset";
+}
+
+// step 7: primary hand onset is the existing velocity-spike/settle detector
+// (onHandOnset -> b.handClaim). If that never fired within the beat's window,
+// fall back to the earliest run of stable finger-count frames in the SAME
+// window — count stability is what the game actually needs (a recognizable
+// thrown shape), not full physical stillness.
+function computeHandResult(b) {
+  if (b.handClaim != null) return { offsetMs: b.handClaim - b.audiblePerfTime, onsetPerfTime: b.handClaim, settlePath: "velocity-settle" };
+  const lo = b.audiblePerfTime - THROW_WINDOW_MS, hi = b.audiblePerfTime + THROW_WINDOW_MS;
+  const frames = handFrameHistory.filter((f) => f.t >= lo && f.t <= hi);
+  const stable = findStableCountRun(frames, HAND_STABLE_MIN_RUN);
+  if (stable && !stable.heldOver) return { offsetMs: stable.t - b.audiblePerfTime, onsetPerfTime: stable.t, settlePath: "count-stable" };
+  if (stable && stable.heldOver) return { offsetMs: null, onsetPerfTime: null, settlePath: "held-over" };
+  return { offsetMs: null, onsetPerfTime: null, settlePath: null };
+}
+
+// step 8: real morra ritual is fist-up between throws, snap out on the beat.
+// If the hand keeps latching onto a held-over count instead of a fresh throw,
+// coach that habit rather than silently scoring "no settle" beat after beat.
+let consecutiveHeldOverBeats = 0;
+function updateHeldOverCoaching(isHeldOver) {
+  consecutiveHeldOverBeats = isHeldOver ? consecutiveHeldOverBeats + 1 : 0;
+  const show = consecutiveHeldOverBeats >= HELD_OVER_HINT_STREAK;
+  el.heroCoachHint.style.display = show ? "block" : "none";
+}
+
+// Single per-throw measurement path, shared by the zero-friction hero
+// mirror and the formal tester session below. When a session is active,
+// the hero card/tally render straight from currentSession.throws so the
+// two never disagree; otherwise they accumulate into heroThrows.
+function finalizeBeat(b) {
+  b.finalized = true;
+  const calibrationDeltaMs = getCalibrationDeltaMs();
+  const handResult = computeHandResult(b);
+  const handOffset = handResult.offsetMs;
+  const handPass = channelWithinThreshold(handOffset, HIT_THRESHOLD_MS, calibrationDeltaMs);
+  // step 7: voice is resolved async from offline buffer analysis (see
+  // triggerBeatAudioAnalysis) — starts pending, hit is provisional false
+  // until it lands, same UX pattern already used for word recognition.
+  const throwRec = {
+    throwIndex: (sessionActive ? currentSession.throws.length : heroThrows.length) + 1,
+    beatIndex: b.index,
+    beatAudiblePerfTime: b.audiblePerfTime,
+    handOffsetMs: handOffset,
+    handPass,
+    voiceOffsetMs: null,
+    voicePass: false,
+    voicePending: true,
+    hit: false,
+    word: null, // filled in async below once (and if) recognition resolves
+  };
+
+  let rendered = false;
+  let mode = null;
+  if (sessionActive) {
+    currentSession.throws.push(throwRec);
+    renderThrow(throwRec);
+    renderHeroVerdict(throwRec);
+    renderHeroTally(currentSession.throws);
+    rendered = true;
+    mode = "session";
+    if (currentSession.throws.length >= THROWS_PER_SESSION) stopSession();
+  } else if (heroReady()) {
+    heroThrows.push(throwRec);
+    renderHeroVerdict(throwRec);
+    renderHeroTally(heroThrows);
+    rendered = true;
+    mode = "hero";
+  }
+
+  if (!rendered) return;
+
+  // step 8: coach a fist-between-throws habit when the hand keeps latching
+  // onto a held-over count instead of a fresh throw.
+  updateHeldOverCoaching(handResult.settlePath === "held-over");
+
+  // One debug record per finalized beat — plain array push, no rendering
+  // cost. `voice`/`hit`/`recognition` start pending and are filled in place
+  // once (and if) the async analysis below resolves, so the exported JSON
+  // reflects whatever landed by export time.
+  const debugRec = {
+    beatIndex: b.index,
+    mode,
+    cadenceS: beatIntervalS,
+    scheduledCtxTime: b.ctxTime,
+    audibleCtxTime: b.audibleCtxTime,
+    audiblePerfTime: b.audiblePerfTime,
+    hand: {
+      offsetMs: handOffset, onsetPerfTime: handResult.onsetPerfTime,
+      reason: handOffset == null ? (handResult.settlePath === "held-over" ? "held-over" : handOffsetReason()) : null,
+      settlePath: handResult.settlePath,
+    },
+    voice: { offsetMs: null, onsetPerfTime: null, reason: "pending", onsetSource: null, preWindow: null, liveVadOnsetPerfTime: b.voiceClaim },
+    hit: false,
+    modelLoaded: !!voskModel,
+    calibrationApplied: calibrationDeltaMs,
+    echoSuspected,
+    recognition: null,
+  };
+  debugLog.push(debugRec);
+  if (debugLog.length > DEBUG_LOG_CAP) debugLog.shift();
+
+  // Audio analysis (voice onset + word recognition) never blocks the beat
+  // loop: fire-and-forget, the UI updates itself when (and if) results land.
+  if (voskModel) renderBigWordPendingFor(throwRec);
+  triggerBeatAudioAnalysis(b, throwRec, debugRec, mode);
+}
+
+function throwRowCells(t) {
+  const voiceCell = t.voiceOffsetMs != null ? t.voiceOffsetMs.toFixed(0) : (t.voicePending ? "…" : "—");
+  const resultCell = t.voicePending ? "…" : (t.hit ? "HIT" : "MISS");
+  return `<td>${t.throwIndex}</td><td>${t.handOffsetMs != null ? t.handOffsetMs.toFixed(0) : "—"}</td>` +
+    `<td>${voiceCell}</td><td>${resultCell}</td>`;
+}
+function throwRowClass(t) { return t.voicePending ? "" : (t.hit ? "hit" : "miss"); }
+
+function updateLiveFeedbackForLatest(t) {
+  if (!currentSession || currentSession.throws[currentSession.throws.length - 1] !== t) return;
+  el.lastHand.textContent = t.handOffsetMs != null ? t.handOffsetMs.toFixed(0) + " ms" : "no detection";
+  el.lastVoice.textContent = t.voiceOffsetMs != null ? t.voiceOffsetMs.toFixed(0) + " ms" : (t.voicePending ? "analyzing…" : "no detection");
+  el.lastResult.innerHTML = t.voicePending
+    ? `<span class="badge dim">…</span>`
+    : `<span class="badge ${t.hit ? "ok" : "no"}">${t.hit ? "HIT" : "MISS"}</span>`;
+}
+function updateSessionTallyDisplay() {
+  if (!currentSession) return;
+  const total = currentSession.throws.length;
+  const hits = currentSession.throws.filter(x => x.hit).length;
+  const rate = total ? hits / total : 0;
+  el.throwCount.textContent = `${total} / ${THROWS_PER_SESSION}`;
+  el.hitRate.textContent = (rate * 100).toFixed(1) + "%";
+  el.hitRate.className = "hitrate " + (rate >= 0.85 ? "pass" : "fail");
+  el.hitBarFill.style.width = Math.min(100, rate * 100) + "%";
+}
+
+// Creates the throw's log row (called once, synchronously, at finalize time).
+function renderThrow(t) {
+  updateLiveFeedbackForLatest(t);
+  const tr = document.createElement("tr");
+  t._rowEl = tr;
+  tr.className = throwRowClass(t);
+  tr.innerHTML = throwRowCells(t);
+  el.logBody.prepend(tr);
+  updateSessionTallyDisplay();
+}
+// Corrects that row + the tally in place once the async voice offset lands.
+function updateThrowRow(t) {
+  if (t._rowEl) { t._rowEl.className = throwRowClass(t); t._rowEl.innerHTML = throwRowCells(t); }
+  updateLiveFeedbackForLatest(t);
+  updateSessionTallyDisplay();
+}
+
+function startSession() {
+  if (!metronomeRunning) { setStatus(el.sessionStatus, "Start the metronome first.", "err"); return; }
+  if (allSessions.length >= MAX_SESSIONS) { setStatus(el.sessionStatus, `Already have ${MAX_SESSIONS} sessions (soft cap) — continuing anyway.`, "warn"); }
+  const name = el.testerName.value.trim() || `tester-${allSessions.length + 1}`;
+  currentSession = { testerName: name, cadenceS: beatIntervalS, calibrationDeltaMs: window.__calibrationDeltaMs ?? null, throws: [] };
+  sessionActive = true;
+  el.logBody.innerHTML = "";
+  el.throwCount.textContent = `0 / ${THROWS_PER_SESSION}`;
+  el.hitRate.textContent = "—";
+  el.hitRate.className = "hitrate";
+  el.hitBarFill.style.width = "0%";
+  el.btnStartSession.disabled = true;
+  el.btnStopSession.disabled = false;
+  setStatus(el.sessionStatus, `Session running for "${name}"…`, "ok");
+  renderHeroTally(currentSession.throws);
+  resetHeroVerdict();
+}
+function stopSession() {
+  if (!sessionActive) return;
+  sessionActive = false;
+  allSessions.push(currentSession);
+  el.btnStartSession.disabled = false;
+  el.btnStopSession.disabled = true;
+  el.sessionCountLbl.textContent = `${allSessions.length} / ${MAX_SESSIONS}`;
+  const hits = currentSession.throws.filter(x => x.hit).length;
+  const total = currentSession.throws.length;
+  const rate = total ? (hits / total * 100).toFixed(1) : "0.0";
+  setStatus(el.sessionStatus, `Session complete: ${currentSession.testerName} — ${hits}/${total} (${rate}%).`, total ? (hits / total >= 0.85 ? "ok" : "err") : null);
+  const li = document.createElement("li");
+  li.textContent = `${currentSession.testerName}: ${hits}/${total} (${rate}%)`;
+  el.sessionsList.appendChild(li);
+  currentSession = null;
+  // back to zero-friction hero mode: start its tally fresh rather than
+  // resuming stale pre-session numbers.
+  heroThrows = [];
+  renderHeroTally(heroThrows);
+  resetHeroVerdict();
+}
+el.btnStartSession.addEventListener("click", startSession);
+el.btnStopSession.addEventListener("click", stopSession);
+
+/* ---------------------------------------------------------------------
+ * CSV export
+ * ------------------------------------------------------------------- */
+
+function download(filename, text, mimeType) {
+  const blob = new Blob([text], { type: mimeType || "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportThrowsCSV() {
+  const rows = [["session_index", "tester_name", "cadence_s", "calibration_delta_ms", "throw_index", "beat_index",
+    "beat_audible_perf_time_ms", "hand_offset_ms", "voice_offset_ms", "hit"]];
+  const sessions = sessionActive && currentSession ? [...allSessions, currentSession] : allSessions;
+  sessions.forEach((s, si) => {
+    s.throws.forEach(t => {
+      rows.push([si + 1, s.testerName, s.cadenceS, s.calibrationDeltaMs ?? "", t.throwIndex, t.beatIndex,
+        t.beatAudiblePerfTime?.toFixed(1) ?? "", t.handOffsetMs?.toFixed(1) ?? "", t.voiceOffsetMs?.toFixed(1) ?? "", t.hit]);
+    });
+  });
+  download("s03-throws.csv", rows.map(r => r.join(",")).join("\n"));
+}
+function exportDriftCSV() {
+  const rows = [["elapsed_ms", "drift_ms"], ...clockMap.history.map(p => [p.elapsedMs.toFixed(1), p.driftMs.toFixed(2)])];
+  download("s03-drift.csv", rows.map(r => r.join(",")).join("\n"));
+}
+el.btnExportThrows.addEventListener("click", exportThrowsCSV);
+el.btnExportDrift.addEventListener("click", exportDriftCSV);
+
+/* ---------------------------------------------------------------------
+ * Debug log export (step 5) — for offline analysis of "recognition
+ * doesn't fire on every beat": one JSON file with a beat-by-beat record
+ * (hand/voice offsets + reasons, the actual recognition extraction window
+ * vs. where the onset landed, raw recognizer output) plus orphaned onsets
+ * and the cadence history for the whole page load.
+ * ------------------------------------------------------------------- */
+
+function exportDebugLog() {
+  const tally = heroMode === "sync"
+    ? (() => {
+        const resolved = syncThrows.filter((t) => !t.pending);
+        const synced = resolved.filter((t) => t.outcome === "synced").length;
+        const deltas = resolved.filter((t) => t.syncDeltaMs != null).map((t) => Math.abs(t.syncDeltaMs));
+        return {
+          mode: "sync",
+          throws: resolved.length,
+          synced,
+          syncRate: resolved.length ? synced / resolved.length : null,
+          medianAbsSyncDeltaMs: deltas.length ? median(deltas) : null,
+          coOccurrenceMs: getSyncCoOccurrenceMs(),
+        };
+      })()
+    : (() => {
+        const throwsForTally = sessionActive && currentSession ? currentSession.throws : heroThrows;
+        const totalThrows = throwsForTally.length;
+        const totalHits = throwsForTally.filter((x) => x.hit).length;
+        return {
+          mode: sessionActive ? "session" : "hero",
+          throws: totalThrows,
+          hits: totalHits,
+          hitRate: totalThrows ? totalHits / totalThrows : null,
+        };
+      })();
+  const payload = {
+    meta: {
+      pageVersion: DEBUG_PAGE_VERSION,
+      exportedAt: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      heroMode,
+      cadenceHistory,
+      currentCadenceS: beatIntervalS,
+      tally,
+      modelLoaded: !!voskModel,
+      beatRecordCount: debugLog.length,
+      orphanOnsetCount: debugOrphanOnsets.length,
+      suppressedClickOnsetCount: debugSuppressedOnsets.length,
+      echoSuspected,
+    },
+    beats: debugLog,
+    orphanOnsets: debugOrphanOnsets,
+    suppressedClickOnsets: debugSuppressedOnsets,
+  };
+  download("s03-debug-log.json", JSON.stringify(payload, null, 2), "application/json");
+}
+el.btnExportDebug.addEventListener("click", exportDebugLog);
+
+refreshDiagnostics();
+updateHeroPrompt();
+renderBigWordIdle();
+renderCalibrationInfo();
+renderSyncTally(syncThrows); // step 9: sync mode is the default hero experience
+renderScoreboard();
+el.gamePanel.style.display = heroMode === "sync" && playVsOpponent ? "flex" : "none";
+el.rivalSide.style.display = heroMode === "sync" && playVsOpponent ? "flex" : "none";
+if (playVsOpponent) commitAiMove().then(renderRivalCommitted); // step 11/12: play-vs-opponent is on by default
+renderReadyPill(); // step 13: armed from the start, per spec
+
+// exposed for manual / automated console checks
+window.__s03 = {
+  median, computeBeatsToSchedule, mapContextToPerformance, findNearestUnclaimed, isHit, scheduledBeats, clockMap,
+  errorLog, reportError, drawHandOverlay, HAND_CONNECTIONS, setHandDetected,
+  countFingers, renderBigNumber, renderBigNumberNoHand, renderBigNumberError,
+  renderShoutIdle, renderShoutListening, triggerShoutFlash, renderShoutError,
+  heroReady, trackingActive, finalizeBeat, renderHeroVerdict, renderHeroTally, renderHeroBeatError,
+  resetHeroVerdict, startMetronome, stopMetronome, scheduleBeat, onHandOnset, onVoiceOnset,
+  loadVoskModel, recognizeWord, resampleTo16kMono, requestRingExtract, applyRecognizedWord,
+  renderBigWordIdle, renderBigWordPendingFor, renderBigWordResultFor, triggerBeatAudioAnalysis,
+  VOSK_GRAMMAR, VOSK_SAMPLE_RATE,
+  setCadence, exportDebugLog, recordOrphanOnset, handOffsetReason, voiceOffsetReason,
+  updateEchoSuspicion, recordSuppressedClick,
+  // step 7
+  channelWithinThreshold, findStableCountRun, findEnergyOnsetInBuffer, computeHandResult,
+  getCalibrationDeltaMs, renderCalibrationInfo, finalizeVoiceResult,
+  get heroThrows() { return heroThrows; }, get metronomeRunning() { return metronomeRunning; },
+  get voskModel() { return voskModel; }, get beatIntervalS() { return beatIntervalS; },
+  get debugLog() { return debugLog; }, get debugOrphanOnsets() { return debugOrphanOnsets; },
+  get debugSuppressedOnsets() { return debugSuppressedOnsets; },
+  get cadenceHistory() { return cadenceHistory; }, get echoSuspected() { return echoSuspected; },
+  get ctx() { return ctx; }, get vadNode() { return vadNode; },
+  get handFrameHistory() { return handFrameHistory; },
+  // step 8
+  updateHeldOverCoaching, BUFFER_FLOOR_CAP, HELD_OVER_HINT_STREAK,
+  get consecutiveHeldOverBeats() { return consecutiveHeldOverBeats; },
+  // step 9 (sync mode)
+  setHeroMode, syncReady, getSyncCoOccurrenceMs, classifySyncThrow, isOrphanVoiceOnset,
+  onSyncHandOnset, onSyncVoiceOnset, triggerSyncAudioAnalysis, finalizeSyncThrow, recordSyncIncompleteThrow,
+  renderSyncVerdict, renderSyncVerdictPending, renderSyncTally, resetSyncVerdict,
+  SYNC_PRE_MS, SYNC_POST_MS, SYNC_COOCCURRENCE_MS_DEFAULT, SYNC_PARTNER_TIMEOUT_MS,
+  get heroMode() { return heroMode; }, get syncThrows() { return syncThrows; },
+  get syncPendingAnalysis() { return syncPendingAnalysis; }, get syncVerdictThrowRef() { return syncVerdictThrowRef; },
+  // step 10
+  get lastKnownFingerCount() { return lastKnownFingerCount; }, get motionStartPerfTime() { return motionStartPerfTime; },
+  processHandVelocity, get handState() { return handState; },
+  // step 11 (first playable round)
+  computeMicatioVerdict, wordToNumber, CATALAN_NUMBER_WORDS, NUMBER_TO_CATALAN_CALL,
+  sha256Hex, verifyCommitment, commitAiMove, maybeResolveGameRound, resolveGameRound, resetGame,
+  renderGameReveal, renderGameIncomplete, renderScoreboard, GAME_WIN_SCORE,
+  get playVsOpponent() { return playVsOpponent; },
+  set playVsOpponent(v) { playVsOpponent = v; },
+  get currentAiMove() { return currentAiMove; }, get gameScore() { return gameScore; }, get gameOver() { return gameOver; },
+  // step 12 (rival panel)
+  handSvgMarkup, HAND_FINGER_ORDER, HAND_FINGER_GEOMETRY, renderRivalCommitted, renderRivalReveal,
+  // step 13 (ready indicator)
+  handHasResetSince, renderReadyPill, markThrowResolvedForReadyPill, updateReadyPillFromFrame,
+  get lastThrownFingerCount() { return lastThrownFingerCount; },
+  get handArmedForNextThrow() { return handArmedForNextThrow; },
+  set handArmedForNextThrow(v) { handArmedForNextThrow = v; },
+  get throwInProgress() { return throwInProgress; },
+};
+</script>
+</body>
+</html>

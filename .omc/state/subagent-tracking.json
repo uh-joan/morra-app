@@ -1,0 +1,78 @@
+{
+  "agents": [
+    {
+      "agent_id": "a36dd597e57793c3b",
+      "agent_type": "oh-my-claudecode:architect",
+      "started_at": "2026-08-08T12:03:56.316Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-08-08T12:11:36.002Z",
+      "duration_ms": 459686
+    },
+    {
+      "agent_id": "amorra-critic-325a83328857502a",
+      "agent_type": "morra-critic",
+      "started_at": "2026-08-08T12:22:40.768Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-08-08T12:25:02.573Z",
+      "duration_ms": 141805
+    },
+    {
+      "agent_id": "aspike-s01-fingers-945ac87bb75651fd",
+      "agent_type": "spike-s01-fingers",
+      "started_at": "2026-08-08T12:37:17.115Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-08-08T12:38:17.269Z",
+      "duration_ms": 60154
+    },
+    {
+      "agent_id": "aspike-s02-voice-fd0e96db0d386c67",
+      "agent_type": "spike-s02-voice",
+      "started_at": "2026-08-08T14:47:16.919Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-08-08T14:51:03.472Z",
+      "duration_ms": 226553
+    },
+    {
+      "agent_id": "aspike-s03-beat-21e29056a5ad2a04",
+      "agent_type": "spike-s03-beat",
+      "started_at": "2026-08-08T13:52:38.806Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-08-08T13:58:55.623Z",
+      "duration_ms": 376817
+    },
+    {
+      "agent_id": "aspike-s04-contention-40be4e8c69497f51",
+      "agent_type": "spike-s04-contention",
+      "started_at": "2026-08-08T12:40:49.990Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-08-08T12:41:30.495Z",
+      "duration_ms": 40505
+    },
+    {
+      "agent_id": "aspike-s05-art-ac470f8971502973",
+      "agent_type": "spike-s05-art",
+      "started_at": "2026-08-08T12:33:36.856Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-08-08T12:34:07.979Z",
+      "duration_ms": 31123
+    },
+    {
+      "agent_id": "as03-step3-74d2caf9fff4e568",
+      "agent_type": "s03-step3",
+      "started_at": "2026-08-09T15:48:36.470Z",
+      "parent_mode": "none",
+      "status": "running"
+    }
+  ],
+  "total_spawned": 33,
+  "total_completed": 302,
+  "total_failed": 0,
+  "last_updated": "2026-08-09T15:50:43.422Z"
+}
