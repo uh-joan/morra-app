@@ -82,7 +82,11 @@ export class EventBusTelemetrySink implements TelemetrySink {
     this.flushIntervalMs = options.flushIntervalMs ?? 2000;
     this.cap = options.cap ?? 5000;
     this.sessionId = options.sessionId ?? defaultSessionId();
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // fetch is spec'd to throw "Illegal invocation" if called detached from
+    // its owning global (losing `this` binding) — storing the bare function
+    // reference and calling it as `this.fetchImpl(...)` later does exactly
+    // that in some browsers, so it must be bound at capture time.
+    this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
     this.sendBeaconImpl =
       options.sendBeaconImpl ??
       (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function"

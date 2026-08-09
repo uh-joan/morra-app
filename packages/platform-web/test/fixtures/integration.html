@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>@morra/platform-web integration fixture</title>
+<!-- platform-web's dist emits runtime `import ... from "@morra/core"` /
+     "@morra/recognition" (value imports, e.g. MODEL_VERSION/createEmptyModel,
+     VadRingBuffer) — a plain browser can't resolve those bare specifiers via
+     node_modules, so this import map points them at the same repo-root
+     static server's already-built dist output for each workspace package.
+     @noble/hashes (core's real npm dependency, used by commit.ts) is a dual
+     CJS/ESM package — its package.json "exports" field resolves the
+     "import" condition to files under esm/, not the bare `sha2.js`/
+     `utils.js` paths (those are the CJS build); the import map has to point
+     at the esm/ copies directly, since import maps don't consult a
+     package's "exports" conditions themselves. -->
+<script type="importmap">
+{
+  "imports": {
+    "@morra/core": "/packages/core/dist/index.js",
+    "@morra/recognition": "/packages/recognition/dist/index.js",
+    "@noble/hashes/sha2.js": "/packages/core/node_modules/@noble/hashes/esm/sha2.js",
+    "@noble/hashes/utils.js": "/packages/core/node_modules/@noble/hashes/esm/utils.js",
+    "@noble/hashes/crypto": "/packages/core/node_modules/@noble/hashes/esm/crypto.js"
+  }
+}
+</script>
+</head>
+<body>
+<script type="module">
+import {
+  AudioContextManager,
+  EventBusTelemetrySink,
+  LocalStoragePlayerModelStore,
+  PerformanceClock,
+  CryptoRandomSource,
+  MicGraph,
+  CameraSource,
+} from "/packages/platform-web/dist/index.js";
+import { MODEL_VERSION } from "/packages/core/dist/index.js";
+
+const result = {
+  audioContext: null,
+  audioContextError: null,
+  clockMapping: null,
+  clockMappingError: null,
+  telemetry: null,
+  telemetryError: null,
+  localStorage: null,
+  localStorageError: null,
+  clockPortsError: null,
+  deviceGlue: null,
+  deviceGlueError: null,
+  done: false,
+};
+window.__integrationResult = result;
+
+async function run() {
+  // ---- 1. AudioContextManager: real context created + resumed, clock
+  // mapping sane after resume() (Chrome's autoplay policy is bypassed by
+  // the runner's --autoplay-policy=no-user-gesture-required flag, same as
+  // @morra/recognition's M2 fixture) ----
+  let manager;
+  try {
+    manager = new AudioContextManager();
+    const ctx = manager.context;
+    await manager.resume();
+    const mapping = manager.getClockMapping();
+    result.audioContext = { state: ctx.state, sampleRate: ctx.sampleRate };
+    result.clockMapping = mapping
+      ? { contextTimeIsNumber: typeof mapping.contextTime === "number", performanceTimeIsNumber: typeof mapping.performanceTime === "number", performanceTimePositive: mapping.performanceTime >= 0 }
+      : { unsupported: true, outputLatencyEstimate: manager.outputLatencyEstimate() }; // some browsers/headless configs lack getOutputTimestamp — the fallback path is itself a valid, testable outcome
+  } catch (err) {
+    result.audioContextError = String((err && err.message) || err);
+  }
+
+  // ---- 2. EventBusTelemetrySink: real batched POST lands on the real
+  // local server's /log handler (proven from the Node side afterward by
+  // reading the temp log file the runner points this fixture's origin at) ----
+  try {
+    const sink = new EventBusTelemetrySink({ endpoint: "/log", sessionId: "integration-fixture", autoStart: false });
+    sink.emit({ type: "integration_probe", atMs: performance.now(), marker: "platform-web-m3" });
+    sink.emit({ type: "integration_probe_2", atMs: performance.now() });
+    sink.flush(false); // exercises the fetch() path, not sendBeacon
+    // fetch() is fire-and-forget from flush()'s perspective; give it a beat
+    await new Promise((r) => setTimeout(r, 300));
+    result.telemetry = { eventLogCount: sink.eventLog.length, sessionId: sink.sessionId };
+  } catch (err) {
+    result.telemetryError = String((err && err.message) || err);
+  }
+
+  // ---- 3. LocalStoragePlayerModelStore: REAL browser localStorage round
+  // trip (the vitest unit suite only proves the in-memory fallback path,
+  // since Node has no real localStorage by default — this is where the
+  // actual localStorage codepath gets exercised) ----
+  try {
+    const store = new LocalStoragePlayerModelStore();
+    const key = "integration-fixture-model";
+    store.clear(key);
+    const empty = store.load(key);
+    const model = {
+      version: MODEL_VERSION,
+      throws: [{ throwIndex: 0, playerFingers: 2, playerCall: 4, aiFingers: 1, aiCall: 3, aiGuessPlayerFingers: 2, aiLevel: "L1", verdictWinner: "player" }],
+    };
+    const saveOk = store.save(model, key);
+    const loaded = store.load(key);
+    store.clear(key);
+    const afterClear = store.load(key);
+    result.localStorage = {
+      emptyLoadThrowCount: empty.throws.length,
+      saveOk,
+      loadedThrowCount: loaded.throws.length,
+      loadedMatchesSaved: JSON.stringify(loaded) === JSON.stringify(model),
+      afterClearThrowCount: afterClear.throws.length,
+      // proves this ISN'T silently using the in-memory fallback: a second
+      // store instance sharing the same real localStorage sees the same data
+      secondInstanceSeesIt: (() => {
+        store.save(model, key);
+        const seenByOther = new LocalStoragePlayerModelStore().load(key);
+        store.clear(key);
+        return seenByOther.throws.length === 1;
+      })(),
+    };
+  } catch (err) {
+    result.localStorageError = String((err && err.message) || err);
+  }
+
+  // ---- 4. PerformanceClock / CryptoRandomSource: trivial real-adapter checks ----
+  try {
+    const clock = new PerformanceClock();
+    const rng = new CryptoRandomSource();
+    const t = clock.now();
+    const f = rng.next();
+    const bytes = rng.nextBytes(8);
+    if (typeof t !== "number" || t < 0) throw new Error("PerformanceClock.now() not sane");
+    if (typeof f !== "number" || f < 0 || f >= 1) throw new Error("CryptoRandomSource.next() out of range");
+    if (bytes.length !== 8) throw new Error("CryptoRandomSource.nextBytes() wrong length");
+  } catch (err) {
+    result.clockPortsError = String((err && err.message) || err);
+  }
+
+  // ---- 5. bonus: device-acquisition glue (MicGraph + CameraSource) against
+  // fake devices, proving platform-web's device wiring works end to end on
+  // top of the real AudioContext this fixture already created ----
+  try {
+    const camera = new CameraSource();
+    const camStream = await camera.start();
+    const mic = new MicGraph(manager.context);
+    const ring = await mic.start();
+    const extraction = await ring.requestExtract(manager.context.currentTime, 100, 0);
+    result.deviceGlue = {
+      cameraTrackCount: camStream.getVideoTracks().length,
+      ringExtractSampleRate: extraction.sampleRate,
+    };
+    camera.stop();
+    mic.stop();
+  } catch (err) {
+    result.deviceGlueError = String((err && err.message) || err);
+  }
+
+  result.done = true;
+}
+run();
+</script>
+</body>
+</html>
