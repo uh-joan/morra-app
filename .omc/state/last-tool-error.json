@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd /private/tmp && timeout 40 node -e '\\nimport(\\\"puppeteer-core\\\").then(async (m) => {\\n  const puppeteer = m.default;\\n  const browser = await puppeteer.launch({ executablePath: \\\"/Appli...",
-  "error": "Exit code 127\n(eval):1: command not found: timeout",
-  "timestamp": "2026-08-09T17:46:13.852Z",
-  "retry_count": 1
-}

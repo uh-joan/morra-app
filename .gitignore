@@ -19,3 +19,7 @@ spikes/s05-art/character.blend*
 
 # live session logs (local only)
 spikes/logs/
+
+# OMC runtime state (session machinery, not project content)
+.omc/state/
+.omc/logs/
