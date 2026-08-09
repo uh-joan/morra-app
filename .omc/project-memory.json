@@ -68,14 +68,56 @@
   "hotPaths": [
     {
       "path": "spikes/s03-beat.html",
-      "accessCount": 47,
-      "lastAccessed": 1786297448022,
+      "accessCount": 56,
+      "lastAccessed": 1786301061040,
       "type": "file"
     },
     {
       "path": "play.sh",
       "accessCount": 2,
       "lastAccessed": 1786297206587,
+      "type": "file"
+    },
+    {
+      "path": "docs/rival-ai-design.md",
+      "accessCount": 2,
+      "lastAccessed": 1786300835616,
+      "type": "file"
+    },
+    {
+      "path": "spikes/modules/commit.mjs",
+      "accessCount": 2,
+      "lastAccessed": 1786301197256,
+      "type": "file"
+    },
+    {
+      "path": "spikes/modules/rules.mjs",
+      "accessCount": 1,
+      "lastAccessed": 1786300958620,
+      "type": "file"
+    },
+    {
+      "path": "spikes/modules/scorer.mjs",
+      "accessCount": 1,
+      "lastAccessed": 1786300976461,
+      "type": "file"
+    },
+    {
+      "path": "spikes/modules/ai.mjs",
+      "accessCount": 1,
+      "lastAccessed": 1786300984321,
+      "type": "file"
+    },
+    {
+      "path": "spikes/modules/playermodel.mjs",
+      "accessCount": 1,
+      "lastAccessed": 1786300990157,
+      "type": "file"
+    },
+    {
+      "path": "spikes/modules/test.mjs",
+      "accessCount": 1,
+      "lastAccessed": 1786301109853,
       "type": "file"
     }
   ],

@@ -589,6 +589,18 @@ This rig is retained as the future corpus-capture harness — treat it as produc
 <script type="module">
 "use strict";
 
+// Phase F: rules/commit/scorer/ai/player-model extracted to plain ES
+// modules under modules/ (no build step — loaded directly by this <script
+// type="module">). See docs/rival-ai-design.md §6. The page's behavior is
+// unchanged; these are the same functions that used to live inline below,
+// just imported now. AiPolicy/PlayerModel are kept as namespace imports
+// (not destructured) since Phase G/H will grow their exports.
+import { CATALAN_NUMBER_WORDS, NUMBER_TO_CATALAN_CALL, wordToNumber, computeMicatioVerdict, callFromFG, gFromCall } from "./modules/rules.mjs";
+import { sha256Hex, randomNonceHex, computeCommitHash, verifyCommitment } from "./modules/commit.mjs";
+import { classifySyncThrow, isOrphanVoiceOnset, classifyHandSettleForSync, shouldRevealPhase1 } from "./modules/scorer.mjs";
+import * as AiPolicy from "./modules/ai.mjs";
+import * as PlayerModel from "./modules/playermodel.mjs";
+
 /* ---------------------------------------------------------------------
  * Pure logic (no DOM/Worker/AudioContext dependencies) — kept isolated
  * so it can be lifted into a node script for scheduler-math unit tests.
@@ -725,52 +737,8 @@ function findEnergyOnsetInBuffer(float32, sampleRate, opts) {
   return null;
 }
 
-// step 9 (sync mode, no beat): classify a hand-anchored throw once the
-// buffer-derived voice onset (or lack of one) is known. handOnsetPerfTime is
-// the event's anchor; voiceOnsetPerfTime is null if no voice was found
-// anywhere in the extraction window around it.
-function classifySyncThrow(handOnsetPerfTime, voiceOnsetPerfTime, coOccurrenceMs) {
-  if (voiceOnsetPerfTime == null) return { outcome: "hand-only", syncDeltaMs: null, synced: false };
-  const syncDeltaMs = voiceOnsetPerfTime - handOnsetPerfTime;
-  const synced = Math.abs(syncDeltaMs) <= coOccurrenceMs;
-  return { outcome: synced ? "synced" : (syncDeltaMs > 0 ? "voice-late" : "voice-early"), syncDeltaMs, synced };
-}
-
-// step 9: a voice onset detected by the live streaming VAD (used ONLY to spot
-// "shouted but never threw" events, since a genuine throw's timing comes from
-// the hand-anchored buffer analysis above, not this). It's "explained" — and
-// shouldn't spawn its own incomplete-throw entry — if ANY hand onset (pending
-// or resolved) landed within partnerWindowMs of it.
-function isOrphanVoiceOnset(voicePerfTime, handOnsetPerfTimes, partnerWindowMs) {
-  return !handOnsetPerfTimes.some((h) => Math.abs(voicePerfTime - h) <= partnerWindowMs);
-}
-
-// Phase C.1: voice disambiguates the fist. Real morra throws land on 0-5
-// fingers, but a settle at count <=1 with NO voice inside the co-occurrence
-// window is far more often the fist RETRACTING after the previous throw
-// (the exact same velocity-settle detector fires on that motion) than a
-// genuine silent throw of 0/1 — so it's classified as a reset, never a
-// throw, and never reaches the game. The SAME low count WITH a voice onset
-// is a real throw, always read as 1 (a momentarily-misread fist-vs-one-
-// finger frame is far likelier than an actual silent-then-shouted throw of
-// zero). Counts >=2 are never reinterpreted either way.
-function classifyHandSettleForSync(fingerCount, voiceOnsetPerfTime) {
-  const isLowCount = fingerCount != null && fingerCount <= 1;
-  if (isLowCount && voiceOnsetPerfTime == null) {
-    return { isReset: true, effectiveFingerCount: fingerCount };
-  }
-  const effectiveFingerCount = isLowCount && voiceOnsetPerfTime != null ? 1 : fingerCount;
-  return { isReset: false, effectiveFingerCount };
-}
-
-// Phase E.1: gate for the early ("phase-1") rival reveal. Only a settle at
-// fingerCount >=2 is confident enough — synchronously, before voice is even
-// known — to be a real throw rather than fist-retraction noise; counts <=1
-// wait for the existing Phase C.1 voice disambiguation and are only ever
-// revealed later (at normal resolution), never early.
-function shouldRevealPhase1(fingerCount) {
-  return fingerCount != null && fingerCount >= 2;
-}
+// classifySyncThrow, isOrphanVoiceOnset, classifyHandSettleForSync, and
+// shouldRevealPhase1 moved to modules/scorer.mjs (Phase F) — imported above.
 
 // Phase C.3: blank rival-clip audio from an extracted recognition buffer.
 // Jordi's clips are scheduled on the SAME shared AudioContext as the mic
@@ -813,32 +781,8 @@ function clampSyncWindowStart(anchorCtxTime, preMs, lastRoundAudioEndCtxTime) {
   return { clampedStartCtxTime, clampedPreMs, clampedToPrevRound: true };
 }
 
-// step 11 (first playable round): micatio verdict. total = both hands'
-// fingers; a player scores only if THEIR call matches the total AND the
-// other player's call does NOT (both correct, or neither, is "parata" — no
-// point, matching real morra's tie rule).
-function computeMicatioVerdict(playerFingers, playerCall, aiFingers, aiCall) {
-  const total = playerFingers + aiFingers;
-  const playerCorrect = playerCall === total;
-  const aiCorrect = aiCall === total;
-  let winner;
-  if (playerCorrect && !aiCorrect) winner = "player";
-  else if (aiCorrect && !playerCorrect) winner = "ai";
-  else winner = "parata";
-  return { total, playerCorrect, aiCorrect, winner };
-}
-
-// step 11: Catalan number-call vocabulary, shared between interpreting the
-// player's recognized word and rendering/speaking the AI's own call. "tot"
-// ("all") is a valid alternate call for 10 alongside "deu" — both map the
-// same way when reading the PLAYER's word; the AI always speaks/displays
-// "deu" for 10 (arbitrary but deterministic choice, not a rules asymmetry).
-const CATALAN_NUMBER_WORDS = { dos: 2, tres: 3, quatre: 4, cinc: 5, sis: 6, set: 7, vuit: 8, nou: 9, deu: 10, tot: 10 };
-const NUMBER_TO_CATALAN_CALL = { 2: "dos", 3: "tres", 4: "quatre", 5: "cinc", 6: "sis", 7: "set", 8: "vuit", 9: "nou", 10: "deu" };
-function wordToNumber(word) {
-  if (!word) return null;
-  return CATALAN_NUMBER_WORDS[word.toLowerCase()] ?? null;
-}
+// computeMicatioVerdict, CATALAN_NUMBER_WORDS, NUMBER_TO_CATALAN_CALL, and
+// wordToNumber moved to modules/rules.mjs (Phase F) — imported above.
 
 // step 13: has the player shown any evidence their hand moved on from the
 // count used in the LAST resolved throw? Hand gone, or a different count
@@ -2812,15 +2756,7 @@ function markThrowResolvedForReadyPill(playerFingers) {
   renderReadyPill();
 }
 
-async function sha256Hex(text) {
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-async function verifyCommitment(fingers, call, nonce, expectedHashHex) {
-  const actual = await sha256Hex(`${fingers}|${call}|${nonce}`);
-  return actual === expectedHashHex;
-}
+// sha256Hex/verifyCommitment moved to modules/commit.mjs (Phase F) — imported above.
 
 // step 12: computes + stores the commitment only. Deliberately does NOT
 // touch the rival-side or roundResultCard displays — this fires again right
@@ -2828,15 +2764,16 @@ async function verifyCommitment(fingers, call, nonce, expectedHashHex) {
 // and game-start, and each of those three moments has different display
 // rules (see renderRivalCommitted's call sites and the "next throw start"
 // note below).
+// Phase F: the MOVE comes from AiPolicy.decideMove (modules/ai.mjs — today
+// just L2's uniform policy); the SEAL comes from commit.mjs's nonce+hash
+// helpers. Behavior is identical to the pre-extraction inline version.
 async function commitAiMove() {
-  const fingers = 1 + Math.floor(Math.random() * 5);            // 1-5
-  const guessPlayerFingers = 1 + Math.floor(Math.random() * 5); // 1-5, uniform for now
-  const call = fingers + guessPlayerFingers;                    // 2-10
-  const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
-  const nonce = Array.from(nonceBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const move = AiPolicy.decideMove(AiPolicy.DEFAULT_LEVEL, Math.random, [], null);
+  const { fingers, guessPlayerFingers, call } = move;
+  const nonce = randomNonceHex();
   let hashHex;
   try {
-    hashHex = await sha256Hex(`${fingers}|${call}|${nonce}`);
+    hashHex = await computeCommitHash(fingers, call, nonce);
   } catch (err) {
     reportError("game-commit", err);
     el.aiCommitStatus.textContent = "Commitment error: " + err.message;
@@ -3629,6 +3566,9 @@ window.__s03 = {
   // step 11 (first playable round)
   computeMicatioVerdict, wordToNumber, CATALAN_NUMBER_WORDS, NUMBER_TO_CATALAN_CALL,
   sha256Hex, verifyCommitment, commitAiMove, maybeResolveGameRound, resolveGameRound, resetGame,
+  // Phase F (module extraction) — the (f,g) helpers and the raw module
+  // namespaces, for headless testing and Phase G/H to build on directly.
+  callFromFG, gFromCall, randomNonceHex, computeCommitHash, AiPolicy, PlayerModel,
   renderGameReveal, renderGameIncomplete, renderScoreboard, GAME_WIN_SCORE,
   get playVsOpponent() { return playVsOpponent; },
   set playVsOpponent(v) { playVsOpponent = v; },
