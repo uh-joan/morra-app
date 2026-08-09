@@ -37,14 +37,32 @@ async function run() {
     await video.play();
     await new Promise((r) => setTimeout(r, 300)); // let a few fake-device frames render
 
-    let input;
-    if (init.mode === "worker") {
-      input = await createImageBitmap(video);
-    } else {
-      input = video;
+    async function nextInput() {
+      return init.mode === "worker" ? await createImageBitmap(video) : video;
     }
-    const recRes = await finger.recognizeFrame(input, performance.now());
-    result.fingerRecognize = { hypothesesCount: recRes.hypotheses.length, capturedAtMs: recRes.capturedAtMs, hypotheses: recRes.hypotheses };
+
+    // Two consecutive frames — M5 parity fix: the FIRST frame's velocity is
+    // always null (no prior frame to diff against), so a second frame is
+    // required to actually exercise computeTipVelocity/stepVelocityStateMachine
+    // and prove the new FingerRecognitionResult.velocity/motionOnset fields
+    // round-trip through the real worker/main-thread pipeline, not just the
+    // pure unit tests already covering the arithmetic in isolation.
+    const rec1 = await finger.recognizeFrame(await nextInput(), performance.now());
+    await new Promise((r) => setTimeout(r, 33)); // ~one frame interval
+    const rec2 = await finger.recognizeFrame(await nextInput(), performance.now());
+    result.fingerRecognize = {
+      hypothesesCount: rec2.hypotheses.length,
+      capturedAtMs: rec2.capturedAtMs,
+      hypotheses: rec2.hypotheses,
+      // presence checks only — the fake camera device has no real moving
+      // hand, so these are expected to be null/false most of the time;
+      // what this proves is that the CONTRACT SURFACE round-trips through
+      // the real worker/main-thread pipeline without erroring.
+      velocityFieldPresentFrame1: "velocity" in rec1,
+      velocityFieldPresentFrame2: "velocity" in rec2,
+      motionOnsetFieldPresentFrame1: "motionOnset" in rec1,
+      motionOnsetFieldPresentFrame2: "motionOnset" in rec2,
+    };
     finger.dispose();
   } catch (err) {
     result.fingerError = String((err && err.message) || err);

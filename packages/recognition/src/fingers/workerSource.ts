@@ -14,6 +14,15 @@
 // this can't be a normal imported module. countFingers/dist/HAND_CONNECTIONS
 // are duplicated inline (JSON-serialized) rather than shared, same
 // constraint the spike documented: the worker is a self-contained Blob.
+//
+// M5 parity fix: the worker already computed per-frame fingertip velocity
+// internally (for its own settled/unsettled overlay-stroke-color flag) but
+// discarded the raw number — it's now included in the 'result' message so
+// mediapipeFingerRecognizer.ts can run @morra/recognition's own
+// stepVelocityStateMachine on the main thread and surface real
+// motion-onset events (FingerRecognitionResult.motionOnset), closing the
+// gap where the app could only anchor sync timing on count-stability
+// (a ~200ms-late bias vs the spike's velocity-anchored timing).
 
 import { HAND_CONNECTIONS } from "./counting.js";
 
@@ -96,7 +105,7 @@ export function buildFingerWorkerSource(urls: WorkerSourceUrls): string {
     "    const t1 = performance.now();",
     "    const inferenceMs = t1 - t0;",
     "",
-    "    let count = null, settled = false, handDetected = false, landmarks = null;",
+    "    let count = null, settled = false, handDetected = false, landmarks = null, velocity = null;",
     "    if (result.landmarks && result.landmarks.length > 0) {",
     "      handDetected = true;",
     "      const lm = result.landmarks[0];",
@@ -108,7 +117,7 @@ export function buildFingerWorkerSource(urls: WorkerSourceUrls): string {
     "        const dt = Math.max(1, timestamp - prevTs) / 1000;",
     "        let totalDisp = 0;",
     "        for (let i = 0; i < tips.length; i++) totalDisp += dist(tips[i], prevTips[i]);",
-    "        const velocity = (totalDisp / tips.length) / dt;",
+    "        velocity = (totalDisp / tips.length) / dt;",
     "        settled = velocity < settleThreshold;",
     "      }",
     "      prevTips = tips;",
@@ -136,7 +145,7 @@ export function buildFingerWorkerSource(urls: WorkerSourceUrls): string {
     "    bitmap.close();",
     "    const overlayBitmap = canvas.transferToImageBitmap();",
     "    postMessage({",
-    "      type: 'result', id, count, settled, handDetected, landmarks, inferenceMs, timestamp, overlayBitmap",
+    "      type: 'result', id, count, settled, handDetected, landmarks, velocity, inferenceMs, timestamp, overlayBitmap",
     "    }, [overlayBitmap]);",
     "  } catch (err) {",
     "    if (bitmap && bitmap.close) bitmap.close();",

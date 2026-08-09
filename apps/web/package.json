@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:integration": "node test/integration/run.mjs",
+    "test:parity": "node test/parity/run.mjs",
     "lint": "eslint src"
   },
   "dependencies": {

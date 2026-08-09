@@ -12,9 +12,24 @@
 // captured. That's a genuine shape change from the spike (which predates
 // this contract) — the underlying counting/detection algorithm itself is
 // unchanged.
-import type { FingerCount, FingerRecognizer, RankedHypothesis, RecognitionResult } from "@morra/core";
+//
+// M5 parity fix: this class now ALSO runs @morra/recognition's own
+// stepVelocityStateMachine (velocity.ts, pure, already existed since M2 but
+// was never wired into a real frame loop) and surfaces its motion-onset
+// events through FingerRecognitionResult.motionOnset — closing the parity
+// gap where apps/web could only anchor sync timing on count-stability
+// (settle/stability-only anchoring reintroduces the spike's own documented
+// ~200ms voice-early bias; velocity-anchored motion-start timing is what
+// fixed it in real testing). The state machine runs identically in BOTH
+// modes: worker mode reads the raw per-frame velocity number the worker
+// already computes internally (now included in its 'result' message);
+// main-thread-fallback mode computes it itself via tipVelocity.ts (a real
+// import there — no Blob-string constraint on that path).
+import type { FingerCount, FingerRecognitionResult, FingerRecognizer, MotionOnsetEvent, RankedHypothesis } from "@morra/core";
 import { countFingers, type Landmark } from "./counting.js";
 import { buildFingerWorkerSource } from "./workerSource.js";
+import { computeTipVelocity, fingertipsOf } from "./tipVelocity.js";
+import { DEFAULT_VELOCITY_CONFIG, INITIAL_VELOCITY_STATE, stepVelocityStateMachine, type VelocityConfig, type VelocityMachineState } from "./velocity.js";
 
 export interface FingerRecognizerOptions {
   tasksVisionBundleUrl?: string;
@@ -22,9 +37,14 @@ export interface FingerRecognizerOptions {
   tasksVisionModuleUrl?: string; // for the main-thread fallback's dynamic import()
   handModelUrl?: string;
   numHands?: number;
+  /** Thresholds for the velocity state machine — defaults match the
+   * spike's own (HIGH_V=0.9, LOW_V=0.25, SETTLE_MS=50). Overridable so
+   * apps/web's settings panel (already exposing these three sliders) can
+   * feed live tuning through. */
+  velocityConfig?: VelocityConfig;
 }
 
-const DEFAULTS: Required<FingerRecognizerOptions> = {
+const DEFAULTS: Required<Omit<FingerRecognizerOptions, "velocityConfig">> = {
   // Pinned version (audit C1): never @latest — this code runs with live camera access.
   tasksVisionBundleUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js",
   tasksVisionWasmUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
@@ -69,19 +89,44 @@ function toFingerCountHypotheses(handDetected: boolean, count: number | null): R
 }
 
 export class MediaPipeFingerRecognizer implements FingerRecognizer {
-  private readonly options: Required<FingerRecognizerOptions>;
+  private readonly options: Required<Omit<FingerRecognizerOptions, "velocityConfig">>;
+  private velocityConfig: VelocityConfig;
+  private velocityState: VelocityMachineState = INITIAL_VELOCITY_STATE;
   private mode: FingerRecognizerMode | null = null;
   private worker: Worker | null = null;
   private fallbackLandmarker: MinimalHandLandmarker | null = null;
+  // main-thread-fallback path's own prev-frame tip tracking — the worker
+  // path tracks this identically but internally, inside the worker itself.
+  private prevTips: Landmark[] | null = null;
+  private prevTs: number | null = null;
   private reqCounter = 0;
   private readonly pending = new Map<
     number,
-    { resolve: (r: RecognitionResult<FingerCount>) => void; reject: (e: Error) => void }
+    { resolve: (r: FingerRecognitionResult) => void; reject: (e: Error) => void }
   >();
   private workerReady: Promise<FingerRecognizerInitResult> | null = null;
 
   constructor(options: FingerRecognizerOptions = {}) {
-    this.options = { ...DEFAULTS, ...options };
+    const { velocityConfig, ...rest } = options;
+    this.options = { ...DEFAULTS, ...rest };
+    this.velocityConfig = velocityConfig ?? DEFAULT_VELOCITY_CONFIG;
+  }
+
+  /** Steps the shared velocity state machine and returns the onset event
+   * (if any) in the FingerRecognitionResult shape. Used by both modes. */
+  private stepVelocity(t: number, v: number | null): MotionOnsetEvent | null {
+    if (v == null) return null;
+    const { state, onset } = stepVelocityStateMachine(this.velocityState, t, v, this.velocityConfig);
+    this.velocityState = state;
+    return onset;
+  }
+
+  /** Live-updates the velocity thresholds (e.g. from a settings panel) —
+   * takes effect on the next frame, no restart needed. Does not reset the
+   * in-flight state machine's current phase (idle/spiking/settling), only
+   * the thresholds it's compared against going forward. */
+  setVelocityConfig(config: VelocityConfig): void {
+    this.velocityConfig = config;
   }
 
   async init(): Promise<FingerRecognizerInitResult> {
@@ -139,11 +184,17 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
     if (msg.type === "result") {
       const p = this.pending.get(msg.id);
       if (msg.overlayBitmap && msg.overlayBitmap.close) msg.overlayBitmap.close(); // caller doesn't need the overlay through this contract
+      // Velocity is stepped through the state machine unconditionally
+      // (even if no caller is currently awaiting this frame's promise) so
+      // the state machine never misses a frame's worth of motion data.
+      const motionOnset = this.stepVelocity(msg.timestamp, msg.velocity ?? null);
       if (!p) return;
       this.pending.delete(msg.id);
       p.resolve({
         hypotheses: toFingerCountHypotheses(msg.handDetected, msg.count),
         capturedAtMs: msg.timestamp,
+        velocity: msg.velocity ?? null,
+        motionOnset,
       });
     }
   }
@@ -180,13 +231,13 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
    * element), or any MediaPipe-accepted VIDEO source (e.g. an
    * HTMLVideoElement) when running in the main-thread fallback.
    */
-  async recognizeFrame(input: unknown, capturedAtMs: number): Promise<RecognitionResult<FingerCount>> {
+  async recognizeFrame(input: unknown, capturedAtMs: number): Promise<FingerRecognitionResult> {
     if (this.mode === "worker") return this.recognizeViaWorker(input as ImageBitmap, capturedAtMs);
     if (this.mode === "main-thread-fallback") return this.recognizeViaMainThread(input, capturedAtMs);
     throw new Error("MediaPipeFingerRecognizer.recognizeFrame called before init() resolved");
   }
 
-  private recognizeViaWorker(bitmap: ImageBitmap, capturedAtMs: number): Promise<RecognitionResult<FingerCount>> {
+  private recognizeViaWorker(bitmap: ImageBitmap, capturedAtMs: number): Promise<FingerRecognitionResult> {
     if (!this.worker) throw new Error("worker not initialized");
     const id = ++this.reqCounter;
     const timestamp = monotonicMs(capturedAtMs);
@@ -196,18 +247,34 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
     });
   }
 
-  private recognizeViaMainThread(input: unknown, capturedAtMs: number): RecognitionResult<FingerCount> {
+  private recognizeViaMainThread(input: unknown, capturedAtMs: number): FingerRecognitionResult {
     if (!this.fallbackLandmarker) throw new Error("fallback HandLandmarker not initialized");
     const timestamp = monotonicMs(capturedAtMs);
     const result = this.fallbackLandmarker.detectForVideo(input, timestamp);
     const handDetected = !!(result.landmarks && result.landmarks.length > 0);
     const count = handDetected ? countFingers(result.landmarks![0]!) : null;
-    return { hypotheses: toFingerCountHypotheses(handDetected, count), capturedAtMs: timestamp };
+
+    let velocity: number | null = null;
+    if (handDetected) {
+      const tips = fingertipsOf(result.landmarks![0]!);
+      velocity = computeTipVelocity(tips, this.prevTips, this.prevTs, timestamp);
+      this.prevTips = tips;
+      this.prevTs = timestamp;
+    } else {
+      this.prevTips = null;
+      this.prevTs = null;
+    }
+    const motionOnset = this.stepVelocity(timestamp, velocity);
+
+    return { hypotheses: toFingerCountHypotheses(handDetected, count), capturedAtMs: timestamp, velocity, motionOnset };
   }
 
   dispose(): void {
     if (this.worker) { this.worker.terminate(); this.worker = null; }
     this.fallbackLandmarker = null;
     this.pending.clear();
+    this.prevTips = null;
+    this.prevTs = null;
+    this.velocityState = INITIAL_VELOCITY_STATE;
   }
 }

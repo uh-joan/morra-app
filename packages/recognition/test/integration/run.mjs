@@ -120,6 +120,14 @@ try {
   check("fingers: init() reports a real mode (worker or main-thread-fallback)", ["worker", "main-thread-fallback"].includes(result.fingerInit?.mode), result.fingerInit);
   check("fingers: init() reports a real delegate (GPU or CPU)", ["GPU", "CPU"].includes(result.fingerInit?.delegate), result.fingerInit);
   check("fingers: recognizeFrame() completed and returned a well-formed RecognitionResult", result.fingerRecognize != null && typeof result.fingerRecognize.capturedAtMs === "number" && Array.isArray(result.fingerRecognize.hypotheses), result.fingerRecognize);
+  check(
+    "fingers: M5 parity fix — FingerRecognitionResult's velocity/motionOnset fields round-trip through the real worker/main-thread pipeline",
+    result.fingerRecognize?.velocityFieldPresentFrame1 === true &&
+      result.fingerRecognize?.velocityFieldPresentFrame2 === true &&
+      result.fingerRecognize?.motionOnsetFieldPresentFrame1 === true &&
+      result.fingerRecognize?.motionOnsetFieldPresentFrame2 === true,
+    result.fingerRecognize
+  );
 
   check("voice: vosk model load() completed without error", result.voskError === null, result.voskError);
   check("voice: vosk reports isLoaded true after load()", result.voskLoad?.isLoaded === true, result.voskLoad);
@@ -128,7 +136,20 @@ try {
   check("VadRingBuffer: AudioWorklet init + real extract round-trip completed without error", result.vadError === null, result.vadError);
   check("VadRingBuffer: extraction reports the real worklet sample rate", typeof result.vadInit?.sampleRate === "number" && result.vadInit.sampleRate > 0, result.vadInit);
 
-  const nonResourceConsoleErrors = consoleErrors.filter((e) => !/Failed to load resource/i.test(e) && !/favicon/i.test(e));
+  // M5 backport (approved): in some environments Chrome's main frame can
+  // reach the MediaPipe CDN while a classic Worker's own importScripts()
+  // call cannot (observed directly during apps/web's M4 integration test
+  // development, confirmed via a from-inside-the-browser probe, not just
+  // Node's fetch, which can misleadingly succeed). @morra/recognition's
+  // workerSource.ts calls importScripts() at the top of the worker with no
+  // try/catch, so that worker-specific network gap surfaces as a raw
+  // pageerror. This is a known, identified, environment-dependent pattern —
+  // filtered the same way "Failed to load resource" already is; any OTHER
+  // error still fails the check.
+  const KNOWN_WORKER_NETWORK_GAP = /Failed to execute 'importScripts'.*vision_bundle\.js/i;
+  const nonResourceConsoleErrors = consoleErrors.filter(
+    (e) => !/Failed to load resource/i.test(e) && !/favicon/i.test(e) && !KNOWN_WORKER_NETWORK_GAP.test(e)
+  );
   check("zero unexpected console/page errors", nonResourceConsoleErrors.length === 0, nonResourceConsoleErrors);
 
   console.log(`\n${pass} passed, ${fail_} failed`);

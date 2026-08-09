@@ -162,7 +162,7 @@ describe("GameStore: void (RONDA ANUL·LADA) vs incomplete", () => {
     expect(s.matchHistory[0]!.verdictWinner).toBeNull();
   });
 
-  it("NOT revealed (fingerCount<=1, no voice disambiguation reaching synced) and no word recognized -> incomplete, commitment stands, nothing recorded", () => {
+  it("NOT revealed (fingerCount<=1, no voice disambiguation reaching synced) and no word recognized -> incomplete, commitment stands", () => {
     const store = makeStore();
     const hashBefore = store.getSnapshot().currentCommitHash;
     store.onHandOnset(1, 1000); // never phase-1 revealed
@@ -170,8 +170,34 @@ describe("GameStore: void (RONDA ANUL·LADA) vs incomplete", () => {
     store.onWordResult(null);
     const s = store.getSnapshot();
     expect(s.roundPhase).toBe("incomplete");
-    expect(s.matchHistory.length).toBe(0);
     expect(s.currentCommitHash).toBe(hashBefore); // same commitment stands — nothing was burned
+  });
+
+  it("an incomplete throw with a real (non-null) effectiveFingerCount is still RECORDED into matchHistory/playerModel, verdictWinner null, aiMove null — matches the spike's own recordMatchHistoryEntry call in the incomplete branch (playerFingers != null), found via the M5 live parity comparison against window.__s03, not assumed", () => {
+    const store = makeStore();
+    // fingerCount=1 with a (late, non-synced) voice onset present -> NOT a
+    // reset (classifyHandSettleForSync forces effectiveFingerCount=1) —
+    // never revealed (fingerCount never hit the phase-1 threshold) -> incomplete.
+    store.onHandOnset(1, 1000);
+    store.onAudioWindowResult(2000); // 1000ms late — non-synced
+    store.onWordResult(null);
+    const s = store.getSnapshot();
+    expect(s.roundPhase).toBe("incomplete");
+    expect(s.matchHistory.length).toBe(1);
+    expect(s.matchHistory[0]!.playerFingers).toBe(1);
+    expect(s.matchHistory[0]!.verdictWinner).toBeNull();
+    expect(s.matchHistory[0]!.aiFingers).toBeNull();
+    expect(s.gameScore).toEqual({ player: 0, ai: 0 });
+  });
+
+  it("an incomplete throw with NO detected hand at all (effectiveFingerCount null) records NOTHING — matches the spike's `if (playerFingers != null)` guard", () => {
+    const store = makeStore();
+    store.onHandOnset(null, 1000); // no hand detected
+    store.onAudioWindowResult(2000);
+    store.onWordResult(null);
+    const s = store.getSnapshot();
+    expect(s.roundPhase).toBe("incomplete");
+    expect(s.matchHistory.length).toBe(0);
   });
 });
 

@@ -75,11 +75,51 @@ export interface RecognitionResult<T> {
 
 export type FingerCount = 0 | 1 | 2 | 3 | 4 | 5;
 
+/**
+ * A finger recognizer's velocity-state-machine onset event (M5 parity fix:
+ * spikes/s03-beat.html's PRIMARY hand-onset trigger is velocity-based
+ * motion-settle detection, not count stability — settle/stability-only
+ * anchoring reintroduced a systematic ~200ms voice-early bias in real
+ * testing). Mirrors @morra/recognition's stepVelocityStateMachine's
+ * VelocityOnsetEvent shape without core depending on that package:
+ * settlePerfTime is when velocity dropped below the recognizer's LOW_V
+ * threshold and stayed there long enough; motionStartPerfTime is the
+ * earlier instant velocity first crossed HIGH_V — the spike's own step-10
+ * finding that a throw's shout starts with the swing, not the hand coming
+ * to rest ~250-300ms later, so downstream sync-window math anchors on
+ * motion start. motionStartPerfTime is null only in the (practically
+ * unreachable) case documented on VelocityOnsetEvent itself; callers
+ * should fall back to settlePerfTime in that case.
+ */
+export interface MotionOnsetEvent {
+  settlePerfTime: number;
+  motionStartPerfTime: number | null;
+}
+
+/**
+ * Extends RecognitionResult<FingerCount> with the velocity surface a
+ * caller needs to anchor round timing the way the spike did. `velocity` is
+ * this frame's fingertip motion in the recognizer's own arbitrary unit
+ * (null when no hand was detected this frame, or on the very first frame a
+ * hand appears — no prior frame to compare against yet); `motionOnset` is
+ * non-null exactly on the frame where a recognizer's internal velocity
+ * state machine resolves motion into a genuine onset. A FingerRecognizer
+ * that cannot supply velocity (e.g. a future non-camera-based
+ * implementation) is still contract-valid by always returning
+ * `{velocity: null, motionOnset: null}` — callers must be able to fall
+ * back to a count-stability heuristic in that case (see
+ * @morra/recognition's findStableCountRun).
+ */
+export interface FingerRecognitionResult extends RecognitionResult<FingerCount> {
+  velocity: number | null;
+  motionOnset: MotionOnsetEvent | null;
+}
+
 /** A single frame's finger reading. `input` is opaque to core (it's
  * whatever the concrete recognizer's platform hands it — e.g. MediaPipe
  * landmarks in packages/recognition); core only fixes the CONTRACT. */
 export interface FingerRecognizer {
-  recognizeFrame(input: unknown, capturedAtMs: number): RecognitionResult<FingerCount> | Promise<RecognitionResult<FingerCount>>;
+  recognizeFrame(input: unknown, capturedAtMs: number): FingerRecognitionResult | Promise<FingerRecognitionResult>;
 }
 
 /** One buffered-audio-window recognition (a throw's shouted call). `samples`

@@ -423,6 +423,17 @@ export class GameStore {
         this.recordMatchHistory(entry);
         this.markResolved("void", { voidOutcome: t.outcome as SyncOutcome });
       } else {
+        // M5 parity fix: the spike's maybeResolveGameRound records an
+        // "incomplete" throw into matchHistory/playerModel too (not just
+        // void ones) whenever playerFingers != null — verdictWinner null,
+        // aiMove null (the commitment was never revealed, stays live for
+        // the next attempt). Found via the live parity comparison against
+        // window.__s03, not just the extracted spec — the AI's commitment
+        // itself is untouched (no burn), only the record of the ATTEMPT.
+        if (t.effectiveFingerCount != null) {
+          const entry = this.buildHistoryEntry(t.effectiveFingerCount, wordNum, t.playerWord, null, null, t.outcome as SyncOutcome, t.syncDeltaMs);
+          this.recordMatchHistory(entry);
+        }
         this.markResolved("incomplete", { voidOutcome: null });
       }
       return;
