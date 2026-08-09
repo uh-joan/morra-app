@@ -16,3 +16,6 @@ spikes/s05-art/character.blend*
 
 # OS noise
 .DS_Store
+
+# live session logs (local only)
+spikes/logs/

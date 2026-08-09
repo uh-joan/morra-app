@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1786294566474,
+  "projectRoot": "/Users/janisaez/code/morra",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 1,
+      "lastAccessed": 1786294566463,
+      "keyFiles": [
+        "morra-italian-finger-game-research.pplx.md"
+      ]
+    },
+    "spikes": {
+      "path": "spikes",
+      "purpose": null,
+      "fileCount": 7,
+      "lastAccessed": 1786294566463,
+      "keyFiles": [
+        "README.md",
+        "s01-fingers.html",
+        "s02-voice.html",
+        "s03-beat.html",
+        "s04-contention.html"
+      ]
+    },
+    "spikes/models": {
+      "path": "spikes/models",
+      "purpose": "Data models",
+      "fileCount": 4,
+      "lastAccessed": 1786294566463,
+      "keyFiles": [
+        "fetch-ca-model.sh",
+        "fetch-it-model.sh",
+        "vosk-model-small-ca-0.4.zip"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "spikes/s03-beat.html",
+      "accessCount": 35,
+      "lastAccessed": 1786295238987,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

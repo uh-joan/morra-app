@@ -408,6 +408,8 @@ This rig is retained as the future corpus-capture harness — treat it as produc
   <div class="status-chip dim" id="chipClock"><span class="label">Clock</span><span class="detail">unsampled</span></div>
 </div>
 
+<div id="sessionIdFooter" style="font-size:11px; color:var(--dim); text-align:center; margin:4px 0 10px; font-variant-numeric:tabular-nums;"></div>
+
 <div id="errorPanel" class="error-panel">
   <div class="error-head">
     <strong id="errorHeadText">Errors</strong>
@@ -743,6 +745,65 @@ function isOrphanVoiceOnset(voicePerfTime, handOnsetPerfTimes, partnerWindowMs) 
   return !handOnsetPerfTimes.some((h) => Math.abs(voicePerfTime - h) <= partnerWindowMs);
 }
 
+// Phase C.1: voice disambiguates the fist. Real morra throws land on 0-5
+// fingers, but a settle at count <=1 with NO voice inside the co-occurrence
+// window is far more often the fist RETRACTING after the previous throw
+// (the exact same velocity-settle detector fires on that motion) than a
+// genuine silent throw of 0/1 — so it's classified as a reset, never a
+// throw, and never reaches the game. The SAME low count WITH a voice onset
+// is a real throw, always read as 1 (a momentarily-misread fist-vs-one-
+// finger frame is far likelier than an actual silent-then-shouted throw of
+// zero). Counts >=2 are never reinterpreted either way.
+function classifyHandSettleForSync(fingerCount, voiceOnsetPerfTime) {
+  const isLowCount = fingerCount != null && fingerCount <= 1;
+  if (isLowCount && voiceOnsetPerfTime == null) {
+    return { isReset: true, effectiveFingerCount: fingerCount };
+  }
+  const effectiveFingerCount = isLowCount && voiceOnsetPerfTime != null ? 1 : fingerCount;
+  return { isReset: false, effectiveFingerCount };
+}
+
+// Phase C.3: blank rival-clip audio from an extracted recognition buffer.
+// Jordi's clips are scheduled on the SAME shared AudioContext as the mic
+// capture (ctx — there is only one in this file), and each playback's real
+// [start,end] ctx-time is recorded by playRivalCall. Any overlap between
+// that range and the extraction window is zeroed out here so the rival's
+// own voice bleeding into the mic can never be misread as the player's.
+// Never mutates the input array; returns a fresh one plus blankedMs for the
+// debug record.
+function blankRivalAudioRegions(samples, sampleRate, windowStartCtxTime, windowEndCtxTime, rivalPlaybacks) {
+  if (!samples || !samples.length || windowStartCtxTime == null || windowEndCtxTime == null || !rivalPlaybacks || !rivalPlaybacks.length) {
+    return { samples, blankedMs: 0 };
+  }
+  const out = samples.slice(0);
+  let blankedSamples = 0;
+  for (const p of rivalPlaybacks) {
+    const overlapStart = Math.max(windowStartCtxTime, p.startCtxTime);
+    const overlapEnd = Math.min(windowEndCtxTime, p.endCtxTime);
+    if (overlapEnd <= overlapStart) continue;
+    const startIdx = Math.max(0, Math.round((overlapStart - windowStartCtxTime) * sampleRate));
+    const endIdx = Math.min(out.length, Math.round((overlapEnd - windowStartCtxTime) * sampleRate));
+    for (let i = startIdx; i < endIdx; i++) out[i] = 0;
+    blankedSamples += Math.max(0, endIdx - startIdx);
+  }
+  return { samples: out, blankedMs: (blankedSamples / sampleRate) * 1000 };
+}
+
+// Phase C.4: never let a recognition window reach backward into the
+// previous round's own audio (the reveal moment / rival clip tail) — clamps
+// the window's start ctx-time to the later of (anchor - preMs) and
+// lastRoundAudioEndCtxTime, and reports whether clamping actually fired so
+// it can be logged per-throw (clampedToPrevRound).
+function clampSyncWindowStart(anchorCtxTime, preMs, lastRoundAudioEndCtxTime) {
+  const naiveStartCtxTime = anchorCtxTime - preMs / 1000;
+  if (lastRoundAudioEndCtxTime == null || lastRoundAudioEndCtxTime <= naiveStartCtxTime) {
+    return { clampedStartCtxTime: naiveStartCtxTime, clampedPreMs: preMs, clampedToPrevRound: false };
+  }
+  const clampedStartCtxTime = Math.min(lastRoundAudioEndCtxTime, anchorCtxTime);
+  const clampedPreMs = Math.max(0, (anchorCtxTime - clampedStartCtxTime) * 1000);
+  return { clampedStartCtxTime, clampedPreMs, clampedToPrevRound: true };
+}
+
 // step 11 (first playable round): micatio verdict. total = both hands'
 // fingers; a player scores only if THEIR call matches the total AND the
 // other player's call does NOT (both correct, or neither, is "parata" — no
@@ -888,7 +949,7 @@ const RIVAL_VOICE_GAIN = 1.2; // modest boost — the source clips run quiet; st
 // no rendering cost in the hot loop. Exported as JSON for offline analysis
 // (e.g. cross-referencing a voice onset time against the recognition
 // window's end time to see if a late shout's tail got clipped).
-const DEBUG_PAGE_VERSION = "s03-beat.html — step 6";
+const DEBUG_PAGE_VERSION = "s03-beat.html — Phase C+D (reset/gate/blank/clamp + event log)";
 const debugLog = [];              // one entry per finalized beat (hero or session)
 const debugOrphanOnsets = [];     // hand/voice onsets that matched no open beat window
 const debugSuppressedOnsets = []; // step 6, bug B: onsets suppressed as "that's our own click"
@@ -896,6 +957,52 @@ const cadenceHistory = [];        // {atPerfMs, cadenceS} — every cadence chan
 const DEBUG_LOG_CAP = 2000;
 const DEBUG_ORPHAN_CAP = 500;
 const DEBUG_SUPPRESSED_CAP = 500;
+
+/* ---------------------------------------------------------------------
+ * Phase D: structured event log — one bus, two sinks. Every throw
+ * lifecycle stage, recognition step, game/commit/reveal moment, clip
+ * playback, mode/setting change, error, and ready-pill transition funnels
+ * through logEvent() so a single ordered, timestamped stream captures the
+ * whole session — not just finalized-throw snapshots (that's what the
+ * existing debugLog captures; this is a superset, in event order).
+ * Sink A: kept in-memory (eventBusLog) and included in exportDebugLog().
+ * Sink B: batched NDJSON POSTed to /log every 2s, plus a best-effort
+ * sendBeacon flush on tab-hide/unload — spikes/serve.py already appends
+ * these to logs/session-<sessionId>.ndjson. Silent failure (console.warn
+ * only) if the dev server isn't running; gameplay never depends on it.
+ * ------------------------------------------------------------------- */
+const LOG_SESSION_ID = (() => {
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+})();
+let logSeq = 0;
+const eventBusLog = [];    // Sink A: capped in-memory mirror of every event, in order
+const EVENT_BUS_CAP = 5000;
+let pendingLogBatch = [];  // Sink B: events not yet flushed to the server
+function logEvent(type, payload) {
+  const evt = Object.assign({ sessionId: LOG_SESSION_ID, seq: logSeq++, tPerf: performance.now(), type }, payload || {});
+  eventBusLog.push(evt);
+  if (eventBusLog.length > EVENT_BUS_CAP) eventBusLog.shift();
+  pendingLogBatch.push(evt);
+  return evt;
+}
+function flushLogBatch(useBeacon) {
+  if (!pendingLogBatch.length) return;
+  const body = pendingLogBatch.map((e) => JSON.stringify(e)).join("\n") + "\n";
+  pendingLogBatch = [];
+  if (useBeacon && navigator.sendBeacon) {
+    try {
+      const ok = navigator.sendBeacon("/log", new Blob([body], { type: "application/x-ndjson" }));
+      if (!ok) console.warn("event log: sendBeacon was refused (queue full?)");
+    } catch (err) { console.warn("event log: sendBeacon failed:", err); }
+    return;
+  }
+  fetch("/log", { method: "POST", headers: { "Content-Type": "application/x-ndjson" }, body })
+    .catch((err) => console.warn("event log: POST /log failed (dev server not running?) —", err.message || err));
+}
+setInterval(() => flushLogBatch(false), 2000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushLogBatch(true); });
+window.addEventListener("beforeunload", () => flushLogBatch(true));
 
 // step 6, bug B fix 3: a human can't repeat the same voice offset to within a
 // few ms beat after beat — if recent claimed voice offsets cluster that tightly,
@@ -964,7 +1071,7 @@ const el = {
   errorPanel: $("errorPanel"), errorList: $("errorList"), errorHeadText: $("errorHeadText"), btnClearErrors: $("btnClearErrors"),
   chipCamera: $("chipCamera"), chipModel: $("chipModel"), chipHand: $("chipHand"), chipMic: $("chipMic"),
   chipVad: $("chipVad"), chipMetronome: $("chipMetronome"), chipClock: $("chipClock"), chipVosk: $("chipVosk"),
-  chipEcho: $("chipEcho"),
+  chipEcho: $("chipEcho"), sessionIdFooter: $("sessionIdFooter"),
 };
 
 function setStatus(node, msg, kind) {
@@ -990,6 +1097,7 @@ function reportError(subsystem, err) {
   const message = err && err.message ? err.message : String(err);
   errorLog.unshift({ atMs: performance.now(), subsystem, message });
   if (errorLog.length > 30) errorLog.length = 30;
+  logEvent("error", { subsystem, message }); // Phase D: single choke point — every reportError() call also hits the bus
   renderErrors();
 }
 function renderErrors() {
@@ -2302,14 +2410,18 @@ const SYNC_OUTCOME_LABELS = {
   "voice-early": (t) => `voice early by ${t.voicePreWindow ? "≥" : ""}${Math.abs(t.syncDeltaMs).toFixed(0)}ms`,
   "hand-only": "ONLY HAND SEEN",
   "voice-only": "ONLY VOICE HEARD",
+  // Phase C.1: not a throw at all — the fist retracting after the previous
+  // one, disambiguated from a real silent throw by the absence of a voice.
+  reset: "hand reset",
 };
 function renderSyncVerdict(t) {
   syncVerdictThrowRef = t;
-  const cardClass = t.outcome === "synced" ? "hit" : (t.outcome === "hand-only" || t.outcome === "voice-only" ? "incomplete" : "miss");
+  const cardClass = t.outcome === "synced" ? "hit" : (t.outcome === "hand-only" || t.outcome === "voice-only" || t.outcome === "reset" ? "incomplete" : "miss");
   el.verdictCard.className = "verdict-card " + cardClass;
   const label = SYNC_OUTCOME_LABELS[t.outcome];
   el.verdictResult.textContent = typeof label === "function" ? label(t) : (label || t.outcome);
-  if (t.outcome === "voice-only") el.verdictDetail.textContent = "no hand onset seen near this shout";
+  if (t.outcome === "reset") el.verdictDetail.textContent = "fist seen, no voice — not counted as a throw";
+  else if (t.outcome === "voice-only") el.verdictDetail.textContent = "no hand onset seen near this shout";
   else if (t.outcome === "hand-only") el.verdictDetail.textContent = "no voice onset heard near this throw";
   else if (t.voicePreWindow) el.verdictDetail.textContent = `sync delta: ≤ ${t.syncDeltaMs.toFixed(0)}ms (voice started before the capture window)`;
   else el.verdictDetail.textContent = `sync delta: ${t.syncDeltaMs >= 0 ? "+" : ""}${t.syncDeltaMs.toFixed(0)}ms`;
@@ -2322,11 +2434,14 @@ function renderSyncVerdict(t) {
 }
 const SYNC_NATURAL_LEAD_MIN_THROWS = 8;
 function renderSyncTally(throws) {
-  const resolved = throws.filter((t) => !t.pending);
+  // Phase C.1: a "reset" (fist retraction, no voice) is never a throw — it
+  // never counts toward the throw count or the sync rate.
+  const countable = throws.filter((t) => t.outcome !== "reset");
+  const resolved = countable.filter((t) => !t.pending);
   const total = resolved.length;
   const synced = resolved.filter((t) => t.outcome === "synced").length;
   const rate = total ? synced / total : 0;
-  el.heroThrowCount.textContent = `${throws.length} throw${throws.length === 1 ? "" : "s"}`;
+  el.heroThrowCount.textContent = `${countable.length} throw${countable.length === 1 ? "" : "s"}`;
   el.heroHitRate.textContent = total ? (rate * 100).toFixed(1) + "%" : "—";
   el.heroHitRate.className = "hitrate" + (total ? (rate >= 0.85 ? " pass" : " fail") : "");
   el.heroHitBarFill.style.width = Math.min(100, rate * 100) + "%";
@@ -2363,6 +2478,7 @@ function onSyncHandOnset(settlePerfTime, motionStartPerfTime, fingerCount) {
     gameHandled: false, // step 11: guards maybeResolveGameRound against double-processing
   };
   syncThrows.push(throwEvent);
+  logEvent("throw_onset", { throwIndex: throwEvent.throwIndex, handOnsetPerfTime: anchorPerfTime, settlePerfTime, fingerCount });
   renderSyncVerdictPending(throwEvent);
   renderSyncTally(syncThrows);
   if (voskModel) renderBigWordPendingFor(throwEvent);
@@ -2408,6 +2524,7 @@ function triggerSyncAudioAnalysis(handPerfTime, throwEvent, debugRec) {
     recognizerBusyAtStart: activeRecognitions > 0, skipped: false, skipReason: null, error: null,
     ctxCurrentTimeAtRequest: null, workletCurrentTimeAtRequest: null, markerRangeCtxTime: null,
     handOnsetCtxTime: null, bufferOnsetFound: false, bufferOnsetMsInWindow: null,
+    blankedMs: null, clampedToPrevRound: null,
   };
   debugRec.recognition = rec;
 
@@ -2417,7 +2534,12 @@ function triggerSyncAudioAnalysis(handPerfTime, throwEvent, debugRec) {
   rec.handOnsetCtxTime = handOnsetCtxTime;
   if (handOnsetCtxTime == null) { finalizeSyncThrow(throwEvent, debugRec, null); return; }
 
-  requestRingExtract(handOnsetCtxTime, SYNC_PRE_MS, SYNC_POST_MS)
+  // Phase C.4: clamp the requested pre-window so it can never reach
+  // backward into the previous round's own audio (reveal / rival clip).
+  const clampResult = clampSyncWindowStart(handOnsetCtxTime, SYNC_PRE_MS, lastRoundAudioEndCtxTime);
+  rec.clampedToPrevRound = clampResult.clampedToPrevRound;
+
+  requestRingExtract(handOnsetCtxTime, clampResult.clampedPreMs, SYNC_POST_MS)
     .then((extraction) => {
       rec.windowStartCtxTime = extraction.windowStartCtxTime;
       rec.windowEndCtxTime = extraction.windowEndCtxTime;
@@ -2436,13 +2558,29 @@ function triggerSyncAudioAnalysis(handPerfTime, throwEvent, debugRec) {
         rec.skipped = true;
         rec.skipReason = "too little audio in extraction window";
         rec.latencyMs = performance.now() - t0;
+        logEvent("recognition_window", {
+          throwIndex: throwEvent.throwIndex, windowStartCtxTime: rec.windowStartCtxTime, windowEndCtxTime: rec.windowEndCtxTime,
+          blankedMs: 0, clampedToPrevRound: rec.clampedToPrevRound, skipped: true, skipReason: rec.skipReason,
+        });
         finalizeSyncThrow(throwEvent, debugRec, null);
         if (voskModel) applyRecognizedWord(throwEvent, "?");
         return;
       }
 
+      // Phase C.3: blank any rival-clip audio that overlaps this window
+      // BEFORE either onset detection or recognition run on it, so the
+      // rival's own scheduled voice can never be mistaken for the player's.
+      const blanked = blankRivalAudioRegions(extraction.samples, extraction.sampleRate, extraction.windowStartCtxTime, extraction.windowEndCtxTime, rivalClipPlaybacks);
+      const analysisSamples = blanked.samples;
+      rec.blankedMs = blanked.blankedMs;
+
+      logEvent("recognition_window", {
+        throwIndex: throwEvent.throwIndex, windowStartCtxTime: rec.windowStartCtxTime, windowEndCtxTime: rec.windowEndCtxTime,
+        blankedMs: rec.blankedMs, clampedToPrevRound: rec.clampedToPrevRound,
+      });
+
       // No metronome click in sync mode, so no exclusion band is needed here.
-      const onsetResult = findEnergyOnsetInBuffer(extraction.samples, extraction.sampleRate, {
+      const onsetResult = findEnergyOnsetInBuffer(analysisSamples, extraction.sampleRate, {
         sustainMs: OFFLINE_ONSET_SUSTAIN_MS,
         vadMult: parseFloat(el.tuneVadMult.value) || 6,
         floorCap: BUFFER_FLOOR_CAP,
@@ -2461,13 +2599,14 @@ function triggerSyncAudioAnalysis(handPerfTime, throwEvent, debugRec) {
 
       if (!voskModel) return;
       activeRecognitions++;
-      return recognizeWord(extraction.samples, extraction.sampleRate)
+      return recognizeWord(analysisSamples, extraction.sampleRate)
         .then(({ rawText, hasResult }) => {
           rec.rawText = rawText;
           rec.hasResult = hasResult;
           const word = (rawText || "").trim();
           rec.finalWord = word && word !== "[unk]" ? word : "?";
           rec.latencyMs = performance.now() - t0;
+          logEvent("recognition_result", { throwIndex: throwEvent.throwIndex, rawText: rec.rawText, finalWord: rec.finalWord, latencyMs: rec.latencyMs });
           applyRecognizedWord(throwEvent, rec.finalWord);
         })
         .catch((err) => {
@@ -2494,15 +2633,27 @@ function triggerSyncAudioAnalysis(handPerfTime, throwEvent, debugRec) {
 // bound, not an exact measurement. Surfaced as voicePreWindow so the UI can
 // show "≥" instead of a falsely-precise number.
 function finalizeSyncThrow(throwEvent, debugRec, voiceOnsetPerfTime, preWindow) {
-  let cls = classifySyncThrow(throwEvent.handOnsetPerfTime, voiceOnsetPerfTime, debugRec.coOccurrenceMs);
-  const isPreWindow = voiceOnsetPerfTime != null && !!preWindow;
-  // A pinned-at-window-start onset is only a LOWER BOUND on how early the
-  // voice really started — with SYNC_PRE_MS == the default co-occurrence
-  // window, the raw math can land exactly on the "synced" boundary, which
-  // would be a false positive (we can't confirm it's genuinely in-window).
-  // Never report a preWindow pin as a confident SYNCED.
-  if (isPreWindow && cls.outcome === "synced") {
-    cls = { outcome: "voice-early", syncDeltaMs: cls.syncDeltaMs, synced: false };
+  // Phase C.1: settle first through the fist/voice disambiguator — a reset
+  // never reaches classifySyncThrow as a throw at all.
+  const settleCls = classifyHandSettleForSync(throwEvent.handFingerCount, voiceOnsetPerfTime);
+  throwEvent.handFingerCount = settleCls.effectiveFingerCount;
+  debugRec.hand.fingerCount = settleCls.effectiveFingerCount;
+
+  let cls;
+  let isPreWindow = false;
+  if (settleCls.isReset) {
+    cls = { outcome: "reset", syncDeltaMs: null, synced: false };
+  } else {
+    cls = classifySyncThrow(throwEvent.handOnsetPerfTime, voiceOnsetPerfTime, debugRec.coOccurrenceMs);
+    isPreWindow = voiceOnsetPerfTime != null && !!preWindow;
+    // A pinned-at-window-start onset is only a LOWER BOUND on how early the
+    // voice really started — with SYNC_PRE_MS == the default co-occurrence
+    // window, the raw math can land exactly on the "synced" boundary, which
+    // would be a false positive (we can't confirm it's genuinely in-window).
+    // Never report a preWindow pin as a confident SYNCED.
+    if (isPreWindow && cls.outcome === "synced") {
+      cls = { outcome: "voice-early", syncDeltaMs: cls.syncDeltaMs, synced: false };
+    }
   }
   throwEvent.voiceOnsetPerfTime = voiceOnsetPerfTime;
   throwEvent.syncDeltaMs = cls.syncDeltaMs;
@@ -2516,6 +2667,24 @@ function finalizeSyncThrow(throwEvent, debugRec, voiceOnsetPerfTime, preWindow) 
   debugRec.voice.preWindow = throwEvent.voicePreWindow;
   debugRec.outcome = cls.outcome;
   debugRec.syncDeltaMs = cls.syncDeltaMs;
+
+  logEvent("throw_outcome", {
+    throwIndex: throwEvent.throwIndex, outcome: cls.outcome, syncDeltaMs: cls.syncDeltaMs,
+    fingerCount: throwEvent.handFingerCount, voicePreWindow: throwEvent.voicePreWindow,
+  });
+
+  // Phase C.1: a reset is the arming signal itself — drop the in-progress
+  // UI right back to idle/armed instead of leaving "Reading your throw…"
+  // up for a throw that never happened. Guarded to the latest sync throw so
+  // a slow-to-resolve reset can't clobber a real throw that started after it.
+  if (settleCls.isReset && syncThrows[syncThrows.length - 1] === throwEvent) {
+    if (playVsOpponent && heroMode === "sync" && !gameOver) {
+      throwInProgress = false;
+      handArmedForNextThrow = true;
+      renderReadyPill();
+      renderGameRoundPending();
+    }
+  }
 
   renderSyncTally(syncThrows);
   if (syncVerdictThrowRef === throwEvent) renderSyncVerdict(throwEvent);
@@ -2584,11 +2753,17 @@ let gameOver = false;
 let lastThrownFingerCount = null; // the fingerCount used in the most recently RESOLVED throw
 let handArmedForNextThrow = true; // armed from the very start of a game, per spec
 let throwInProgress = false;      // between onSyncHandOnset firing and the round resolving
+let lastLoggedReadyPillState = null; // Phase D: only log on an actual transition, not every per-frame render
 
 function renderReadyPill() {
   const active = playVsOpponent && heroMode === "sync";
   el.readyPill.style.display = active ? "block" : "none";
-  if (!active) return;
+  if (!active) { lastLoggedReadyPillState = null; return; }
+  const pillState = throwInProgress ? "analyzing" : (handArmedForNextThrow ? "armed" : "not-armed");
+  if (pillState !== lastLoggedReadyPillState) {
+    logEvent("ready_pill", { state: pillState });
+    lastLoggedReadyPillState = pillState;
+  }
   if (throwInProgress) {
     el.readyPill.className = "ready-pill analyzing";
     el.readyPill.textContent = "Reading your throw…";
@@ -2643,6 +2818,11 @@ async function commitAiMove() {
     return;
   }
   currentAiMove = { fingers, guessPlayerFingers, call, nonce, hashHex };
+  // Phase D: only the fingerprint (hash) is logged here, never fingers/call/
+  // nonce — those are the commit-before-reveal secret and only get logged
+  // (in game_reveal) once actually disclosed. The hash alone can't be
+  // reversed to the move without the nonce, so this leaks nothing.
+  logEvent("game_commit", { commitmentHash: hashHex });
 }
 
 // Rival hand shows a fist + the CURRENT commitment's fingerprint (whatever
@@ -2679,10 +2859,18 @@ function renderGameRoundAnalyzing() {
   el.roundResultText.textContent = "…";
   el.roundResultDetail.textContent = "Reading your throw…";
 }
-function renderGameIncomplete(playerFingers, word) {
+function renderGameIncomplete(playerFingers, word, syncOutcome) {
   el.roundResultCard.className = "verdict-card incomplete";
   el.roundResultText.textContent = "INCOMPLETE — try again";
-  const reason = playerFingers == null ? "no hand seen" : (word == null || word === "?" ? "no call word heard" : "unrecognized call");
+  let reason;
+  if (playerFingers == null) reason = "no hand seen";
+  else if (word == null || word === "?") reason = "no call word heard";
+  else if (wordToNumber(word) == null) reason = "unrecognized call";
+  // Phase C.2: fingers + a valid call word both landed, but the sync
+  // outcome wasn't "synced" (voice-early/late, pinned, hand-only/voice-only)
+  // — this throw's timing just doesn't qualify, not a recognition failure.
+  else if (syncOutcome && syncOutcome !== "synced") reason = `not synced (${syncOutcome}) — throw + call together`;
+  else reason = "unrecognized call";
   const commitTxt = currentAiMove ? currentAiMove.hashHex.slice(0, 8) : "—";
   el.roundResultDetail.textContent = `${reason} — same commitment stands (${commitTxt})`;
 }
@@ -2715,6 +2903,7 @@ function resetGame() {
   lastThrownFingerCount = null;
   handArmedForNextThrow = true;
   throwInProgress = false;
+  lastRoundAudioEndCtxTime = null; // Phase C.4: no prior round's audio to clamp against in a fresh game
   renderReadyPill();
   // No prior reveal to preserve here — safe to show the fresh commitment immediately.
   if (playVsOpponent && heroMode === "sync") {
@@ -2737,6 +2926,15 @@ const rivalVoiceBuffers = {};    // word -> AudioBuffer
 const rivalVoiceLoadStatus = {}; // word -> "pending" | "loaded" | "failed"
 let rivalVoicePreloadStarted = false;
 let rivalVoiceGainNode = null;
+
+// Phase C.3/C.4: every rival-clip playback's real [start,end] ctx-time,
+// recorded so a later recognition-window extraction can blank any overlap
+// (blankRivalAudioRegions) and so the NEXT throw's window can be clamped to
+// never reach backward past the previous round's own audio
+// (clampSyncWindowStart / lastRoundAudioEndCtxTime, set in resolveGameRound).
+const rivalClipPlaybacks = []; // {word, call, startCtxTime, endCtxTime}
+const RIVAL_CLIP_LOG_CAP = 500;
+let lastRoundAudioEndCtxTime = null;
 
 function getRivalVoiceGainNode() {
   if (!rivalVoiceGainNode) {
@@ -2769,20 +2967,32 @@ async function preloadRivalVoiceClips() {
 
 function playRivalCall(call) {
   const word = NUMBER_TO_CATALAN_CALL[call];
-  if (!word) return;
+  if (!word) return null;
   const buffer = rivalVoiceBuffers[word];
   if (!buffer) {
     console.warn(`rival voice: no clip loaded for "${word}" (call=${call}) — silent, text-only reveal stands`);
-    return;
+    logEvent("clip_playback_failed", { word, call, reason: "no clip loaded" });
+    return null;
   }
   try {
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(getRivalVoiceGainNode());
-    source.start(0);
+    // Phase C.3/C.4: explicit ctx-time scheduling (equivalent to start(0)'s
+    // "now", but lets us record the real [start,end] window for later
+    // blanking/clamping) instead of the ambiguous start(0) shorthand.
+    const startCtxTime = ctx.currentTime;
+    source.start(startCtxTime);
+    const endCtxTime = startCtxTime + buffer.duration;
+    rivalClipPlaybacks.push({ word, call, startCtxTime, endCtxTime });
+    if (rivalClipPlaybacks.length > RIVAL_CLIP_LOG_CAP) rivalClipPlaybacks.shift();
+    logEvent("clip_playback", { word, call, startCtxTime, endCtxTime });
+    return { startCtxTime, endCtxTime };
   } catch (err) {
     console.warn(`rival voice: playback failed for "${word}":`, err);
+    logEvent("clip_playback_failed", { word, call, reason: err.message });
+    return null;
   }
 }
 
@@ -2802,7 +3012,11 @@ async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumbe
   renderGameReveal(move, verified, playerFingers, playerCallNumber, verdict, word);
   renderRivalReveal(move, verified);
   renderScoreboard();
-  playRivalCall(move.call); // step 14: pre-generated clip, not speechSynthesis
+  const clipPlayback = playRivalCall(move.call); // step 14: pre-generated clip, not speechSynthesis
+  // Phase C.4: the floor for the NEXT throw's window clamp — either the
+  // rival clip's real end time, or (clip missing/failed) this reveal's own
+  // ctx-time, so a window can never reach back into this moment's audio.
+  lastRoundAudioEndCtxTime = clipPlayback ? clipPlayback.endCtxTime : ctx.currentTime;
   markThrowResolvedForReadyPill(playerFingers); // step 13
 
   if (throwEvent.debugRec) {
@@ -2814,6 +3028,12 @@ async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumbe
       verdictWinner: verdict.winner, scoreAfter: { player: gameScore.player, ai: gameScore.ai },
     };
   }
+
+  logEvent("game_reveal", {
+    throwIndex: throwEvent.throwIndex, aiFingers: move.fingers, aiCall: move.call, commitmentHash: move.hashHex, verified,
+    playerFingers, playerWord: word, playerCallNumber, total: verdict.total, verdictWinner: verdict.winner,
+    scoreAfter: { player: gameScore.player, ai: gameScore.ai },
+  });
 
   if (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE) {
     showGameEndBanner(gameScore.player >= GAME_WIN_SCORE ? "player" : "ai");
@@ -2829,14 +3049,22 @@ async function maybeResolveGameRound(throwEvent) {
   if (!playVsOpponent || heroMode !== "sync" || gameOver) return;
   if (!throwEvent || throwEvent.kind !== "sync" || throwEvent.gameHandled) return;
   if (throwEvent.pending) return; // hand/voice still resolving
+  // Phase C.1: a reset is never a throw — never touches the game, never
+  // consumes the AI's commitment.
+  if (throwEvent.outcome === "reset") { throwEvent.gameHandled = true; return; }
   if (voskModel && throwEvent.word == null) return; // recognition still in flight — wait for applyRecognizedWord
 
   throwEvent.gameHandled = true;
   const playerFingers = throwEvent.handFingerCount;
   const playerCallNumber = wordToNumber(throwEvent.word);
-  if (playerFingers == null || playerCallNumber == null) {
-    renderGameIncomplete(playerFingers, throwEvent.word);
-    if (throwEvent.debugRec) throwEvent.debugRec.game = { incomplete: true, playerFingers, playerWord: throwEvent.word };
+  // Phase C.2: game rounds resolve ONLY on a genuinely synced throw —
+  // voice-early/late, pinned (preWindow) pairings, hand-only and voice-only
+  // all show their own outcome card (via renderSyncVerdict, already run)
+  // but must never consume/resolve the committed AI move, exactly like the
+  // existing "no hand/no word" incomplete path.
+  if (throwEvent.outcome !== "synced" || playerFingers == null || playerCallNumber == null) {
+    renderGameIncomplete(playerFingers, throwEvent.word, throwEvent.outcome);
+    if (throwEvent.debugRec) throwEvent.debugRec.game = { incomplete: true, playerFingers, playerWord: throwEvent.word, syncOutcome: throwEvent.outcome };
     markThrowResolvedForReadyPill(playerFingers); // step 13
     return; // AI's commitment stays exactly as-is — same hash, next throw retries against it
   }
@@ -2845,6 +3073,7 @@ async function maybeResolveGameRound(throwEvent) {
 
 el.chkPlayVsOpponent.addEventListener("change", () => {
   playVsOpponent = el.chkPlayVsOpponent.checked;
+  logEvent("setting_change", { setting: "playVsOpponent", value: playVsOpponent });
   el.gamePanel.style.display = playVsOpponent ? "flex" : "none";
   el.rivalSide.style.display = playVsOpponent && heroMode === "sync" ? "flex" : "none";
   if (playVsOpponent) {
@@ -2857,6 +3086,7 @@ el.chkPlayVsOpponent.addEventListener("change", () => {
 function setHeroMode(mode) {
   if (heroMode === mode) return;
   heroMode = mode;
+  logEvent("mode_change", { mode });
   el.btnModeSync.classList.toggle("primary", mode === "sync");
   el.btnModeBeat.classList.toggle("primary", mode === "beat");
   el.beatModeControls.style.display = mode === "beat" ? "flex" : "none";
@@ -3211,6 +3441,7 @@ function exportDebugLog() {
       pageVersion: DEBUG_PAGE_VERSION,
       exportedAt: new Date().toISOString(),
       userAgent: navigator.userAgent,
+      sessionId: LOG_SESSION_ID, // Phase D: cross-references this export against logs/session-<id>.ndjson
       heroMode,
       cadenceHistory,
       currentCadenceS: beatIntervalS,
@@ -3221,10 +3452,12 @@ function exportDebugLog() {
       suppressedClickOnsetCount: debugSuppressedOnsets.length,
       echoSuspected,
       voiceClipsLoaded: { ...rivalVoiceLoadStatus }, // step 14: word -> "pending"/"loaded"/"failed"
+      eventCount: eventBusLog.length,
     },
     beats: debugLog,
     orphanOnsets: debugOrphanOnsets,
     suppressedClickOnsets: debugSuppressedOnsets,
+    events: eventBusLog, // Phase D, Sink A: the full structured event-bus stream, in order
   };
   download("s03-debug-log.json", JSON.stringify(payload, null, 2), "application/json");
 }
@@ -3243,6 +3476,7 @@ if (playVsOpponent) {
   preloadRivalVoiceClips(); // step 14: preload rival voice clips at game start
 }
 renderReadyPill(); // step 13: armed from the start, per spec
+el.sessionIdFooter.textContent = `session: ${LOG_SESSION_ID}`; // Phase D.4: so the user can reference this run's log file
 
 // exposed for manual / automated console checks
 window.__s03 = {
@@ -3301,6 +3535,15 @@ window.__s03 = {
   get rivalVoiceBuffers() { return rivalVoiceBuffers; },
   get rivalVoiceLoadStatus() { return rivalVoiceLoadStatus; },
   get rivalVoicePreloadStarted() { return rivalVoicePreloadStarted; },
+  // Phase C (correctness: reset disambiguation, game-round gating, rival-audio blanking, window clamp)
+  classifyHandSettleForSync, blankRivalAudioRegions, clampSyncWindowStart, renderGameIncomplete,
+  get rivalClipPlaybacks() { return rivalClipPlaybacks; },
+  get lastRoundAudioEndCtxTime() { return lastRoundAudioEndCtxTime; },
+  set lastRoundAudioEndCtxTime(v) { lastRoundAudioEndCtxTime = v; },
+  // Phase D (structured event log: one bus, two sinks)
+  logEvent, flushLogBatch, LOG_SESSION_ID,
+  get eventBusLog() { return eventBusLog; },
+  get pendingLogBatch() { return pendingLogBatch; },
 };
 </script>
 </body>
