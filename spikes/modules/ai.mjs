@@ -234,6 +234,8 @@ function playerGSeries(history) {
   return history.map((h) => (h.playerCall != null && h.playerFingers != null ? h.playerCall - h.playerFingers : null));
 }
 
+export const UNIFORM_DIST = { 1: 0.2, 2: 0.2, 3: 0.2, 4: 0.2, 5: 0.2 };
+
 /* ---------------------------------------------------------------------
  * L1 — L'Aprenent: designed to be read. f biased toward {2,5}, ~35%
  * repeat-after-scoring; g uniform (it doesn't read the player at all).
@@ -289,8 +291,10 @@ function ensemblePredictPlayerF(history, halfLife) {
   ].filter((p) => p.pred);
 }
 
-function decideL3(rng, history) {
-  const fingers = 1 + Math.floor(rng() * 5); // f uniform — L3 doesn't hide
+// L3's read on the player's next f — factored out of decideL3 so the SAME
+// deterministic (no-rng) prediction can be replayed by the mirror's
+// exploitability meter (mirror.mjs) without duplicating this math.
+function predictPlayerF_L3(history) {
   const preds = ensemblePredictPlayerF(history, L3_HALF_LIFE);
   const weighted = preds.map((p) => ({ name: p.name, dist: p.pred.dist, weight: p.pred.nEff }));
   const combined = combineByWeight(weighted);
@@ -299,11 +303,17 @@ function decideL3(rng, history) {
   // would double-count the same throws across multiple predictors).
   const globalNEff = (globalFreqPredict(playerFSeries(history), L3_HALF_LIFE) || { nEff: 0 }).nEff;
   const lambda = lambdaFromNEff(globalNEff, L3_LAMBDA_K);
-  const finalDist = combined ? mixWithUniform(combined, lambda) : { 1: .2, 2: .2, 3: .2, 4: .2, 5: .2 };
-  const guessPlayerFingers = sampleWithTemperature(rng, finalDist, L3_TEMPERATURE);
+  const dist = combined ? mixWithUniform(combined, lambda) : UNIFORM_DIST;
+  return { dist, lambda, predictorWeights: null };
+}
+
+function decideL3(rng, history) {
+  const fingers = 1 + Math.floor(rng() * 5); // f uniform — L3 doesn't hide
+  const { dist, lambda } = predictPlayerF_L3(history);
+  const guessPlayerFingers = sampleWithTemperature(rng, dist, L3_TEMPERATURE);
   return {
     level: "L3", fingers, guessPlayerFingers, call: fingers + guessPlayerFingers,
-    predictedPlayerFDist: finalDist, lambda, predictorWeights: null, antiAimDist: null,
+    predictedPlayerFDist: dist, lambda, predictorWeights: null, antiAimDist: null,
   };
 }
 
@@ -379,15 +389,26 @@ function metaHedgeCombine(series, verdicts, halfLife) {
   return { combined, weighted, globalNEff };
 }
 
-function decideL4(rng, history) {
+// L4's read on the player's next f — factored out of decideL4 so the SAME
+// deterministic (no-rng) meta-hedge prediction can be replayed by the
+// mirror's exploitability meter (mirror.mjs), which needs EXACTLY what L4
+// would have predicted at each past point in history — not a reimplementation.
+function predictPlayerF_L4(history) {
   const fSeries = playerFSeries(history);
   const verdicts = verdictSeries(history);
+  const { combined, weighted, globalNEff } = metaHedgeCombine(fSeries, verdicts, L4_HALF_LIFE);
+  const lambda = lambdaFromNEff(globalNEff, L4_LAMBDA_K);
+  const dist = combined ? mixWithUniform(combined, lambda) : UNIFORM_DIST;
+  const predictorWeights = {};
+  for (const p of weighted) predictorWeights[p.name] = { weight: p.weight, hitRate: p.hitRate, nEff: p.nEff };
+  return { dist, lambda, predictorWeights };
+}
+
+function decideL4(rng, history) {
   const gPlayerSeries = playerGSeries(history);
 
   // g channel: meta-hedge ensemble predicting the player's NEXT f.
-  const { combined: gCombined, weighted: gWeights, globalNEff: gNEff } = metaHedgeCombine(fSeries, verdicts, L4_HALF_LIFE);
-  const gLambda = lambdaFromNEff(gNEff, L4_LAMBDA_K);
-  const gDist = gCombined ? mixWithUniform(gCombined, gLambda) : { 1: .2, 2: .2, 3: .2, 4: .2, 5: .2 };
+  const { dist: gDist, lambda: gLambda, predictorWeights } = predictPlayerF_L4(history);
   const guessPlayerFingers = sampleWithTemperature(rng, gDist, L4_TEMPERATURE);
 
   // f channel: anti-aim — predict the PLAYER's g (their guess of the AI's
@@ -398,11 +419,8 @@ function decideL4(rng, history) {
   const fNEff = predictedPlayerG ? predictedPlayerG.nEff : 0;
   const fLambda = lambdaFromNEff(fNEff, L4_LAMBDA_K);
   const antiAimBase = predictedPlayerG ? invertDistribution(predictedPlayerG.dist) : null;
-  const fDist = antiAimBase ? mixWithUniform(antiAimBase, fLambda) : { 1: .2, 2: .2, 3: .2, 4: .2, 5: .2 };
+  const fDist = antiAimBase ? mixWithUniform(antiAimBase, fLambda) : UNIFORM_DIST;
   const fingers = sampleWithTemperature(rng, fDist, L4_TEMPERATURE);
-
-  const predictorWeights = {};
-  for (const p of gWeights) predictorWeights[p.name] = { weight: p.weight, hitRate: p.hitRate, nEff: p.nEff };
 
   return {
     level: "L4", fingers, guessPlayerFingers, call: fingers + guessPlayerFingers,
@@ -422,4 +440,16 @@ export function decideMove(level = DEFAULT_LEVEL, rng = Math.random, history = [
     case "L2":
     default: return decideL2(rng, history);
   }
+}
+
+// The read on the player's next f a given level WOULD use to choose its
+// guess — with no rng, no sampling, deterministic given (level, history).
+// Phase H's mirror (modules/mirror.mjs) replays THIS exact function (L4)
+// retrospectively over the player's own history for the exploitability
+// meter ("the % of throws L4 would have called correctly" — design doc
+// §3.5) — reusing the real policy math, not a parallel reimplementation.
+export function predictPlayerF(level, history) {
+  if (level === "L3") return predictPlayerF_L3(history);
+  if (level === "L4") return predictPlayerF_L4(history);
+  return { dist: UNIFORM_DIST, lambda: null, predictorWeights: null }; // L1/L2 don't read the player
 }

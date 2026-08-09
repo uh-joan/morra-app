@@ -8,6 +8,7 @@ import * as Commit from "./commit.mjs";
 import * as Scorer from "./scorer.mjs";
 import * as Ai from "./ai.mjs";
 import * as PlayerModel from "./playermodel.mjs";
+import * as Mirror from "./mirror.mjs";
 
 let pass = 0, fail = 0;
 function check(name, cond, detail) {
@@ -366,6 +367,129 @@ function mulberry32(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+// --- Ai.predictPlayerF: the no-rng, replayable read each level would use (Phase H's exploitability meter reuses this exact function for L4) ---
+check("predictPlayerF: L1 doesn't read the player -> uniform, no lambda", JSON.stringify(Ai.predictPlayerF("L1", [])) === JSON.stringify({ dist: Ai.UNIFORM_DIST, lambda: null, predictorWeights: null }));
+check("predictPlayerF: L2 doesn't read the player -> uniform, no lambda", JSON.stringify(Ai.predictPlayerF("L2", [])) === JSON.stringify({ dist: Ai.UNIFORM_DIST, lambda: null, predictorWeights: null }));
+{
+  const history = [{ playerFingers: 5, verdictWinner: null }, { playerFingers: 5, verdictWinner: null }, { playerFingers: 5, verdictWinner: null }, { playerFingers: 5, verdictWinner: null }];
+  const l3 = Ai.predictPlayerF("L3", history);
+  check("predictPlayerF: L3 sharpens toward a consistent player's value", l3.dist[5] > 0.2 && l3.lambda > 0, l3);
+  check("predictPlayerF: L3 never exposes predictorWeights (that's an L4-only concept)", l3.predictorWeights === null);
+  const l4 = Ai.predictPlayerF("L4", history);
+  check("predictPlayerF: L4 sharpens toward a consistent player's value too", l4.dist[5] > 0.2 && l4.lambda > 0, l4);
+  check("predictPlayerF: L4 exposes non-empty predictorWeights", l4.predictorWeights && Object.keys(l4.predictorWeights).length > 0, l4.predictorWeights);
+}
+check("predictPlayerF: unknown level falls back to uniform (never throws)", JSON.stringify(Ai.predictPlayerF("bogus", [{ playerFingers: 3 }])) === JSON.stringify({ dist: Ai.UNIFORM_DIST, lambda: null, predictorWeights: null }));
+
+// ============================== mirror.mjs — Phase H: "L'Espill" ==============================
+
+// --- exploitability meter: replays the REAL L4 predictor, so this should
+// track the same "climbs above baseline against a predictable player, stays
+// near baseline against a random one" behavior already proven for L4's aim. ---
+{
+  const history = [];
+  for (let i = 0; i < 25; i++) history.push({ throwIndex: i + 1, playerFingers: 5, playerCall: 5 + 2, playerWord: "set", verdictWinner: null });
+  const exp = Mirror.computeExploitability(history);
+  check("computeExploitability: climbs well above the 20% baseline against an always-5 player", exp.rate > 0.4, exp);
+}
+{
+  const rng = mulberry32(55);
+  const history = [];
+  for (let i = 0; i < 300; i++) history.push({ throwIndex: i + 1, playerFingers: 1 + Math.floor(rng() * 5), verdictWinner: null });
+  const exp = Mirror.computeExploitability(history);
+  check(`computeExploitability: stays near the 20% baseline against a uniform-random player (got ${(exp.rate * 100).toFixed(1)}%)`, Math.abs(exp.rate - 0.2) < 0.08, exp.rate);
+}
+check("computeExploitability: too little history -> null rate, not a crash", Mirror.computeExploitability([{ playerFingers: 3 }]).rate === null);
+
+// --- randomness score (Shannon redundancy) ---
+{
+  const allSame = Array.from({ length: 20 }, () => ({ playerFingers: 3 }));
+  const r = Mirror.computeRandomnessScore(allSame);
+  check("computeRandomnessScore: always the same value -> 100% redundancy (zero entropy)", Math.abs(r.redundancyPct - 100) < 1e-6, r);
+}
+{
+  const perfectlyUniform = [];
+  for (const v of [1, 2, 3, 4, 5]) for (let i = 0; i < 40; i++) perfectlyUniform.push({ playerFingers: v });
+  const r = Mirror.computeRandomnessScore(perfectlyUniform);
+  check("computeRandomnessScore: perfectly uniform counts -> ~0% redundancy", r.redundancyPct < 1, r);
+}
+check("computeRandomnessScore: no data -> null", Mirror.computeRandomnessScore([]) === null);
+
+// --- histograms ---
+{
+  const history = [
+    { playerFingers: 1, playerCall: 4, playerWord: "quatre" }, // g=3
+    { playerFingers: 1, playerCall: 3, playerWord: "tres" },   // g=2
+    { playerFingers: 2, playerCall: 4, playerWord: "quatre" }, // g=2
+    { playerFingers: 3, playerCall: null, playerWord: null },
+  ];
+  const h = Mirror.computeHistograms(history);
+  check("computeHistograms: f counts are exact", h.f.list.find((x) => x.value === 1).count === 2 && h.f.list.find((x) => x.value === 3).count === 1, h.f.list);
+  check("computeHistograms: f percentages sum to 100", Math.abs(h.f.list.reduce((s, x) => s + x.pct, 0) - 100) < 1e-6);
+  check("computeHistograms: g derived correctly (call-f), skips entries missing a call", h.g.total === 3 && h.g.list.find((x) => x.value === 2).count === 2, h.g.list);
+  check("computeHistograms: top words sorted by count desc", h.topWords[0].word === "quatre" && h.topWords[0].count === 2, h.topWords);
+}
+check("computeHistograms: empty history -> zeroed totals, no crash", Mirror.computeHistograms([]).f.total === 0);
+
+// --- bigram heatmap ---
+{
+  const history = [{ playerFingers: 1 }, { playerFingers: 2 }, { playerFingers: 1 }, { playerFingers: 2 }, { playerFingers: 1 }, { playerFingers: 3 }];
+  const heat = Mirror.computeBigramHeatmap(history);
+  check("computeBigramHeatmap: counts transitions correctly (1->2 happened twice)", heat.counts[1][2] === 2, heat.counts[1]);
+  check("computeBigramHeatmap: row probabilities sum to 1 for a row with data", Math.abs(Object.values(heat.probabilities[1]).reduce((a, b) => a + b, 0) - 1) < 1e-9, heat.probabilities[1]);
+  check("computeBigramHeatmap: a from-value never seen has null probabilities, not NaN", heat.probabilities[5][1] === null, heat.probabilities[5]);
+}
+
+// --- sync stats ---
+{
+  const history = [
+    { syncOutcome: "synced", syncDeltaMs: 50 },
+    { syncOutcome: "synced", syncDeltaMs: -30 },
+    { syncOutcome: "voice-late", syncDeltaMs: 600 },
+    { syncOutcome: "hand-only", syncDeltaMs: null },
+  ];
+  const s = Mirror.computeSyncStats(history);
+  check("computeSyncStats: sync rate is synced/total-with-outcome", Math.abs(s.syncRate - 0.5) < 1e-9, s);
+  check("computeSyncStats: median |Δ| computed only over entries with a delta", s.medianAbsDeltaMs != null, s);
+}
+check("computeSyncStats: no data -> nulls, not a crash", Mirror.computeSyncStats([]).syncRate === null);
+
+// --- top tells ---
+{
+  // heavy repeater: same value most of the time
+  const history = [];
+  for (let i = 0; i < 20; i++) history.push({ playerFingers: i % 4 === 0 ? 2 : 3 }); // mostly 3s, repeating heavily
+  const tells = Mirror.computeTopTells(history);
+  check("computeTopTells: detects a repeat-rate tell for a heavily-repeating sequence", tells.some((t) => t.id === "repeatRate"), tells);
+  check("computeTopTells: returns at most 3, sorted by strength descending", tells.length <= 3 && tells.every((t, i) => i === 0 || tells[i - 1].strength >= t.strength), tells);
+}
+{
+  // win-stay: always repeats the same fingers right after winning
+  const history = [];
+  for (let i = 0; i < 10; i++) {
+    history.push({ playerFingers: (i % 5) + 1, verdictWinner: "player" });
+    history.push({ playerFingers: (i % 5) + 1, verdictWinner: "ai" }); // "stay" — repeats after the win above
+  }
+  const tells = Mirror.computeTopTells(history, 4);
+  check("computeTopTells: detects a win-stay tell", tells.some((t) => t.id === "winStay"), tells);
+}
+{
+  // strong finger->word correlation
+  const history = [];
+  for (let i = 0; i < 10; i++) history.push({ playerFingers: 5, playerWord: "vuit" });
+  const tells = Mirror.computeTopTells(history, 4);
+  check("computeTopTells: detects a finger-call correlation tell", tells.some((t) => t.id === "fingerCallCorrelation" && t.sentence.includes("vuit")), tells);
+}
+{
+  // strong sequence habit: after 3, always 5
+  const history = [];
+  for (let i = 0; i < 10; i++) { history.push({ playerFingers: 3 }); history.push({ playerFingers: 5 }); }
+  const tells = Mirror.computeTopTells(history, 4);
+  check("computeTopTells: detects a sequence-habit tell", tells.some((t) => t.id === "sequenceHabit"), tells);
+}
+check("computeTopTells: no/insufficient data -> empty array, not a crash", Mirror.computeTopTells([]).length === 0);
+check("computeTopTells: a genuinely uniform-random-looking short history yields few or no tells", Mirror.computeTopTells([{ playerFingers: 1 }, { playerFingers: 3 }]).length === 0);
 
 // ============================== playermodel.mjs ==============================
 {

@@ -204,6 +204,29 @@
   .rival-hand-digit.revealed { color: var(--warn); }
   .rival-commit-status { font-size: 12px; color: var(--dim); text-align: center; font-variant-numeric: tabular-nums; }
 
+  /* Phase H: "L'Espill" — the training-mode mirror, sitting where the rival
+   * normally does. Same utilitarian grammar as the rest of the page. */
+  .training-panel { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 4px; }
+  .training-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 6px; }
+  .training-tile { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; text-align: center; }
+  .training-tile-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .training-tile-label { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
+  .training-section { margin-top: 10px; }
+  .training-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); margin: 0 0 6px; }
+  .training-hist-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .training-hist-col { flex: 1; min-width: 90px; }
+  .training-hist-title { font-size: 10px; color: var(--dim); margin-bottom: 3px; }
+  .training-hist-list { list-style: none; margin: 0; padding: 0; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .training-hist-list li { display: flex; justify-content: space-between; gap: 6px; padding: 1px 0; }
+  .training-hist-list .hist-bar-wrap { flex: 1; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin: 0 6px; align-self: center; }
+  .training-hist-list .hist-bar-fill { height: 100%; background: var(--accent); }
+  .training-tells-list { list-style: none; margin: 0; padding: 0; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .training-tells-list li { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+  .training-heatmap { display: grid; grid-template-columns: auto repeat(5, 1fr); gap: 2px; font-size: 10px; font-variant-numeric: tabular-nums; }
+  .training-heatmap .hm-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 3px; color: #06131f; }
+  .training-heatmap .hm-label { display: flex; align-items: center; justify-content: center; color: var(--dim); }
+  .training-heatmap .hm-empty { background: var(--panel-2); color: var(--dim); }
+
   .hitrate { font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .hitrate.pass { color: var(--good); }
   .hitrate.fail { color: var(--bad); }
@@ -277,7 +300,8 @@ This rig is retained as the future corpus-capture harness — treat it as produc
   <div class="row" style="justify-content:space-between; margin-bottom:8px;">
     <h2 style="margin:0;">Hand + Voice Mirror</h2>
     <div class="row" style="margin:0;">
-      <button id="btnModeSync" class="primary">Sync mode (no beat)</button>
+      <button id="btnModePartida" class="primary">Partida</button>
+      <button id="btnModeEntrenament">Entrenament</button>
       <button id="btnModeBeat">Beat mode</button>
     </div>
   </div>
@@ -301,10 +325,6 @@ This rig is retained as the future corpus-capture harness — treat it as produc
     <div class="row" id="syncModeControls" style="margin:0;">
       <label for="syncCoOccurrenceMs" style="white-space:nowrap;">Co-occurrence window ±ms</label>
       <input id="syncCoOccurrenceMs" type="number" step="50" min="100" max="1000" value="400" style="width:70px;">
-      <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; margin-left:8px;">
-        <input type="checkbox" id="chkPlayVsOpponent" checked>
-        Play vs opponent
-      </label>
     </div>
     <button id="btnExportDebug">Export debug log (JSON)</button>
   </div>
@@ -358,6 +378,48 @@ This rig is retained as the future corpus-capture harness — treat it as produc
         <div id="rivalWord" class="big-word">…</div>
         <div id="aiCommitStatus" class="rival-commit-status">—</div>
       </div>
+      <div class="training-panel" id="trainingPanel" style="display:none;">
+        <div class="training-tiles" id="trainingTiles">
+          <div class="training-tile"><div class="training-tile-value" id="tileExploitability">—</div><div class="training-tile-label">Explotabilitat</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileRandomness">—</div><div class="training-tile-label">Aleatorietat</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileSyncRate">—</div><div class="training-tile-label">Sincronia</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileMedianDelta">—</div><div class="training-tile-label">Δ mediana</div></div>
+        </div>
+        <div class="row" id="mirrorScopeRow" style="margin:8px 0; gap:6px; align-items:center;">
+          <button id="btnScopeSession" class="primary">Aquesta sessió</button>
+          <button id="btnScopeAllTime">Tot el temps</button>
+          <span id="trainingSampleCount" class="hero-prompt" style="margin:0 0 0 auto;"></span>
+        </div>
+        <div class="training-section">
+          <h3>Els teus números</h3>
+          <div class="training-hist-row">
+            <div class="training-hist-col">
+              <div class="training-hist-title">Dits (f)</div>
+              <ul id="fHistogram" class="training-hist-list"></ul>
+            </div>
+            <div class="training-hist-col">
+              <div class="training-hist-title">Endevinalles (g)</div>
+              <ul id="gHistogram" class="training-hist-list"></ul>
+            </div>
+            <div class="training-hist-col">
+              <div class="training-hist-title">Crits més usats</div>
+              <ul id="topCallsList" class="training-hist-list"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="training-section">
+          <h3>Els teus defectes</h3>
+          <ul id="tellsList" class="training-tells-list"></ul>
+        </div>
+        <div class="training-section">
+          <h3>Seqüència — després de tirar X, tires Y</h3>
+          <div id="bigramHeatmap" class="training-heatmap"></div>
+        </div>
+        <div class="row" style="margin-top:10px; gap:8px;">
+          <button id="btnExportProfile">Exporta perfil (JSON)</button>
+          <button id="btnResetProfile" class="danger">Reinicia perfil</button>
+        </div>
+      </div>
     </div>
     <div class="beat-wrap">
       <div id="heroPulse" class="hero-pulse" style="display:none;"></div>
@@ -380,6 +442,12 @@ This rig is retained as the future corpus-capture harness — treat it as produc
         </div>
         <div id="gameEndBanner" style="display:none; text-align:center; margin-top:8px;">
           <div id="gameEndText" class="hero-prompt" style="font-weight:700; font-size:16px;"></div>
+          <div id="postMatchCard" class="training-tiles" style="margin:10px 0;">
+            <div class="training-tile"><div class="training-tile-value" id="postMatchExploitability">—</div><div class="training-tile-label">Explotabilitat</div></div>
+            <div class="training-tile"><div class="training-tile-value" id="postMatchRandomness">—</div><div class="training-tile-label">Aleatorietat</div></div>
+            <div class="training-tile"><div class="training-tile-value" id="postMatchSyncRate">—</div><div class="training-tile-label">Sincronia</div></div>
+          </div>
+          <button id="btnGoToTraining" style="margin-top:2px;">Ves a Entrenament per l'anàlisi completa</button>
           <button id="btnPlayAgain" class="primary" style="margin-top:6px;">Torna a jugar</button>
         </div>
       </div>
@@ -605,6 +673,7 @@ import { sha256Hex, randomNonceHex, computeCommitHash, verifyCommitment } from "
 import { classifySyncThrow, isOrphanVoiceOnset, classifyHandSettleForSync, shouldRevealPhase1 } from "./modules/scorer.mjs";
 import * as AiPolicy from "./modules/ai.mjs";
 import * as PlayerModel from "./modules/playermodel.mjs";
+import * as Mirror from "./modules/mirror.mjs";
 
 /* ---------------------------------------------------------------------
  * Pure logic (no DOM/Worker/AudioContext dependencies) — kept isolated
@@ -999,17 +1068,25 @@ const el = {
   btnDrift: $("btnDrift"), driftStatus: $("driftStatus"), driftChart: $("driftChart"),
   btnCalibrate: $("btnCalibrate"), calProgress: $("calProgress"), calMedian: $("calMedian"),
   heroCalibrationInfo: $("heroCalibrationInfo"), heroCoachHint: $("heroCoachHint"),
-  btnModeSync: $("btnModeSync"), btnModeBeat: $("btnModeBeat"),
+  btnModePartida: $("btnModePartida"), btnModeEntrenament: $("btnModeEntrenament"), btnModeBeat: $("btnModeBeat"),
   beatModeControls: $("beatModeControls"), syncModeControls: $("syncModeControls"), syncCoOccurrenceMs: $("syncCoOccurrenceMs"),
   beatModeHints: $("beatModeHints"), heroKillMark: $("heroKillMark"), syncMedianDelta: $("syncMedianDelta"),
   syncNaturalLead: $("syncNaturalLead"),
-  chkPlayVsOpponent: $("chkPlayVsOpponent"), gamePanel: $("gamePanel"), aiCommitStatus: $("aiCommitStatus"),
+  gamePanel: $("gamePanel"), aiCommitStatus: $("aiCommitStatus"),
   scoreboard: $("scoreboard"), roundResultCard: $("roundResultCard"), roundResultText: $("roundResultText"),
   roundResultDetail: $("roundResultDetail"), gameEndBanner: $("gameEndBanner"), gameEndText: $("gameEndText"),
   btnPlayAgain: $("btnPlayAgain"),
+  postMatchExploitability: $("postMatchExploitability"), postMatchRandomness: $("postMatchRandomness"),
+  postMatchSyncRate: $("postMatchSyncRate"), btnGoToTraining: $("btnGoToTraining"),
   rivalSide: $("rivalSide"), rivalAvatar: $("rivalAvatar"), rivalHandSvg: $("rivalHandSvg"),
   rivalHandDigit: $("rivalHandDigit"), rivalWord: $("rivalWord"), readyPill: $("readyPill"),
   selAiLevel: $("selAiLevel"), aiLevelDescription: $("aiLevelDescription"),
+  trainingPanel: $("trainingPanel"), tileExploitability: $("tileExploitability"), tileRandomness: $("tileRandomness"),
+  tileSyncRate: $("tileSyncRate"), tileMedianDelta: $("tileMedianDelta"),
+  btnScopeSession: $("btnScopeSession"), btnScopeAllTime: $("btnScopeAllTime"), trainingSampleCount: $("trainingSampleCount"),
+  fHistogram: $("fHistogram"), gHistogram: $("gHistogram"), topCallsList: $("topCallsList"),
+  tellsList: $("tellsList"), bigramHeatmap: $("bigramHeatmap"),
+  btnExportProfile: $("btnExportProfile"), btnResetProfile: $("btnResetProfile"),
   btnCam: $("btnCam"), btnMic: $("btnMic"), sensorStatus: $("sensorStatus"),
   camPreview: $("camPreview"), handOverlay: $("handOverlay"), handVel: $("handVel"), handState: $("handState"),
   handVelMeterFill: $("handVelMeterFill"), handIndicator: $("handIndicator"), handIndicatorText: $("handIndicatorText"),
@@ -1944,7 +2021,8 @@ function onVideoFrame(now, metadata) {
 // reset evidence — only does work while genuinely waiting (armed already ==
 // nothing to do, and re-rendering every frame would be wasteful).
 function updateReadyPillFromFrame(count) {
-  if (!playVsOpponent || heroMode !== "sync" || handArmedForNextThrow) return;
+  // Phase H: this arming check runs for any sync-mode throw, not just Partida.
+  if (heroMode !== "sync" || sessionMode === "beat" || handArmedForNextThrow) return;
   if (handHasResetSince(lastThrownFingerCount, count)) {
     handArmedForNextThrow = true;
     renderReadyPill();
@@ -2462,6 +2540,10 @@ function onSyncHandOnset(settlePerfTime, motionStartPerfTime, fingerCount) {
     } else {
       renderRivalCommitted();
     }
+  }
+  // Phase H: the ready pill's OWN state tracks any sync-mode throw
+  // (Partida or Entrenament) — split out from the game-only block above.
+  if (sessionMode !== "beat") {
     throwInProgress = true; // step 13
     renderReadyPill();
   }
@@ -2652,18 +2734,21 @@ function finalizeSyncThrow(throwEvent, debugRec, voiceOnsetPerfTime, preWindow) 
   // UI right back to idle/armed instead of leaving "Reading your throw…"
   // up for a throw that never happened. Guarded to the latest sync throw so
   // a slow-to-resolve reset can't clobber a real throw that started after it.
-  if (settleCls.isReset && syncThrows[syncThrows.length - 1] === throwEvent) {
-    if (playVsOpponent && heroMode === "sync" && !gameOver) {
-      throwInProgress = false;
-      handArmedForNextThrow = true;
-      renderReadyPill();
-      renderGameRoundPending();
-    }
+  if (settleCls.isReset && syncThrows[syncThrows.length - 1] === throwEvent && sessionMode !== "beat") {
+    throwInProgress = false;
+    handArmedForNextThrow = true;
+    renderReadyPill();
+    if (playVsOpponent && !gameOver) renderGameRoundPending(); // game-card reset is Partida-only
   }
 
   renderSyncTally(syncThrows);
   if (syncVerdictThrowRef === throwEvent) renderSyncVerdict(throwEvent);
-  if (throwEvent.kind === "sync") maybeResolveGameRound(throwEvent);
+  if (throwEvent.kind === "sync") {
+    maybeResolveGameRound(throwEvent); // no-ops in Entrenament (playVsOpponent is false there)
+    // Phase H: Entrenament's own hook, parallel to the game one above — a
+    // reset (Phase C.1) is still never a throw, excluded here too.
+    if (sessionMode === "entrenament" && cls.outcome !== "reset") recordTrainingThrow(throwEvent);
+  }
 }
 
 // A voice-only event: the live VAD fired but no hand onset showed up nearby,
@@ -2717,7 +2802,7 @@ function onSyncVoiceOnset(voicePerfTime) {
  * changed) after seeing the player's throw.
  * ------------------------------------------------------------------- */
 
-let playVsOpponent = true; // default on — see setHeroMode/checkbox wiring
+let playVsOpponent = true; // default on ("partida") — see setSessionMode (Phase H)
 let currentAiMove = null;  // {fingers, guessPlayerFingers, call, nonce, hashHex, level}
 let gameScore = { player: 0, ai: 0 };
 let gameOver = false;
@@ -2740,7 +2825,10 @@ let throwInProgress = false;      // between onSyncHandOnset firing and the roun
 let lastLoggedReadyPillState = null; // Phase D: only log on an actual transition, not every per-frame render
 
 function renderReadyPill() {
-  const active = playVsOpponent && heroMode === "sync";
+  // Phase H: the ready pill tracks readiness for ANY sync-mode throw —
+  // Partida (game) AND Entrenament (practice) both want it; only Beat mode
+  // (a different pipeline entirely) hides it.
+  const active = heroMode === "sync" && sessionMode !== "beat";
   el.readyPill.style.display = active ? "block" : "none";
   if (!active) { lastLoggedReadyPillState = null; return; }
   const pillState = throwInProgress ? "analyzing" : (handArmedForNextThrow ? "armed" : "not-armed");
@@ -2760,7 +2848,8 @@ function renderReadyPill() {
   }
   // step 13 fix 3: dim the rival's fresh (unrevealed) commitment while the
   // player still needs to reset, brighten once armed — "next round live".
-  if (el.aiCommitStatus) el.aiCommitStatus.style.opacity = (!throwInProgress && !handArmedForNextThrow) ? ".45" : "1";
+  // Partida-only (aiCommitStatus is the rival panel, hidden in Entrenament).
+  if (el.aiCommitStatus && playVsOpponent) el.aiCommitStatus.style.opacity = (!throwInProgress && !handArmedForNextThrow) ? ".45" : "1";
 }
 function markThrowResolvedForReadyPill(playerFingers) {
   throwInProgress = false;
@@ -2965,6 +3054,19 @@ function showGameEndBanner(winner) {
     ? `Has guanyat ${gameScore.player}-${gameScore.ai}!`
     : `Ha guanyat el rival ${gameScore.ai}-${gameScore.player}.`;
   el.aiCommitStatus.textContent = "Partit acabat.";
+  renderPostMatchCard();
+}
+// Phase H spec point 4: a compact 3-number card over THIS match's own
+// history (matchHistory — reset per game, unlike the cross-match
+// playerModel the full Entrenament panel reads) plus a link into
+// Entrenament for the complete analysis.
+function renderPostMatchCard() {
+  const exploit = Mirror.computeExploitability(matchHistory);
+  const randomness = Mirror.computeRandomnessScore(matchHistory);
+  const syncStats = Mirror.computeSyncStats(matchHistory);
+  el.postMatchExploitability.textContent = exploit.rate != null ? `${(exploit.rate * 100).toFixed(0)}%` : "—";
+  el.postMatchRandomness.textContent = randomness ? `${randomness.redundancyPct.toFixed(1)}%` : "—";
+  el.postMatchSyncRate.textContent = syncStats.syncRate != null ? `${(syncStats.syncRate * 100).toFixed(0)}%` : "—";
 }
 function resetGame() {
   gameScore = { player: 0, ai: 0 };
@@ -3078,22 +3180,141 @@ function playRivalCall(call) {
 // A "reset" (Phase C.1 — fist retraction, never a throw) is the only case
 // excluded, upstream of every call site below. Also logs the per-throw
 // aim result (design doc §5: "actual player f, hit/miss of g").
+// Shared by both the game-mode and Entrenament recorders below — appends to
+// the in-match array AND persists into the cross-match localStorage model.
+function persistHistoryEntry(entry) {
+  matchHistory.push(entry);
+  playerModel = PlayerModel.recordThrow(playerModel, entry);
+  PlayerModel.saveModel(playerModel);
+}
+
 function recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, aiMove, verdictWinner) {
   const entry = {
-    throwIndex: throwEvent.throwIndex,
-    playerFingers, playerCall: playerCallNumber,
+    throwIndex: throwEvent.throwIndex, sessionId: LOG_SESSION_ID, atIso: new Date().toISOString(),
+    playerFingers, playerCall: playerCallNumber, playerWord: throwEvent.word || null,
     aiFingers: aiMove ? aiMove.fingers : null,
     aiCall: aiMove ? aiMove.call : null,
     aiGuessPlayerFingers: aiMove ? aiMove.guessPlayerFingers : null,
     aiLevel: (aiMove && aiMove.level) || currentAiLevel,
     verdictWinner, // "player" | "ai" | "parata" | null (void/never-revealed)
+    syncOutcome: throwEvent.outcome, syncDeltaMs: throwEvent.syncDeltaMs,
   };
-  matchHistory.push(entry);
-  playerModel = PlayerModel.recordThrow(playerModel, entry);
-  PlayerModel.saveModel(playerModel);
+  persistHistoryEntry(entry);
   const aimHit = aiMove && aiMove.guessPlayerFingers != null ? aiMove.guessPlayerFingers === playerFingers : null;
   logEvent("ai_aim_result", { throwIndex: throwEvent.throwIndex, level: entry.aiLevel, guessPlayerFingers: entry.aiGuessPlayerFingers, actualPlayerFingers: playerFingers, aimHit });
 }
+
+// Phase H: Entrenament mode has NO game/AI/commitments at all — but every
+// finalized throw (that isn't a Phase C.1 reset — those aren't throws)
+// still feeds the SAME shared PlayerModel the ladder reads, and drives the
+// live mirror panel in the rival's place. Hooked from finalizeSyncThrow's
+// tail, parallel to (never together with) maybeResolveGameRound.
+function recordTrainingThrow(throwEvent) {
+  const playerFingers = throwEvent.handFingerCount;
+  if (playerFingers == null) return;
+  const entry = {
+    throwIndex: throwEvent.throwIndex, sessionId: LOG_SESSION_ID, atIso: new Date().toISOString(),
+    playerFingers, playerCall: wordToNumber(throwEvent.word), playerWord: throwEvent.word || null,
+    aiFingers: null, aiCall: null, aiGuessPlayerFingers: null, aiLevel: null, verdictWinner: null,
+    syncOutcome: throwEvent.outcome, syncDeltaMs: throwEvent.syncDeltaMs,
+  };
+  persistHistoryEntry(entry);
+  logEvent("training_throw", { throwIndex: entry.throwIndex, playerFingers, playerCall: entry.playerCall, syncOutcome: entry.syncOutcome });
+  markThrowResolvedForReadyPill(playerFingers); // step 13, generalized to Entrenament (Phase H)
+  renderTrainingPanel();
+}
+
+/* ---------------------------------------------------------------------
+ * Phase H: "L'Espill" — the training-mode mirror panel, computed live from
+ * modules/mirror.mjs over the shared PlayerModel. "Session vs all-time"
+ * just changes which slice of playerModel.throws feeds the SAME functions.
+ * ------------------------------------------------------------------- */
+
+let mirrorScope = "session"; // "session" | "allTime"
+
+function trainingHistorySource() {
+  const all = PlayerModel.toHistoryArray(playerModel);
+  return mirrorScope === "session" ? all.filter((h) => h.sessionId === LOG_SESSION_ID) : all;
+}
+
+function renderHistogramBars(histSection) {
+  if (!histSection.total) return histSection.list.map((x) => `<li><span>${x.value}</span><span class="hist-bar-wrap"><span class="hist-bar-fill" style="width:0%"></span></span><span>—</span></li>`).join("");
+  const maxPct = Math.max(1, ...histSection.list.map((x) => x.pct));
+  return histSection.list.map((x) =>
+    `<li><span>${x.value}</span><span class="hist-bar-wrap"><span class="hist-bar-fill" style="width:${(x.pct / maxPct) * 100}%"></span></span><span>${x.pct.toFixed(0)}%</span></li>`
+  ).join("");
+}
+function renderTopWordsList(topWords) {
+  if (!topWords.length) return `<li>—</li>`;
+  return topWords.slice(0, 5).map((w) => `<li><span>"${w.word}"</span><span>${w.pct.toFixed(0)}%</span></li>`).join("");
+}
+
+// low -> high probability, reusing the page's existing --good scale
+const HEATMAP_COLORS = ["#1f242c", "#2a3a2f", "#356148", "#2ea043", "#35d07f"];
+function heatmapColorFor(p) {
+  if (p == null) return null;
+  return HEATMAP_COLORS[Math.min(HEATMAP_COLORS.length - 1, Math.floor(p * HEATMAP_COLORS.length))];
+}
+function renderHeatmapGrid(heatmap) {
+  let html = `<div class="hm-label"></div>`;
+  for (const to of [1, 2, 3, 4, 5]) html += `<div class="hm-label">${to}</div>`;
+  for (const from of [1, 2, 3, 4, 5]) {
+    html += `<div class="hm-label">${from}</div>`;
+    for (const to of [1, 2, 3, 4, 5]) {
+      const p = heatmap.probabilities[from][to];
+      const color = heatmapColorFor(p);
+      const title = `${from}→${to}: ${p != null ? (p * 100).toFixed(0) + "%" : "no data"}`;
+      html += color
+        ? `<div class="hm-cell" style="background:${color};" title="${title}">${(p * 100).toFixed(0)}</div>`
+        : `<div class="hm-cell hm-empty" title="${title}">–</div>`;
+    }
+  }
+  return html;
+}
+
+function renderTrainingPanel() {
+  if (sessionMode !== "entrenament") return;
+  const history = trainingHistorySource();
+  const exploit = Mirror.computeExploitability(history);
+  const randomness = Mirror.computeRandomnessScore(history);
+  const hist = Mirror.computeHistograms(history);
+  const tells = Mirror.computeTopTells(history);
+  const heatmap = Mirror.computeBigramHeatmap(history);
+  const syncStats = Mirror.computeSyncStats(history);
+
+  el.tileExploitability.textContent = exploit.rate != null ? `${(exploit.rate * 100).toFixed(0)}%` : "—";
+  el.tileRandomness.textContent = randomness ? `${randomness.redundancyPct.toFixed(1)}%` : "—";
+  el.tileSyncRate.textContent = syncStats.syncRate != null ? `${(syncStats.syncRate * 100).toFixed(0)}%` : "—";
+  el.tileMedianDelta.textContent = syncStats.medianAbsDeltaMs != null ? `${syncStats.medianAbsDeltaMs.toFixed(0)}ms` : "—";
+
+  el.fHistogram.innerHTML = renderHistogramBars(hist.f);
+  el.gHistogram.innerHTML = renderHistogramBars(hist.g);
+  el.topCallsList.innerHTML = renderTopWordsList(hist.topWords);
+
+  el.tellsList.innerHTML = tells.length
+    ? tells.map((t) => `<li>${t.sentence}</li>`).join("")
+    : `<li>Encara no hi ha prou dades — tira una mica més.</li>`;
+
+  el.bigramHeatmap.innerHTML = renderHeatmapGrid(heatmap);
+
+  el.trainingSampleCount.textContent = `${history.length} tir${history.length === 1 ? "" : "s"} (${mirrorScope === "session" ? "aquesta sessió" : "tot el temps"})`;
+  el.btnScopeSession.classList.toggle("primary", mirrorScope === "session");
+  el.btnScopeAllTime.classList.toggle("primary", mirrorScope === "allTime");
+}
+el.btnScopeSession.addEventListener("click", () => { mirrorScope = "session"; renderTrainingPanel(); });
+el.btnScopeAllTime.addEventListener("click", () => { mirrorScope = "allTime"; renderTrainingPanel(); });
+el.btnGoToTraining.addEventListener("click", () => setSessionMode("entrenament"));
+
+el.btnExportProfile.addEventListener("click", () => {
+  download("s03-player-profile.json", JSON.stringify(playerModel, null, 2), "application/json");
+});
+el.btnResetProfile.addEventListener("click", () => {
+  if (!confirm("Esborrar tot el teu perfil (totes les sessions)? Això no es pot desfer.")) return;
+  PlayerModel.clearModel();
+  playerModel = PlayerModel.createEmptyModel();
+  logEvent("setting_change", { setting: "playerProfileReset", value: true });
+  renderTrainingPanel();
+});
 
 async function resolveGameRound(throwEvent, playerFingers, word, playerCallNumber) {
   // Phase E: normally the rival was already revealed — and a fresh
@@ -3203,51 +3424,69 @@ async function maybeResolveGameRound(throwEvent) {
   await resolveGameRound(throwEvent, playerFingers, throwEvent.word, playerCallNumber);
 }
 
-el.chkPlayVsOpponent.addEventListener("change", () => {
-  playVsOpponent = el.chkPlayVsOpponent.checked;
-  logEvent("setting_change", { setting: "playVsOpponent", value: playVsOpponent });
-  el.gamePanel.style.display = playVsOpponent ? "flex" : "none";
-  el.rivalSide.style.display = playVsOpponent && heroMode === "sync" ? "flex" : "none";
-  if (playVsOpponent) {
-    if (!gameOver && !currentAiMove) commitAiMove().then(renderRivalCommitted);
-    preloadRivalVoiceClips();
-  }
-  renderReadyPill();
-});
-
+// Phase H: setHeroMode owns only the underlying THROW PIPELINE (sync vs
+// beat) — metronome, beat/sync control visibility, tally resets. It knows
+// nothing about Partida/Entrenament/game state; that's setSessionMode's job
+// below. Early-returns when the pipeline itself doesn't change (switching
+// between Partida and Entrenament never touches heroMode, both are "sync"),
+// so game/training visibility must never depend on this function actually
+// running — see setSessionMode, which handles that unconditionally.
 function setHeroMode(mode) {
   if (heroMode === mode) return;
   heroMode = mode;
   logEvent("mode_change", { mode });
-  el.btnModeSync.classList.toggle("primary", mode === "sync");
-  el.btnModeBeat.classList.toggle("primary", mode === "beat");
   el.beatModeControls.style.display = mode === "beat" ? "flex" : "none";
   el.syncModeControls.style.display = mode === "sync" ? "flex" : "none";
   el.beatModeHints.style.display = mode === "beat" ? "block" : "none";
   el.heroPulse.style.display = mode === "beat" ? "" : "none";
   el.heroKillMark.style.display = mode === "beat" ? "" : "none";
-  el.gamePanel.style.display = mode === "sync" && playVsOpponent ? "flex" : "none";
-  el.rivalSide.style.display = mode === "sync" && playVsOpponent ? "flex" : "none";
 
   if (mode === "sync" && metronomeRunning) stopMetronome();
 
   if (mode === "sync") {
     resetSyncVerdict();
     renderSyncTally(syncThrows);
-    if (playVsOpponent && !gameOver) {
-      if (currentAiMove) renderRivalCommitted(); // already committed while we were away — show it, don't burn a new one
-      else commitAiMove().then(renderRivalCommitted);
-      preloadRivalVoiceClips();
-    }
   } else {
     resetHeroVerdict();
     renderHeroTally(heroThrows);
   }
-  renderReadyPill(); // unconditional: hides itself in beat mode, shows/updates in sync mode
+  renderReadyPill();
   updateHeroPrompt();
 }
-el.btnModeSync.addEventListener("click", () => setHeroMode("sync"));
-el.btnModeBeat.addEventListener("click", () => setHeroMode("beat"));
+
+// Phase H: the three-way mode selector (design doc amendment) — "Partida"
+// (game vs the AI ladder, the old default), "Entrenament" (free throwing,
+// no rival/score/commitments, feeds the shared PlayerModel + a live mirror
+// panel in the rival's place), "Beat mode" (legacy, unchanged). Partida and
+// Entrenament both run the sync throw pipeline underneath; only
+// playVsOpponent (and thus the game/training panels) differs.
+let sessionMode = "partida";
+function setSessionMode(mode) {
+  if (sessionMode === mode) return;
+  sessionMode = mode;
+  logEvent("mode_change", { sessionMode: mode });
+  playVsOpponent = mode === "partida";
+  setHeroMode(mode === "beat" ? "beat" : "sync"); // no-op if the pipeline itself isn't changing (partida<->entrenament)
+
+  el.btnModePartida.classList.toggle("primary", mode === "partida");
+  el.btnModeEntrenament.classList.toggle("primary", mode === "entrenament");
+  el.btnModeBeat.classList.toggle("primary", mode === "beat");
+  el.gamePanel.style.display = mode === "partida" ? "flex" : "none";
+  el.rivalSide.style.display = mode === "partida" ? "flex" : "none";
+  el.trainingPanel.style.display = mode === "entrenament" ? "block" : "none";
+
+  if (mode === "partida" && !gameOver) {
+    if (currentAiMove) renderRivalCommitted(); // already committed while we were away — show it, don't burn a new one
+    else commitAiMove().then(renderRivalCommitted);
+    preloadRivalVoiceClips();
+  }
+  if (mode === "entrenament") renderTrainingPanel();
+  renderReadyPill();
+  updateHeroPrompt();
+}
+el.btnModePartida.addEventListener("click", () => setSessionMode("partida"));
+el.btnModeEntrenament.addEventListener("click", () => setSessionMode("entrenament"));
+el.btnModeBeat.addEventListener("click", () => setSessionMode("beat"));
 
 /* ---------------------------------------------------------------------
  * Onset -> beat matching, throw finalization, session/protocol state
@@ -3601,8 +3840,14 @@ renderBigWordIdle();
 renderCalibrationInfo();
 renderSyncTally(syncThrows); // step 9: sync mode is the default hero experience
 renderScoreboard();
+// Phase H: sessionMode already defaults to "partida" (matching the
+// pre-existing playVsOpponent=true default), so setSessionMode("partida")
+// would just early-return here — apply its visibility/commit side effects
+// directly instead, once, at page load.
+el.btnModePartida.classList.add("primary");
 el.gamePanel.style.display = heroMode === "sync" && playVsOpponent ? "flex" : "none";
 el.rivalSide.style.display = heroMode === "sync" && playVsOpponent ? "flex" : "none";
+el.trainingPanel.style.display = "none";
 if (playVsOpponent) {
   commitAiMove().then(renderRivalCommitted); // step 11/12: play-vs-opponent is on by default
   preloadRivalVoiceClips(); // step 14: preload rival voice clips at game start
@@ -3690,6 +3935,12 @@ window.__s03 = {
   get matchHistory() { return matchHistory; },
   get playerModel() { return playerModel; },
   set playerModel(v) { playerModel = v; },
+  // Phase H ("L'Espill" — the training-mode mirror + three-way mode selector)
+  Mirror, setSessionMode, recordTrainingThrow, renderTrainingPanel, renderPostMatchCard,
+  trainingHistorySource, renderHistogramBars, renderHeatmapGrid,
+  get sessionMode() { return sessionMode; },
+  get mirrorScope() { return mirrorScope; },
+  set mirrorScope(v) { mirrorScope = v; },
 };
 </script>
 </body>
