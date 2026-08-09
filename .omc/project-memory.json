@@ -9,8 +9,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd /Users/janisaez/code/morra/packages/core\ncp /tmp/purity-check.ts src/__purity_check__.ts\necho \"--- tsc (should now FAIL) ---\"\nnpx tsc --noEmit -p tsconfig.json 2>&1 | tail -20\nrm src/__purity_check__.ts\necho \"--- clean rebuild ---\"\nrm -rf dist && pnpm build 2>&1 | tail -30",
-    "testCommand": "cd /Users/janisaez/code/morra/packages/core && pnpm test 2>&1 | tail -40",
+    "buildCommand": "cd /Users/janisaez/code/morra/packages/recognition && pnpm build 2>&1 | tail -60",
+    "testCommand": "cd /Users/janisaez/code/morra/packages/recognition && pnpm vitest run --reporter=verbose 2>&1 | tail -150",
     "lintCommand": null,
     "devCommand": null,
     "scripts": {}
@@ -68,8 +68,8 @@
   "hotPaths": [
     {
       "path": "spikes/s03-beat.html",
-      "accessCount": 125,
-      "lastAccessed": 1786306405643,
+      "accessCount": 134,
+      "lastAccessed": 1786308739159,
       "type": "file"
     },
     {
@@ -91,9 +91,21 @@
       "type": "file"
     },
     {
+      "path": "packages/recognition/package.json",
+      "accessCount": 5,
+      "lastAccessed": 1786309266358,
+      "type": "file"
+    },
+    {
       "path": "packages/core/src/mirror.ts",
       "accessCount": 4,
       "lastAccessed": 1786307552184,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/src/fingers/velocity.ts",
+      "accessCount": 4,
+      "lastAccessed": 1786309131517,
       "type": "file"
     },
     {
@@ -106,6 +118,18 @@
       "path": "packages/core/tsconfig.json",
       "accessCount": 3,
       "lastAccessed": 1786307597708,
+      "type": "file"
+    },
+    {
+      "path": "spikes/s01-fingers.html",
+      "accessCount": 3,
+      "lastAccessed": 1786307890987,
+      "type": "file"
+    },
+    {
+      "path": "packages/core/src/types.ts",
+      "accessCount": 3,
+      "lastAccessed": 1786308047865,
       "type": "file"
     },
     {
@@ -145,6 +169,48 @@
       "type": "file"
     },
     {
+      "path": "packages/recognition/src/fingers/stableRun.ts",
+      "accessCount": 2,
+      "lastAccessed": 1786309131620,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/src/fingers/counting.ts",
+      "accessCount": 2,
+      "lastAccessed": 1786309131680,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/src/voice/blanking.ts",
+      "accessCount": 2,
+      "lastAccessed": 1786309151766,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/src/voice/windowClamp.ts",
+      "accessCount": 2,
+      "lastAccessed": 1786309151961,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/src/voice/onlineOnsetStep.ts",
+      "accessCount": 2,
+      "lastAccessed": 1786309151976,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/src/voice/onset.ts",
+      "accessCount": 2,
+      "lastAccessed": 1786309151990,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 2,
+      "lastAccessed": 1786309270195,
+      "type": "file"
+    },
+    {
       "path": "spikes/modules/rules.mjs",
       "accessCount": 1,
       "lastAccessed": 1786300958620,
@@ -154,12 +220,6 @@
       "path": "spikes/modules/scorer.mjs",
       "accessCount": 1,
       "lastAccessed": 1786300976461,
-      "type": "file"
-    },
-    {
-      "path": "package.json",
-      "accessCount": 1,
-      "lastAccessed": 1786306975055,
       "type": "file"
     },
     {
@@ -190,12 +250,6 @@
       "path": "packages/core/src/ports/telemetry-sink.ts",
       "accessCount": 1,
       "lastAccessed": 1786307055825,
-      "type": "file"
-    },
-    {
-      "path": "packages/core/src/types.ts",
-      "accessCount": 1,
-      "lastAccessed": 1786307073314,
       "type": "file"
     },
     {
@@ -292,6 +346,24 @@
       "path": "packages/core/test/conformance.test.ts",
       "accessCount": 1,
       "lastAccessed": 1786307677664,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/tsconfig.json",
+      "accessCount": 1,
+      "lastAccessed": 1786308082345,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/vitest.config.ts",
+      "accessCount": 1,
+      "lastAccessed": 1786308086884,
+      "type": "file"
+    },
+    {
+      "path": "packages/recognition/eslint.config.js",
+      "accessCount": 1,
+      "lastAccessed": 1786308095540,
       "type": "file"
     }
   ],

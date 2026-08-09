@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>@morra/recognition integration fixture</title></head>
+<body>
+<video id="video" autoplay muted playsinline width="320" height="240"></video>
+<script type="module">
+import {
+  MediaPipeFingerRecognizer,
+  VoskCallRecognizer,
+  VadRingBuffer,
+} from "/packages/recognition/dist/index.js";
+
+const result = {
+  fingerInit: null,
+  fingerRecognize: null,
+  fingerError: null,
+  voskLoad: null,
+  voskRecognize: null,
+  voskError: null,
+  vadInit: null,
+  vadError: null,
+  done: false,
+};
+window.__integrationResult = result;
+
+async function run() {
+  // ---- fingers: real CDN MediaPipe load (worker + OffscreenCanvas primary,
+  // main-thread dynamic-import fallback), real fake-camera frame round trip ----
+  try {
+    const finger = new MediaPipeFingerRecognizer();
+    const init = await finger.init();
+    result.fingerInit = init;
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+    const video = document.getElementById("video");
+    video.srcObject = stream;
+    await video.play();
+    await new Promise((r) => setTimeout(r, 300)); // let a few fake-device frames render
+
+    let input;
+    if (init.mode === "worker") {
+      input = await createImageBitmap(video);
+    } else {
+      input = video;
+    }
+    const recRes = await finger.recognizeFrame(input, performance.now());
+    result.fingerRecognize = { hypothesesCount: recRes.hypotheses.length, capturedAtMs: recRes.capturedAtMs, hypotheses: recRes.hypotheses };
+    finger.dispose();
+  } catch (err) {
+    result.fingerError = String((err && err.message) || err);
+  }
+
+  // ---- voice: real CDN vosk-browser script load, real self-hosted CA
+  // model download+decode, real grammar-restricted KaldiRecognizer round
+  // trip (fed a synthetic buffer directly — the fake mic device's synthetic
+  // tone isn't speech, so this isolates "does the real recognition pipeline
+  // complete" from "does the fake device happen to contain a real word",
+  // per the M2 dispatch's "where feasible") ----
+  try {
+    const vosk = new VoskCallRecognizer({ modelUrl: "/spikes/models/vosk-model-small-ca-0.4.zip" });
+    await vosk.load();
+    result.voskLoad = { isLoaded: vosk.isLoaded };
+
+    const sampleRate = 16000;
+    const silence = new Float32Array(sampleRate * 1); // 1s of silence — a real, well-formed input
+    const recRes = await vosk.recognizeWindow(silence, sampleRate, performance.now());
+    result.voskRecognize = { hypothesesCount: recRes.hypotheses.length, capturedAtMs: recRes.capturedAtMs };
+  } catch (err) {
+    result.voskError = String((err && err.message) || err);
+  }
+
+  // ---- VadRingBuffer: real AudioWorklet module load + node creation over
+  // a real (fake-device) mic stream ----
+  try {
+    const micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createMediaStreamSource(micStream);
+    const ring = new VadRingBuffer(ctx);
+    await ring.init(src);
+    await new Promise((r) => setTimeout(r, 200)); // let a few render quanta accumulate in the ring
+    const extraction = await ring.requestExtract(ctx.currentTime, 100, 0);
+    result.vadInit = {
+      sampleRate: extraction.sampleRate,
+      extractedSamples: extraction.samples.length,
+      coverageOk: extraction.coverageOk,
+    };
+    ring.dispose();
+  } catch (err) {
+    result.vadError = String((err && err.message) || err);
+  }
+
+  result.done = true;
+}
+run();
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "@morra/recognition",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-facing finger and voice recognizers, extracted from spikes/s01-fingers.html and spikes/s03-beat.html's proven code (MediaPipe HandLandmarker via a classic worker + dynamic import, vosk-browser grammar-restricted call recognition). Implements @morra/core's FingerRecognizer/CallRecognizer contracts. DOM/Worker/AudioWorklet APIs are allowed here (unlike @morra/core) — this package IS the platform-specific glue.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:integration": "node test/integration/run.mjs",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@morra/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@mediapipe/tasks-vision": "^0.10.14",
+    "puppeteer-core": "^25.5.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}
