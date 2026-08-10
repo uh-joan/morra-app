@@ -3,7 +3,6 @@ export * from "./types.js";
 export * from "./rules.js";
 export * from "./commit.js";
 export * from "./scorer.js";
-export * from "./resetPalette.js";
 export * from "./ai.js";
 export * from "./playermodel.js";
 export * from "./mirror.js";

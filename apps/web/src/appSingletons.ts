@@ -12,36 +12,19 @@ import {
   EventBusTelemetrySink,
   LocalStoragePlayerModelStore,
   PerformanceClock,
-  getOrCreateBrowserSessionId,
 } from "@morra/platform-web";
 import { GameStore } from "./game/gameStore.js";
 import { SensorPipeline } from "./sensors/sensorPipeline.js";
 import { RivalVoicePlayer } from "./sensors/rivalVoicePlayer.js";
-import { LocalProfileRegistryStore } from "./profiles/localProfileRegistryStore.js";
-import { LocalSettingsStore } from "./profiles/localSettingsStore.js";
 
 const clock = new PerformanceClock();
 const cryptoRandom = new CryptoRandomSource(); // implements BOTH RandomSource (AI decisions) and SecureRandomSource (nonces) — security audit M6
-// BUG FIX (reload wiped the mirror's default "session" view — see
-// sessionId.ts for the root cause): reload-stable, sessionStorage-backed id
-// shared by BOTH the telemetry sink and GameStoreDeps.sessionId below, so a
-// throw recorded before a reload and one recorded after are stamped with
-// the SAME sessionId and both show up under the Entrenament mirror's
-// default "session" scope.
-const sessionId = getOrCreateBrowserSessionId();
-const telemetry = new EventBusTelemetrySink({ endpoint: "/log", sessionId });
+const telemetry = new EventBusTelemetrySink({ endpoint: "/log" });
 const playerModelStore = new LocalStoragePlayerModelStore();
-// Feature 3 — "who's playing": profile registry (list of profiles +
-// last-played) and per-profile settings, both web-app-layer concerns (see
-// their own files' comments on why they're not @morra/platform-web ports).
-const profileRegistryStore = new LocalProfileRegistryStore();
-const settingsStore = new LocalSettingsStore();
 
 export const store = new GameStore(
   {
     playerModelStore,
-    settingsStore,
-    profileRegistryStore,
     random: cryptoRandom,
     secureRandom: cryptoRandom,
     clock,

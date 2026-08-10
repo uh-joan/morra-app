@@ -9,7 +9,6 @@ import { HandMount } from "./HandMount.js";
 import {
   AI_COMMIT_STATUS,
   AI_LEVEL_AVATAR,
-  COACH_HINT,
   GAME_END_TEXT,
   GO_TO_TRAINING,
   PLAY_AGAIN,
@@ -79,14 +78,6 @@ export function PartidaView() {
       <div id="readyPill" className={`ready-pill ${pillClass}`}>
         {pillText}
       </div>
-      {/* Feature 2 — teaches the reset palette ritual (hide the hand / lower
-          it below the line / wave) while the pill is amber, matching the
-          spike's own heroCoachHint's display-tied-to-not-armed behavior. */}
-      {pillClass === "not-armed" && (
-        <p id="coachHint" className="coach-hint">
-          {COACH_HINT}
-        </p>
-      )}
 
       <p id="roundResultText" className={`round-result ${roundPhase}`}>
         {resultText}

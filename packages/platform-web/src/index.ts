@@ -7,7 +7,6 @@ export * from "./ports/performanceClock.js";
 export * from "./ports/cryptoRandomSource.js";
 export * from "./ports/localStoragePlayerModelStore.js";
 export * from "./ports/eventBusTelemetrySink.js";
-export * from "./ports/sessionId.js";
 export * from "./assets/cacheKey.js";
 export * from "./assets/assetManager.js";
 export * from "./testing/fakeClock.js";

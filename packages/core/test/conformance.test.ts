@@ -49,19 +49,13 @@ describe("conformance corpus: commit.json", () => {
   }
 });
 
-// classifyHandSettleForSync's corpus entries were removed (Feature 1, the
-// throw-of-1 fix — see apps/web/PARITY.md's divergence section): the spike
-// still silently reset a fist(<=1)+no-voice settle, deleting the throw;
-// apps/web's port now treats it as a real throw. That's a deliberate,
-// authorized divergence from the frozen spike oracle, so the function no
-// longer belongs in a corpus whose whole point is spike-identical values —
-// it keeps its own direct unit tests in scorer.test.ts instead.
 describe("conformance corpus: scorer.json", () => {
   for (const c of loadCorpus("scorer.json")) {
     it(`${c.fn}(${JSON.stringify(c.input)})`, () => {
       let actual: unknown;
       switch (c.fn) {
         case "classifySyncThrow": actual = core.classifySyncThrow(c.input.handOnsetPerfTime, c.input.voiceOnsetPerfTime, c.input.coOccurrenceMs); break;
+        case "classifyHandSettleForSync": actual = core.classifyHandSettleForSync(c.input.fingerCount, c.input.voiceOnsetPerfTime); break;
         case "shouldRevealPhase1": actual = core.shouldRevealPhase1(c.input.fingerCount); break;
         case "isOrphanVoiceOnset": actual = core.isOrphanVoiceOnset(c.input.voicePerfTime, c.input.handOnsetPerfTimes, c.input.partnerWindowMs); break;
         default: throw new Error(`unknown fn in corpus: ${c.fn}`);

@@ -42,15 +42,3 @@ export function countFingers(lm: readonly Landmark[]): number {
   if (dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05) count++;
   return count;
 }
-
-/**
- * Feature 2 (reset palette) — below-zone: a single representative Y
- * position (normalized 0=top..1=bottom, MediaPipe's own image-space
- * convention) for "where is the hand", compared against a configurable
- * line near the bottom of frame. The wrist (landmark 0) is the most stable
- * choice — unlike a fingertip or the palm centroid, it doesn't move much
- * relative to the rest of the hand as fingers open/close mid-throw.
- */
-export function handCenterYOf(lm: readonly Landmark[]): number {
-  return lm[0]!.y;
-}

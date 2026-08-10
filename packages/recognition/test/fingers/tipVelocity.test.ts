@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeSignedLateralVelocity, computeTipVelocity, fingertipsOf } from "../../src/fingers/tipVelocity.js";
+import { computeTipVelocity, fingertipsOf } from "../../src/fingers/tipVelocity.js";
 import type { Landmark } from "../../src/fingers/counting.js";
 
 function makeLandmarks(tipPositions: Partial<Record<4 | 8 | 12 | 16 | 20, Landmark>>): Landmark[] {
@@ -62,36 +62,5 @@ describe("tipVelocity: computeTipVelocity", () => {
     const tips: Landmark[] = [{ x: 5, y: 5 }, { x: 1, y: 1 }];
     const v = computeTipVelocity(tips, tips, 0, 1000);
     expect(v).toBe(0);
-  });
-});
-
-describe("tipVelocity: computeSignedLateralVelocity (Feature 2 — wave-to-cancel)", () => {
-  it("no previous x -> null", () => {
-    expect(computeSignedLateralVelocity(0, null, null, 1000)).toBeNull();
-    expect(computeSignedLateralVelocity(0, 0, null, 1000)).toBeNull();
-  });
-
-  it("moving right (+x) is POSITIVE", () => {
-    expect(computeSignedLateralVelocity(1, 0, 0, 1000)).toBeCloseTo(1, 9);
-  });
-
-  it("moving left (-x) is NEGATIVE — this is the whole point vs. the old abs-magnitude version: direction is preserved so a caller can detect reversals", () => {
-    expect(computeSignedLateralVelocity(0, 1, 0, 1000)).toBeCloseTo(-1, 9);
-  });
-
-  it("no motion -> zero", () => {
-    expect(computeSignedLateralVelocity(5, 5, 0, 1000)).toBe(0);
-  });
-
-  it("dt is floored at 1ms to avoid division blowups", () => {
-    const v = computeSignedLateralVelocity(1, 0, 1000, 1000);
-    expect(v).toBeCloseTo(1000, 6);
-    expect(Number.isFinite(v)).toBe(true);
-  });
-
-  it("a faster frame rate yields a proportionally larger magnitude for the same displacement", () => {
-    const vSlow = computeSignedLateralVelocity(1, 0, 0, 1000);
-    const vFast = computeSignedLateralVelocity(1, 0, 0, 100);
-    expect(vFast).toBeCloseTo(vSlow! * 10, 6);
   });
 });
