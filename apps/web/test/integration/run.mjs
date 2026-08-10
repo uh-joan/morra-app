@@ -130,11 +130,11 @@ try {
     // results and must not depend on real-world load timing to do so.
     store.setVoskLoaded(true);
     const aiMoveBefore = store.getSnapshot().currentAiMove;
-    store.onHandOnset(3, 1000); // >=2 fingers -> immediate phase-1 reveal
+    const throwId = store.onHandOnset(3, 1000); // >=2 fingers -> immediate phase-1 reveal
     const afterReveal = store.getSnapshot();
-    store.onAudioWindowResult(1050); // 50ms after onset — well within the default 400ms co-occurrence window
+    store.onAudioWindowResult(1050, throwId); // 50ms after onset — well within the default 400ms co-occurrence window
     const total = 3 + aiMoveBefore.fingers; // player calls fingers(3) + the AI's real fingers -> player is always correct
-    store.onWordResult(numberToCall[total]);
+    store.onWordResult(numberToCall[total], throwId);
     const after = store.getSnapshot();
     return {
       revealedImmediately: afterReveal.displayedAiMove != null,
@@ -158,6 +158,45 @@ try {
   const scoreboardText = await page.$eval("#scoreboard", (el) => el.textContent).catch(() => null);
   check("Partida: the DOM scoreboard reflects the resolved round's score", scoreboardText != null && scoreboardText.includes("Tu"), scoreboardText);
 
+  // ---- 1b. CRITICAL FIX regression: a real throw whose hand retracts before
+  // its OWN delayed recognition lands must still resolve correctly, driven
+  // through the FULL app (store + React), not just the unit-level GameStore.
+  const raceResult = await page.evaluate(() => {
+    const { store } = window.__morraTestHooks;
+    store.setVoskLoaded(true);
+    store.resetGame();
+    const aiMoveBefore = store.getSnapshot().currentAiMove;
+    const idA = store.onHandOnset(4, 200000); // real throw, phase-1 reveals
+    const revealedA = store.getSnapshot().displayedAiMove;
+    // the player's hand naturally retracts to a fist BEFORE A's own
+    // ~700ms recognition round-trip completes — sensorPipeline would fire
+    // this as a genuinely new onHandOnset in real use.
+    const idB = store.onHandOnset(0, 200100);
+    // A's own (delayed) recognition finally lands, on its OWN throwId.
+    const total = 4 + aiMoveBefore.fingers;
+    store.onAudioWindowResult(200050, idA);
+    return { revealedA, idA, idB, total };
+  });
+  const wordResult = await page.evaluate(
+    (numberToCall, total, idA) => {
+      const { store } = window.__morraTestHooks;
+      store.onWordResult(numberToCall[total], idA);
+      const s = store.getSnapshot();
+      return { matchHistory: s.matchHistory, roundPhase: s.roundPhase };
+    },
+    NUMBER_TO_CATALAN_CALL,
+    raceResult.total,
+    raceResult.idA
+  );
+  check(
+    "CRITICAL FIX: a synced throw whose hand retracts mid-recognition still resolves on its OWN correct data (not corrupted by the later throw)",
+    wordResult.matchHistory.length === 1 &&
+      wordResult.matchHistory[0].playerFingers === 4 &&
+      wordResult.matchHistory[0].aiFingers === raceResult.revealedA.fingers &&
+      wordResult.matchHistory[0].verdictWinner != null,
+    { raceResult, wordResult }
+  );
+
   // ---- 2. Mode switch to Entrenament renders the mirror from synthetic history ----
   const mirrorResult = await page.evaluate((numberToCall) => {
     const { store } = window.__morraTestHooks;
@@ -168,9 +207,9 @@ try {
     store.setMode("entrenament");
     for (let i = 0; i < 6; i++) {
       const t = 100000 + i * 10000;
-      store.onHandOnset(3, t);
-      store.onAudioWindowResult(t + 50);
-      store.onWordResult(numberToCall[3 + (i % 5) + 1] ?? "cinc");
+      const id = store.onHandOnset(3, t);
+      store.onAudioWindowResult(t + 50, id);
+      store.onWordResult(numberToCall[3 + (i % 5) + 1] ?? "cinc", id);
     }
     const mirror = store.getMirrorData("session");
     return { fTotal: mirror.histograms.f.total, throwCount: store.getSnapshot().playerModel.throws.length };

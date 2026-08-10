@@ -34,11 +34,17 @@ export class RivalVoicePlayer {
   private play(call: number): void {
     const word = NUMBER_TO_CATALAN_CALL[call];
     const buffer = word ? this.buffers.get(word) : undefined;
-    if (!buffer) return; // no clip loaded for this word — silent, text-only reveal stands (matches the spike's degrade behavior)
+    if (!buffer) {
+      // no clip loaded for this word — silent, text-only reveal stands
+      // (matches the spike's degrade behavior); still worth logging so a
+      // real session's missing-clip rate is visible.
+      this.store.reportClipPlaybackFailed(word ?? "?", call, "no clip loaded");
+      return;
+    }
     const ctx = this.audio.context;
     const startCtxTime = ctx.currentTime;
     this.audio.scheduleBuffer(startCtxTime, buffer, RIVAL_VOICE_GAIN);
-    this.store.registerClipPlayback(startCtxTime, startCtxTime + buffer.duration);
+    this.store.registerClipPlayback(startCtxTime, startCtxTime + buffer.duration, word!, call); // word is truthy here — a buffer was only found under buffers.get(word)
   }
 
   dispose(): void {

@@ -145,8 +145,8 @@ export class SensorPipeline {
       this.lastVelocityOnsetAtMs = capturedAtMs;
       this.frames = [];
       this.lastCount = count;
-      this.store.onHandOnset(count, anchorTime);
-      void this.scheduleAudioAnalysis(anchorTime);
+      const throwId = this.store.onHandOnset(count, anchorTime);
+      void this.scheduleAudioAnalysis(anchorTime, throwId);
       return;
     }
 
@@ -166,18 +166,25 @@ export class SensorPipeline {
     if (run && !run.heldOver && !recentlyHandledByVelocity) {
       this.lastCount = count;
       this.frames = [];
-      this.store.onHandOnset(count, run.t);
-      void this.scheduleAudioAnalysis(run.t);
+      const throwId = this.store.onHandOnset(count, run.t);
+      void this.scheduleAudioAnalysis(run.t, throwId);
     }
   }
 
-  private async scheduleAudioAnalysis(handOnsetPerfTime: number): Promise<void> {
+  // CRITICAL FIX (real-session bug — see gameStore.ts's ThrowEventState.id
+  // comment): throwId is the id onHandOnset returned for THIS specific
+  // throw, at the moment it was created — threaded through this whole async
+  // chain so the eventual onAudioWindowResult/onWordResult calls always
+  // land against the throw they were actually scheduled for, never
+  // whatever throw happens to be current ~700ms+ later when they resolve
+  // (e.g. because the player's hand naturally moved on in the meantime).
+  private async scheduleAudioAnalysis(handOnsetPerfTime: number, throwId: number): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, SYNC_POST_MS));
     if (!this.ring) return;
     const anchorCtxTime = this.audio.toContextTime(handOnsetPerfTime);
     if (anchorCtxTime == null) {
-      this.store.onAudioWindowResult(null);
-      this.store.onWordResult(null);
+      this.store.onAudioWindowResult(null, throwId);
+      this.store.onWordResult(null, throwId);
       return;
     }
     const clampFloorCtxTime = this.store.getSnapshot().lastRoundAudioEndCtxTime;
@@ -187,15 +194,15 @@ export class SensorPipeline {
     const { samples } = blankExclusionRegions(extraction.samples, extraction.sampleRate, extraction.windowStartCtxTime, extraction.windowEndCtxTime, exclusions);
     const onset = findEnergyOnsetInBuffer(samples, extraction.sampleRate, { vadMult: this.store.getSnapshot().settings.vadMult });
     const voiceOnsetPerfTime = onset ? this.audio.toPerformanceTime(extraction.windowStartCtxTime + onset.onsetMs / 1000) : null;
-    this.store.onAudioWindowResult(voiceOnsetPerfTime);
+    this.store.onAudioWindowResult(voiceOnsetPerfTime, throwId);
 
     if (this.vosk) {
       try {
         const rec = await this.vosk.recognizeWindow(samples, extraction.sampleRate, performance.now());
         const word = rec.hypotheses[0]?.value ?? null;
-        this.store.onWordResult(word);
+        this.store.onWordResult(word, throwId);
       } catch {
-        this.store.onWordResult(null);
+        this.store.onWordResult(null, throwId);
       }
     }
   }

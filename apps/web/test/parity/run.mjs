@@ -190,9 +190,9 @@ try {
       (scenario) => {
         const { store } = window.__morraTestHooks;
         const before = store.getSnapshot().matchHistory.length;
-        store.onHandOnset(scenario.fingerCount, scenario.handOnsetPerfTime);
-        store.onAudioWindowResult(scenario.voiceOnsetPerfTime);
-        store.onWordResult(scenario.word ?? null);
+        const throwId = store.onHandOnset(scenario.fingerCount, scenario.handOnsetPerfTime);
+        store.onAudioWindowResult(scenario.voiceOnsetPerfTime, throwId);
+        store.onWordResult(scenario.word ?? null, throwId);
         const s = store.getSnapshot();
         const last = s.matchHistory.length > before ? s.matchHistory[s.matchHistory.length - 1] : null;
         return {

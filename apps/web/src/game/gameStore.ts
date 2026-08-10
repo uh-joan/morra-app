@@ -77,6 +77,22 @@ export const DEFAULT_SETTINGS: GameSettings = {
 };
 
 interface ThrowEventState {
+  /** CRITICAL FIX (real-session bug — a synced throw burned/corrupted
+   * whenever the player's hand naturally retracted before their own
+   * throw's ~700ms audio/word recognition round-trip completed): GameStore
+   * used to track ONE mutable `this.throwEvent` field, unconditionally
+   * overwritten by every onHandOnset() call. A throw's own async
+   * onAudioWindowResult/onWordResult callbacks (scheduled by
+   * sensorPipeline.ts well before they land) would then land against
+   * WHATEVER throw was current by the time they fired — not the one they
+   * were actually recognized for — corrupting player fingers, prematurely
+   * revealing/consuming the NEXT round's still-secret AI commitment, and
+   * fabricating verdicts. The spike never has this bug: each throwEvent is
+   * an independent object referenced via closures (syncThrows array +
+   * finalizeSyncThrow/maybeResolveGameRound bound per-object), never a
+   * shared mutable pointer. This `id` is the fix — see the throwEvents Map
+   * below and onAudioWindowResult/onWordResult's required throwId param. */
+  id: number;
   handOnsetPerfTime: number;
   rawFingerCount: number | null;
   effectiveFingerCount: number | null;
@@ -164,7 +180,14 @@ function emitTelemetry(deps: GameStoreDeps, event: { type: string } & Record<str
 
 export class GameStore {
   private state: GameState;
-  private throwEvent: ThrowEventState | null = null;
+  // CRITICAL FIX — see ThrowEventState.id's comment: every in-flight
+  // (not-yet-handled) throw lives here, keyed by its own id, instead of a
+  // single mutable "current" field. Removed as soon as it's handled.
+  private readonly throwEvents = new Map<number, ThrowEventState>();
+  private nextThrowId = 1;
+  // Telemetry parity with the spike's own lastLoggedReadyPillState — only
+  // logs on an actual pill-state TRANSITION, not every setState call.
+  private lastLoggedReadyPillState: "analyzing" | "armed" | "not-armed" | null = null;
   private currentNonce: string | null = null;
   private readonly listeners = new Set<Listener>();
   private readonly phase1RevealListeners = new Set<(move: AiMove) => void>();
@@ -217,6 +240,21 @@ export class GameStore {
   private setState(patch: Partial<GameState>): void {
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((l) => l());
+    this.maybeLogReadyPillTransition();
+  }
+
+  // Telemetry parity with the spike's renderReadyPill: derives the pill
+  // state from the SAME two fields the UI itself reads (throwInProgress,
+  // handArmedForNextThrow) and logs only on an actual transition — a single
+  // choke point here (setState) rather than instrumenting every call site
+  // that can touch these fields, matching the spike's own "only log on
+  // transition, not every per-frame render" comment.
+  private maybeLogReadyPillTransition(): void {
+    const pillState = this.state.throwInProgress ? "analyzing" : this.state.handArmedForNextThrow ? "armed" : "not-armed";
+    if (pillState !== this.lastLoggedReadyPillState) {
+      emitTelemetry(this.deps, { type: "ready_pill", state: pillState });
+      this.lastLoggedReadyPillState = pillState;
+    }
   }
 
   // ------------------------------------------------------------------
@@ -249,7 +287,7 @@ export class GameStore {
   // ------------------------------------------------------------------
 
   resetGame(): void {
-    this.throwEvent = null;
+    this.throwEvents.clear();
     this.setState({
       gameScore: { player: 0, ai: 0 },
       gameOver: false,
@@ -275,6 +313,20 @@ export class GameStore {
     const hash = computeCommitHash(move.fingers, move.call, nonce);
     this.currentNonce = nonce;
     this.setState({ currentAiMove: move, currentCommitHash: hash });
+    // Telemetry parity with the spike's own commitAiMove (s03-beat.html) —
+    // only the fingerprint (hash) is logged, never fingers/call/nonce: those
+    // are the commit-before-reveal secret and only get logged (in
+    // game_reveal) once actually disclosed. level/predictedDist/λ/predictor
+    // weights describe what the AI thinks the PLAYER will do next, not the
+    // AI's own sealed move, so they're safe to log pre-reveal too.
+    emitTelemetry(this.deps, {
+      type: "game_commit",
+      commitmentHash: hash,
+      level: move.level,
+      predictedPlayerFDist: move.predictedPlayerFDist,
+      lambda: move.lambda,
+      predictorWeights: move.predictorWeights,
+    });
     return move;
   }
 
@@ -283,10 +335,17 @@ export class GameStore {
   // ------------------------------------------------------------------
 
   /** A hand settled at `rawFingerCount` (0-5, or null if no hand detected)
-   * at `handOnsetPerfTime`. Ported from onSyncHandOnset. */
-  onHandOnset(rawFingerCount: number | null, handOnsetPerfTime: number): void {
-    if (this.state.gameOver && this.state.mode === "partida") return;
-    this.throwEvent = {
+   * at `handOnsetPerfTime`. Ported from onSyncHandOnset. Returns this
+   * throw's id (0 if no throw was created, e.g. game already over) —
+   * CRITICAL FIX: the caller (sensorPipeline.ts) MUST thread this id
+   * through to the matching onAudioWindowResult/onWordResult calls once
+   * recognition for THIS throw lands, so a later, unrelated throw can never
+   * be mistaken for it (see ThrowEventState.id's comment). */
+  onHandOnset(rawFingerCount: number | null, handOnsetPerfTime: number): number {
+    if (this.state.gameOver && this.state.mode === "partida") return 0;
+    const id = this.nextThrowId++;
+    const t: ThrowEventState = {
+      id,
       handOnsetPerfTime,
       rawFingerCount,
       effectiveFingerCount: null,
@@ -303,22 +362,38 @@ export class GameStore {
       wordLanded: !this.state.voskLoaded,
       clampFloorCtxTime: this.state.lastRoundAudioEndCtxTime,
     };
+    this.throwEvents.set(id, t);
+    // Telemetry parity with the spike's onSyncHandOnset — throwIndex there
+    // is syncThrows.length+1 (a monotonic per-session throw counter); this
+    // throw's own id serves the same role here.
+    emitTelemetry(this.deps, { type: "throw_onset", throwIndex: id, handOnsetPerfTime, fingerCount: rawFingerCount });
     // A new round has begun — the previously revealed hand stops being
     // "current" as of this instant. If this SAME onset immediately
-    // re-reveals below, displayedAiMove is set again right after.
+    // re-reveals below, displayedAiMove is set again right after. This
+    // matches the spike's own renderGameRoundAnalyzing()/throwInProgress
+    // behavior: unconditional on every onset, even if an OLDER throw is
+    // still independently resolving in the background (see the class-level
+    // comment on `throwEvents` — that older throw keeps its own identity
+    // and will apply its own patch, incl. these same fields, whenever ITS
+    // recognition lands, exactly like the spike does).
     this.setState({ throwInProgress: true, roundPhase: "analyzing", displayedAiMove: null, displayedVerified: null, displayedCommitHash: null });
     if (this.state.mode === "partida" && shouldRevealPhase1(rawFingerCount)) {
-      this.revealAndMintNext();
+      this.revealAndMintNext(t);
     }
+    return id;
   }
 
   /** The [SYNC_PRE_MS before, SYNC_POST_MS after] audio window around the
    * hand onset has been analyzed: `voiceOnsetPerfTime` is the buffer's
    * detected sustained-energy onset (or null if none was found), already
    * on the perf.now() timeline via the caller's clock mapping. Ported from
-   * the tail of triggerSyncAudioAnalysis. */
-  onAudioWindowResult(voiceOnsetPerfTime: number | null): void {
-    const t = this.throwEvent;
+   * the tail of triggerSyncAudioAnalysis. `throwId` is the id onHandOnset
+   * returned for the throw this recognition run was actually scheduled
+   * for — if that throw has already resolved (or the id is stale/unknown)
+   * this is a no-op, rather than silently corrupting whatever throw
+   * happens to be current now. */
+  onAudioWindowResult(voiceOnsetPerfTime: number | null, throwId: number): void {
+    const t = this.throwEvents.get(throwId);
     if (!t) return;
     const { isReset, effectiveFingerCount } = classifyHandSettleForSync(t.rawFingerCount, voiceOnsetPerfTime);
     t.isReset = isReset;
@@ -332,27 +407,50 @@ export class GameStore {
       t.syncDeltaMs = syncDeltaMs;
     }
     t.audioLanded = true;
-    this.tryResolve();
+    // Telemetry parity with the spike's finalizeSyncThrow. voicePreWindow
+    // (the buffer's first block already being above threshold, meaning the
+    // true onset is at-or-before the window start) isn't a signal
+    // sensorPipeline.ts surfaces to GameStore — null, not fabricated.
+    emitTelemetry(this.deps, {
+      type: "throw_outcome",
+      throwIndex: t.id,
+      outcome: t.outcome,
+      syncDeltaMs: t.syncDeltaMs,
+      fingerCount: t.effectiveFingerCount,
+      voicePreWindow: null,
+    });
+    this.tryResolve(t);
   }
 
-  /** The grammar-restricted recognizer landed a word (or null/unk). */
-  onWordResult(word: string | null): void {
-    const t = this.throwEvent;
+  /** The grammar-restricted recognizer landed a word (or null/unk) — same
+   * throwId contract as onAudioWindowResult above. */
+  onWordResult(word: string | null, throwId: number): void {
+    const t = this.throwEvents.get(throwId);
     if (!t) return;
     t.playerWord = word;
     t.wordLanded = true;
-    this.tryResolve();
+    this.tryResolve(t);
   }
 
-  /** sensorPipeline.ts reports the REAL [start,end] ctx-time it scheduled a
-   * rival clip for, once playback actually started — feeds both the
+  /** rivalVoicePlayer.ts reports the REAL [start,end] ctx-time it scheduled
+   * a rival clip for, once playback actually started — feeds both the
    * exclusion list @morra/recognition's blankExclusionRegions needs and
-   * clampWindowStart's "don't reach back past this" floor. */
-  registerClipPlayback(startCtxTime: number, endCtxTime: number): void {
+   * clampWindowStart's "don't reach back past this" floor. word/call are
+   * telemetry-only (clip_playback parity with the spike's playRivalCall). */
+  registerClipPlayback(startCtxTime: number, endCtxTime: number, word: string, call: number): void {
     this.setState({
       rivalClipPlaybacks: [...this.state.rivalClipPlaybacks, { startCtxTime, endCtxTime }],
       lastRoundAudioEndCtxTime: endCtxTime,
     });
+    emitTelemetry(this.deps, { type: "clip_playback", word, call, startCtxTime, endCtxTime });
+  }
+
+  /** rivalVoicePlayer.ts reports a clip it COULDN'T play (no buffer loaded
+   * for this word) — telemetry parity with the spike's
+   * clip_playback_failed; the reveal itself still stands text-only, this is
+   * purely observability. */
+  reportClipPlaybackFailed(word: string, call: number, reason: string): void {
+    emitTelemetry(this.deps, { type: "clip_playback_failed", word, call, reason });
   }
 
   /** Per-frame ready-pill arming — ported from updateReadyPillFromFrame. */
@@ -363,28 +461,41 @@ export class GameStore {
     }
   }
 
-  private revealAndMintNext(): void {
-    const t = this.throwEvent;
+  private revealAndMintNext(t: ThrowEventState): void {
     const move = this.state.currentAiMove;
     const hash = this.state.currentCommitHash;
-    if (!t || !move || !hash || !this.currentNonce) return;
+    if (!move || !hash || !this.currentNonce) return;
     const verified = verifyCommitment(move.fingers, move.call, this.currentNonce, hash);
     t.rivalRevealed = true;
     t.revealedAiMove = move;
     t.revealedVerified = verified;
     this.setState({ displayedAiMove: move, displayedVerified: verified, displayedCommitHash: hash });
+    // Telemetry parity with the spike's revealRivalPhase1. latencyMs there
+    // measures verify+render+clip-start time on the spike's own synchronous
+    // path; apps/web's clip playback is decoupled (async, via
+    // rivalVoicePlayer.ts reacting to onPhase1Reveal below) so there's no
+    // equivalent single number to report honestly — omitted rather than
+    // fabricated.
+    emitTelemetry(this.deps, {
+      type: "rival_reveal_phase1",
+      throwIndex: t.id,
+      commitmentHash: hash,
+      aiFingers: move.fingers,
+      aiCall: move.call,
+      verified,
+    });
     this.phase1RevealListeners.forEach((l) => l(move));
     this.mintCommitment(); // burn + re-mint for the NEXT round, in the background
   }
 
-  private markResolved(nextPhase: RoundPhase, patch: Partial<GameState> = {}): void {
-    if (this.throwEvent) this.throwEvent.handled = true;
+  private markResolved(t: ThrowEventState, nextPhase: RoundPhase, patch: Partial<GameState> = {}): void {
+    t.handled = true;
+    this.throwEvents.delete(t.id);
     this.setState({ throwInProgress: false, handArmedForNextThrow: false, roundPhase: nextPhase, ...patch });
   }
 
-  private tryResolve(): void {
-    const t = this.throwEvent;
-    if (!t || t.handled) return;
+  private tryResolve(t: ThrowEventState): void {
+    if (t.handled) return;
 
     // A reset is fully determined by classifyHandSettleForSync alone (see
     // onAudioWindowResult) — it never needed a call word in the first
@@ -394,6 +505,7 @@ export class GameStore {
     // time the player simply lowers their hand — a real usability bug.
     if (t.audioLanded && t.outcome === "reset") {
       t.handled = true;
+      this.throwEvents.delete(t.id);
       this.setState({ throwInProgress: false, handArmedForNextThrow: true });
       return;
     }
@@ -402,6 +514,7 @@ export class GameStore {
 
     if (this.state.mode === "entrenament") {
       t.handled = true;
+      this.throwEvents.delete(t.id);
       if (t.effectiveFingerCount != null) {
         this.recordTrainingThrow(t.effectiveFingerCount, wordToNumber(t.playerWord), t.playerWord, t.outcome as SyncOutcome, t.syncDeltaMs);
       }
@@ -412,6 +525,7 @@ export class GameStore {
     // Partida
     if (this.state.gameOver) {
       t.handled = true;
+      this.throwEvents.delete(t.id);
       this.setState({ throwInProgress: false });
       return;
     }
@@ -421,7 +535,7 @@ export class GameStore {
         emitTelemetry(this.deps, { type: "reveal_burned", outcome: t.outcome });
         const entry = this.buildHistoryEntry(t.effectiveFingerCount, wordNum, t.playerWord, t.revealedAiMove, null, t.outcome as SyncOutcome, t.syncDeltaMs);
         this.recordMatchHistory(entry);
-        this.markResolved("void", { voidOutcome: t.outcome as SyncOutcome });
+        this.markResolved(t, "void", { voidOutcome: t.outcome as SyncOutcome });
       } else {
         // M5 parity fix: the spike's maybeResolveGameRound records an
         // "incomplete" throw into matchHistory/playerModel too (not just
@@ -434,13 +548,13 @@ export class GameStore {
           const entry = this.buildHistoryEntry(t.effectiveFingerCount, wordNum, t.playerWord, null, null, t.outcome as SyncOutcome, t.syncDeltaMs);
           this.recordMatchHistory(entry);
         }
-        this.markResolved("incomplete", { voidOutcome: null });
+        this.markResolved(t, "incomplete", { voidOutcome: null });
       }
       return;
     }
 
     // Genuine synced throw
-    if (!t.rivalRevealed) this.revealAndMintNext();
+    if (!t.rivalRevealed) this.revealAndMintNext(t);
     this.resolveGameRound(t.effectiveFingerCount, wordNum, t);
   }
 
@@ -456,7 +570,7 @@ export class GameStore {
     emitTelemetry(this.deps, { type: "game_reveal", verdictWinner: verdict.winner, playerFingers: fingers, playerCall, aiFingers: aiMove.fingers, aiCall: aiMove.call });
 
     const gameOver = gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE;
-    this.markResolved(verdict.winner, {
+    this.markResolved(t, verdict.winner, {
       gameScore,
       lastThrownFingerCount: fingers,
       gameOver,
