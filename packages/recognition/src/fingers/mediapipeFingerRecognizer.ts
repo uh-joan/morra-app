@@ -46,9 +46,11 @@ export interface FingerRecognizerOptions {
 
 const DEFAULTS: Required<Omit<FingerRecognizerOptions, "velocityConfig">> = {
   // Pinned version (audit C1): never @latest — this code runs with live camera access.
-  tasksVisionBundleUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js",
-  tasksVisionWasmUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
-  tasksVisionModuleUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14",
+  // MUST be a version that ships the classic vision_bundle.js (the worker loads it via
+  // importScripts): 1.0.1 does; 0.10.14 does NOT (.cjs/.mjs only → 404 → dead worker).
+  tasksVisionBundleUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.js",
+  tasksVisionWasmUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm",
+  tasksVisionModuleUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1",
   handModelUrl: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
   numHands: 1,
 };
