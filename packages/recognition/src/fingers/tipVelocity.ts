@@ -35,3 +35,24 @@ export function computeTipVelocity(
   for (let i = 0; i < tips.length; i++) totalDisp += dist(tips[i]!, prevTips[i]!);
   return totalDisp / tips.length / dt;
 }
+
+/**
+ * Feature 2 (reset palette) — wave-to-cancel: the SAME per-tip average as
+ * computeTipVelocity above, but the x-axis-only component. A deliberate
+ * horizontal shake reads much higher on this axis alone than a normal
+ * throw's mostly-vertical motion does, which is what makes a wave
+ * distinguishable from a throw at all — @morra/core's resetPalette.ts
+ * consumes this as ResetPaletteFrame.lateralVelocity.
+ */
+export function computeLateralTipVelocity(
+  tips: readonly Landmark[],
+  prevTips: readonly Landmark[] | null,
+  prevTs: number | null,
+  timestampMs: number
+): number | null {
+  if (!prevTips || prevTs == null) return null;
+  const dt = Math.max(1, timestampMs - prevTs) / 1000;
+  let totalDx = 0;
+  for (let i = 0; i < tips.length; i++) totalDx += Math.abs(tips[i]!.x - prevTips[i]!.x);
+  return totalDx / tips.length / dt;
+}

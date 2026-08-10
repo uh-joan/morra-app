@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTipVelocity, fingertipsOf } from "../../src/fingers/tipVelocity.js";
+import { computeLateralTipVelocity, computeTipVelocity, fingertipsOf } from "../../src/fingers/tipVelocity.js";
 import type { Landmark } from "../../src/fingers/counting.js";
 
 function makeLandmarks(tipPositions: Partial<Record<4 | 8 | 12 | 16 | 20, Landmark>>): Landmark[] {
@@ -62,5 +62,39 @@ describe("tipVelocity: computeTipVelocity", () => {
     const tips: Landmark[] = [{ x: 5, y: 5 }, { x: 1, y: 1 }];
     const v = computeTipVelocity(tips, tips, 0, 1000);
     expect(v).toBe(0);
+  });
+});
+
+describe("tipVelocity: computeLateralTipVelocity (Feature 2 — wave-to-cancel)", () => {
+  it("no previous frame -> null", () => {
+    const tips: Landmark[] = [{ x: 0, y: 0 }];
+    expect(computeLateralTipVelocity(tips, null, null, 1000)).toBeNull();
+    expect(computeLateralTipVelocity(tips, tips, null, 1000)).toBeNull();
+  });
+
+  it("purely vertical motion contributes ZERO lateral velocity, unlike computeTipVelocity", () => {
+    const prevTips: Landmark[] = [{ x: 0, y: 0 }];
+    const tips: Landmark[] = [{ x: 0, y: 1 }]; // moved 1 unit straight down, no x change
+    expect(computeLateralTipVelocity(tips, prevTips, 0, 1000)).toBe(0);
+    expect(computeTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9); // the full-motion version DOES see it
+  });
+
+  it("purely horizontal motion matches computeTipVelocity exactly (all displacement is lateral)", () => {
+    const prevTips: Landmark[] = [{ x: 0, y: 0.5 }];
+    const tips: Landmark[] = [{ x: 1, y: 0.5 }];
+    expect(computeLateralTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9);
+    expect(computeTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9);
+  });
+
+  it("uses absolute x-displacement — direction doesn't matter, a shake reverses direction every frame", () => {
+    const prevTips: Landmark[] = [{ x: 1, y: 0 }];
+    const tips: Landmark[] = [{ x: 0, y: 0 }]; // moved LEFT this time
+    expect(computeLateralTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9);
+  });
+
+  it("averages the x-only displacement across all tips", () => {
+    const prevTips: Landmark[] = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
+    const tips: Landmark[] = [{ x: 2, y: 0 }, { x: 0, y: 0 }]; // one tip moves 2 in x, the other doesn't move
+    expect(computeLateralTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9); // (2+0)/2
   });
 });

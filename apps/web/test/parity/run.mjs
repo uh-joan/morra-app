@@ -20,10 +20,19 @@
 // classify the round the same way (reset vs throw, synced vs void vs
 // incomplete) and record history consistently? This is the area where a
 // porting bug would actually live (the pure decision math — computeMicatioVerdict,
-// classifySyncThrow, classifyHandSettleForSync, wordToNumber — is ALREADY
-// proven byte/value-identical between spikes/modules/*.mjs and @morra/core
-// via the M1 conformance corpus, 105 tests, run as part of every `pnpm -r test`
-// — this script does not re-prove that, it proves the WIRING around it).
+// classifySyncThrow, wordToNumber — is ALREADY proven byte/value-identical
+// between spikes/modules/*.mjs and @morra/core via the M1 conformance
+// corpus, run as part of every `pnpm -r test` — this script does not
+// re-prove that, it proves the WIRING around it).
+//
+// ONE scenario below is a DELIBERATE, DOCUMENTED divergence rather than a
+// parity target: fist(0)+silence. Post-migration, apps/web fixed a real bug
+// (Feature 1, "throw-of-1" — see apps/web/PARITY.md) where a fist settle
+// with no voice was silently discarded as a reset, deleting the player's
+// legal throw of 1. The spike is the frozen regression oracle and is
+// intentionally NOT updated to match — see the `divergence()` helper below,
+// which asserts each system against its OWN correct current design rather
+// than against each other.
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -76,7 +85,7 @@ if (!chromeExecutable) {
   skip("no local Chrome/Chromium install found (checked PUPPETEER_EXECUTABLE_PATH, CHROME_PATH, and common install paths).");
 }
 
-let pass = 0, fail_ = 0, unverifiable = 0;
+let pass = 0, fail_ = 0, unverifiable = 0, divergent = 0;
 function check(name, cond, detail) {
   if (cond) { pass++; console.log(`ok   - ${name}`); }
   else { fail_++; console.log(`FAIL - ${name}${detail !== undefined ? " :: " + JSON.stringify(detail) : ""}`); }
@@ -84,6 +93,16 @@ function check(name, cond, detail) {
 function note(name, detail) {
   unverifiable++;
   console.log(`N/A  - ${name} (structurally unverifiable — see header comment)${detail !== undefined ? " :: " + JSON.stringify(detail) : ""}`);
+}
+// A DELIBERATE, DOCUMENTED behavioral divergence (not a porting bug, and not
+// "structurally unverifiable" the way AI move VALUE parity is — both sides
+// ARE fully drivable here, they're just intentionally no longer meant to
+// agree). `cond` asserts the app matches ITS OWN new intended behavior; a
+// false `cond` is a real regression and still fails the run.
+function divergence(name, cond, detail) {
+  divergent++;
+  if (cond) console.log(`DIVERGE - ${name} (deliberate post-migration divergence — see apps/web/PARITY.md)`);
+  else { fail_++; console.log(`FAIL - ${name}${detail !== undefined ? " :: " + JSON.stringify(detail) : ""}`); }
 }
 
 const logDir = mkdtempSync(join(tmpdir(), "morra-parity-"));
@@ -216,13 +235,22 @@ try {
     await resetApp(level);
     let t = 1000;
 
-    // 1. RESET (fist retraction) — fingerCount<=1, no voice at all.
+    // 1. FIST(0)+SILENCE — fingerCount<=1, no voice at all. DELIBERATE
+    // DIVERGENCE as of Feature 1 (the throw-of-1 fix, apps/web/PARITY.md):
+    // the spike is the frozen oracle and is intentionally NOT updated, so
+    // it still silently classifies this as a reset (discarding the throw
+    // with zero trace — the exact bug Feature 1 fixed, found via 186 silent
+    // deletions in one real session). The app now treats a fist as a LEGAL
+    // throw of 1 (0 clamped to 1) that resolves to a visible "incomplete"
+    // outcome instead of vanishing. Both assertions below are checked
+    // against each system's OWN correct, current design — not against each
+    // other — which is what makes this a documented divergence rather than
+    // a silently-ignored discrepancy.
     {
       const spikeRes = await driveSpike({ fingerCount: 0, handOnsetPerfTime: (t += 10000), voiceOnsetPerfTime: null, word: null });
       const appRes = await driveApp({ fingerCount: 0, handOnsetPerfTime: t, voiceOnsetPerfTime: null, word: null });
-      check(`[${level}] reset: spike classifies as a reset (not a throw)`, spikeRes.outcome === "reset", spikeRes);
-      check(`[${level}] reset: app does not record it or touch the score`, !appRes.matchHistoryGrew, appRes);
-      check(`[${level}] reset: neither side touched matchHistory`, !spikeRes.matchHistoryGrew && !appRes.matchHistoryGrew, { spikeRes, appRes });
+      check(`[${level}] reset (spike, unchanged oracle): fist(0)+silence still classifies as a reset`, spikeRes.outcome === "reset" && !spikeRes.matchHistoryGrew, spikeRes);
+      divergence(`[${level}] reset (app, Feature 1 fix): fist(0)+silence now records a real INCOMPLETE throw instead of a silent reset`, appRes.roundPhase === "incomplete" && appRes.matchHistoryGrew === true, appRes);
     }
 
     // 2. THROW-OF-1 WITH VOICE (must NOT be classified as a reset — the
@@ -297,7 +325,7 @@ try {
     note(`[${level}] AI move VALUE parity (does the spike draw the same fingers/call as the app for equivalent history)`, "spike's commitAiMove() hardcodes Math.random, not injectable — see apps/web/PARITY.md");
   }
 
-  console.log(`\n${pass} passed, ${fail_} failed, ${unverifiable} noted structurally unverifiable`);
+  console.log(`\n${pass} passed, ${fail_} failed, ${unverifiable} noted structurally unverifiable, ${divergent} deliberate divergences`);
 } finally {
   if (browser) await browser.close();
   await spikeServer.close();

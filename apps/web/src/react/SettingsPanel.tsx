@@ -49,6 +49,50 @@ export function SettingsPanel() {
         Hand: settle ms
         <input type="number" step={10} value={settings.settleMs} onChange={(e) => store.setSetting("settleMs", Number(e.target.value))} />
       </label>
+
+      {/* Feature 2 — the reset palette. Each gesture toggles independently
+          (OR-semantics: any ENABLED one re-arms); stillness (the held-over/
+          transition backstop) isn't listed — it's a permanent safety net,
+          not a toggleable gesture. Feature 3 makes these per-profile. */}
+      <fieldset className="reset-palette-settings">
+        <legend>Reset palette</legend>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.resetPalette.outOfFrameEnabled}
+            onChange={(e) => store.setResetPaletteSetting("outOfFrameEnabled", e.target.checked)}
+          />
+          Hand out of frame
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.resetPalette.belowZoneEnabled}
+            onChange={(e) => store.setResetPaletteSetting("belowZoneEnabled", e.target.checked)}
+          />
+          Below-zone ("the table")
+        </label>
+        <label>
+          Zone height %
+          <input
+            type="number"
+            min={5}
+            max={40}
+            step={1}
+            disabled={!settings.resetPalette.belowZoneEnabled}
+            value={settings.resetPalette.belowZoneHeightPct}
+            onChange={(e) => store.setResetPaletteSetting("belowZoneHeightPct", Number(e.target.value))}
+          />
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.resetPalette.waveEnabled}
+            onChange={(e) => store.setResetPaletteSetting("waveEnabled", e.target.checked)}
+          />
+          Wave to cancel
+        </label>
+      </fieldset>
     </div>
   );
 }

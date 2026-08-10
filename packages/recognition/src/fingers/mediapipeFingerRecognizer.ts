@@ -26,9 +26,9 @@
 // main-thread-fallback mode computes it itself via tipVelocity.ts (a real
 // import there — no Blob-string constraint on that path).
 import type { FingerCount, FingerRecognitionResult, FingerRecognizer, MotionOnsetEvent, RankedHypothesis } from "@morra/core";
-import { countFingers, type Landmark } from "./counting.js";
+import { countFingers, handCenterYOf, type Landmark } from "./counting.js";
 import { buildFingerWorkerSource } from "./workerSource.js";
-import { computeTipVelocity, fingertipsOf } from "./tipVelocity.js";
+import { computeLateralTipVelocity, computeTipVelocity, fingertipsOf } from "./tipVelocity.js";
 import { DEFAULT_VELOCITY_CONFIG, INITIAL_VELOCITY_STATE, stepVelocityStateMachine, type VelocityConfig, type VelocityMachineState } from "./velocity.js";
 
 export interface FingerRecognizerOptions {
@@ -99,6 +99,16 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
   // path tracks this identically but internally, inside the worker itself.
   private prevTips: Landmark[] | null = null;
   private prevTs: number | null = null;
+  // Feature 2 (reset palette) — lateralVelocity's own prev-frame tracking.
+  // In worker mode this is deliberately a SEPARATE main-thread-side copy
+  // from the worker's own internal prevTips/prevTs (workerSource.ts): the
+  // worker never exposes ITS prevTips outside itself (only the resulting
+  // scalar `velocity`), but it already sends the full per-frame `landmarks`
+  // array across the postMessage boundary (previously only used for the
+  // overlay canvas), which is enough to compute lateral velocity here
+  // without touching the Blob worker source at all.
+  private workerPrevTips: Landmark[] | null = null;
+  private workerPrevTs: number | null = null;
   private reqCounter = 0;
   private readonly pending = new Map<
     number,
@@ -183,11 +193,26 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
     }
     if (msg.type === "result") {
       const p = this.pending.get(msg.id);
-      if (msg.overlayBitmap && msg.overlayBitmap.close) msg.overlayBitmap.close(); // caller doesn't need the overlay through this contract
       // Velocity is stepped through the state machine unconditionally
       // (even if no caller is currently awaiting this frame's promise) so
       // the state machine never misses a frame's worth of motion data.
+      // handCenterY/lateralVelocity (Feature 2) are computed the same
+      // unconditional way, from the landmarks the worker already sends.
       const motionOnset = this.stepVelocity(msg.timestamp, msg.velocity ?? null);
+      const landmarks: Landmark[] | null = msg.landmarks ?? null;
+      let handCenterY: number | null = null;
+      let lateralVelocity: number | null = null;
+      if (landmarks) {
+        handCenterY = handCenterYOf(landmarks);
+        const tips = fingertipsOf(landmarks);
+        lateralVelocity = computeLateralTipVelocity(tips, this.workerPrevTips, this.workerPrevTs, msg.timestamp);
+        this.workerPrevTips = tips;
+        this.workerPrevTs = msg.timestamp;
+      } else {
+        this.workerPrevTips = null;
+        this.workerPrevTs = null;
+      }
+      if (msg.overlayBitmap && msg.overlayBitmap.close) msg.overlayBitmap.close(); // caller doesn't need the overlay through this contract
       if (!p) return;
       this.pending.delete(msg.id);
       p.resolve({
@@ -195,6 +220,8 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
         capturedAtMs: msg.timestamp,
         velocity: msg.velocity ?? null,
         motionOnset,
+        handCenterY,
+        lateralVelocity,
       });
     }
   }
@@ -255,9 +282,14 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
     const count = handDetected ? countFingers(result.landmarks![0]!) : null;
 
     let velocity: number | null = null;
+    let handCenterY: number | null = null;
+    let lateralVelocity: number | null = null;
     if (handDetected) {
-      const tips = fingertipsOf(result.landmarks![0]!);
+      const lm = result.landmarks![0]!;
+      const tips = fingertipsOf(lm);
       velocity = computeTipVelocity(tips, this.prevTips, this.prevTs, timestamp);
+      lateralVelocity = computeLateralTipVelocity(tips, this.prevTips, this.prevTs, timestamp);
+      handCenterY = handCenterYOf(lm);
       this.prevTips = tips;
       this.prevTs = timestamp;
     } else {
@@ -266,7 +298,7 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
     }
     const motionOnset = this.stepVelocity(timestamp, velocity);
 
-    return { hypotheses: toFingerCountHypotheses(handDetected, count), capturedAtMs: timestamp, velocity, motionOnset };
+    return { hypotheses: toFingerCountHypotheses(handDetected, count), capturedAtMs: timestamp, velocity, motionOnset, handCenterY, lateralVelocity };
   }
 
   dispose(): void {
@@ -275,6 +307,8 @@ export class MediaPipeFingerRecognizer implements FingerRecognizer {
     this.pending.clear();
     this.prevTips = null;
     this.prevTs = null;
+    this.workerPrevTips = null;
+    this.workerPrevTs = null;
     this.velocityState = INITIAL_VELOCITY_STATE;
   }
 }

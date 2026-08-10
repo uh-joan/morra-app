@@ -81,12 +81,19 @@ for (const c of await loadCorpus("commit.json")) {
   check(`commit.${c.fn}(${JSON.stringify(c.input)})${c.note ? " — " + c.note : ""}`, deepEqual(actual, c.expected), { actual, expected: c.expected });
 }
 
-/* -------------------------------- scorer.json -------------------------------- */
+/* -------------------------------- scorer.json --------------------------------
+ * classifyHandSettleForSync is DELIBERATELY EXCLUDED from this corpus as of
+ * the throw-of-1 fix (post-migration apps/web product evolution — see
+ * apps/web/PARITY.md's divergence section): the spike still silently
+ * classifies a fist(<=1)+no-voice settle as a reset (deleting the throw);
+ * apps/web's port now treats it as a real throw of 1, by design. The spike
+ * is intentionally NOT updated (it's the frozen regression oracle), so this
+ * one function can no longer be value-identical to it — that's expected,
+ * not a discrepancy to chase. */
 for (const c of await loadCorpus("scorer.json")) {
   let actual;
   switch (c.fn) {
     case "classifySyncThrow": actual = Scorer.classifySyncThrow(c.input.handOnsetPerfTime, c.input.voiceOnsetPerfTime, c.input.coOccurrenceMs); break;
-    case "classifyHandSettleForSync": actual = Scorer.classifyHandSettleForSync(c.input.fingerCount, c.input.voiceOnsetPerfTime); break;
     case "shouldRevealPhase1": actual = Scorer.shouldRevealPhase1(c.input.fingerCount); break;
     case "isOrphanVoiceOnset": actual = Scorer.isOrphanVoiceOnset(c.input.voicePerfTime, c.input.handOnsetPerfTimes, c.input.partnerWindowMs); break;
     default: throw new Error(`unknown fn: ${c.fn}`);

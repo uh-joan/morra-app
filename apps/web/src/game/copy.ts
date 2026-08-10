@@ -6,13 +6,17 @@
 // rule and the security-audit M5 note in App.tsx.
 import type { SyncOutcome } from "./gameStore.js";
 
+// Feature 2 — the reset palette replaced fist-as-reset (the fist is now a
+// legal throw of 1, Feature 1), so the amber "not armed" pill and its coach
+// hint teach the new ritual instead of "return to a fist".
 export const READY_PILL_TEXT = {
   analyzing: "Reading your throw…",
   armed: "Llest — tira!",
-  notArmed: "Torna al puny…",
+  notArmed: "Amaga la mà",
 } as const;
 
-export const COACH_HINT = "Torna al puny entre cops! (return to a fist between throws)";
+export const COACH_HINT =
+  "Per reiniciar: amaga la mà, baixa-la sota la línia, o mou-la ràpid d'un costat a l'altre. (to reset: hide your hand, lower it below the line, or wave it side to side)";
 
 export function roundResultText(
   phase: "idle" | "analyzing" | "incomplete" | "void" | "player" | "ai" | "parata"

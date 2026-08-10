@@ -19,9 +19,59 @@ body {
   font-weight: bold;
   text-decoration: underline;
 }
+.camera-preview-wrap {
+  position: relative;
+  width: 240px;
+}
 .camera-preview {
   width: 240px;
   border-radius: 8px;
+  display: block;
+}
+/* Feature 2 — the below-zone reset gesture's line ("the table"): subtle by
+   design (a thin, semi-transparent dashed line), not a dominant overlay. */
+.below-zone-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed rgba(210, 153, 34, 0.6);
+  pointer-events: none;
+}
+.coach-hint {
+  color: #d29922;
+  font-weight: 600;
+}
+
+/* Feature 3 — the profile picker's header switcher + expandable panel. */
+.profile-picker {
+  position: relative;
+  margin-left: auto;
+}
+.profile-picker-panel {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: canvas;
+}
+.profile-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.profile-chip[aria-pressed="true"] {
+  font-weight: bold;
+  text-decoration: underline;
+}
+.profile-create-form {
+  display: flex;
+  gap: 0.25rem;
 }
 .hand-mount {
   width: 106px;

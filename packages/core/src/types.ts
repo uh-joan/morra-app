@@ -109,10 +109,21 @@ export interface MotionOnsetEvent {
  * `{velocity: null, motionOnset: null}` — callers must be able to fall
  * back to a count-stability heuristic in that case (see
  * @morra/recognition's findStableCountRun).
+ *
+ * `handCenterY` and `lateralVelocity` (Feature 2, the reset palette) feed
+ * @morra/core's resetPalette.ts's stepResetPalette: a normalized 0(top)-1
+ * (bottom) hand position for the below-zone gesture, and an x-axis-only
+ * velocity component for the wave-to-cancel gesture — both null under the
+ * same "no hand this frame" / "no prior frame yet" conditions as velocity
+ * above, with the same fallback contract (a recognizer that can't supply
+ * them returns null, and callers must treat those two gestures as simply
+ * unavailable rather than failing).
  */
 export interface FingerRecognitionResult extends RecognitionResult<FingerCount> {
   velocity: number | null;
   motionOnset: MotionOnsetEvent | null;
+  handCenterY: number | null;
+  lateralVelocity: number | null;
 }
 
 /** A single frame's finger reading. `input` is opaque to core (it's

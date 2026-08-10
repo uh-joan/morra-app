@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countFingers, dist, HAND_CONNECTIONS, type Landmark } from "../../src/fingers/counting.js";
+import { countFingers, dist, handCenterYOf, HAND_CONNECTIONS, type Landmark } from "../../src/fingers/counting.js";
 
 // Synthetic 21-point MediaPipe-shaped landmark sets. countFingers only reads
 // indices 0 (wrist), 3/4 (thumb IP/TIP), 6/8 (index PIP/TIP), 10/12
@@ -81,5 +81,13 @@ describe("counting: countFingers — margin behavior (the 1.05x threshold)", () 
     const lm = makeLandmarks({});
     lm[8] = { x: 0, y: 0.3 * 1.06 }; // just over the margin
     expect(countFingers(lm)).toBe(1);
+  });
+});
+
+describe("counting: handCenterYOf (Feature 2 — below-zone)", () => {
+  it("returns the wrist landmark's (index 0) y coordinate", () => {
+    const lm = makeLandmarks({});
+    lm[0] = { x: 0.5, y: 0.73 };
+    expect(handCenterYOf(lm)).toBe(0.73);
   });
 });

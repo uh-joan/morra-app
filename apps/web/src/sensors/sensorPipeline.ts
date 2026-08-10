@@ -29,7 +29,7 @@ import {
   type CountFrame,
 } from "@morra/recognition";
 import { AudioContextManager, MicGraph, CameraSource } from "@morra/platform-web";
-import type { MotionOnsetEvent } from "@morra/core";
+import { INITIAL_RESET_PALETTE_STATE, stepResetPalette, type MotionOnsetEvent, type ResetPaletteTrackerState } from "@morra/core";
 import type { GameStore } from "../game/gameStore.js";
 import { SYNC_POST_MS, SYNC_PRE_MS } from "../game/gameStore.js";
 
@@ -46,6 +46,11 @@ export class SensorPipeline {
   private frames: CountFrame[] = [];
   private lastCount: number | null = null;
   private lastVelocityOnsetAtMs: number | null = null;
+  // Feature 2 — the reset palette's per-frame edge-tracking state (out-of-
+  // frame / below-zone transitions). Owned here, not in GameStore, since
+  // it's a property of the FRAME STREAM (an impure sensor concern), not of
+  // any single throw/round.
+  private resetPaletteState: ResetPaletteTrackerState = INITIAL_RESET_PALETTE_STATE;
   private running = false;
   private rafHandle: number | null = null;
   private unsubscribeSettings: (() => void) | null = null;
@@ -120,7 +125,7 @@ export class SensorPipeline {
         const bitmap = await createImageBitmap(videoEl);
         const result = await this.finger.recognizeFrame(bitmap, performance.now());
         const count = result.hypotheses[0]?.value ?? null;
-        this.onFrame(count, result.capturedAtMs, result.motionOnset);
+        this.onFrame(count, result.capturedAtMs, result.motionOnset, result.handCenterY, result.lateralVelocity);
       } catch {
         // a single bad frame is never fatal — keep pumping
       }
@@ -131,8 +136,29 @@ export class SensorPipeline {
     void step();
   }
 
-  private onFrame(count: number | null, capturedAtMs: number, motionOnset: MotionOnsetEvent | null): void {
+  private onFrame(
+    count: number | null,
+    capturedAtMs: number,
+    motionOnset: MotionOnsetEvent | null,
+    handCenterY: number | null,
+    lateralVelocity: number | null
+  ): void {
     this.store.updateReadyPillFromFrame(count);
+
+    // Feature 2 — the reset palette: out-of-frame / below-zone / wave,
+    // evaluated BEFORE onset detection below. A recognized gesture is an
+    // explicit cancel, never the start of a throw, so it short-circuits the
+    // rest of this frame's processing entirely (no onset fires off the same
+    // frame a reset just fired on).
+    const paletteStep = stepResetPalette(this.resetPaletteState, { count, handCenterY, lateralVelocity }, this.store.getSnapshot().settings.resetPalette);
+    this.resetPaletteState = paletteStep.state;
+    if (paletteStep.reason) {
+      this.frames = [];
+      this.lastCount = null;
+      this.lastVelocityOnsetAtMs = capturedAtMs;
+      this.store.onGestureReset(paletteStep.reason);
+      return;
+    }
 
     // PRIMARY: velocity-based motion onset. Anchor on motionStartPerfTime
     // when available (the spike's step-10 finding — a throw's shout starts

@@ -1,6 +1,6 @@
 // Ported from spikes/modules/test.mjs's "scorer.mjs" section.
 import { describe, expect, it } from "vitest";
-import { classifyHandSettleForSync, classifySyncThrow, isOrphanVoiceOnset, shouldRevealPhase1 } from "../src/scorer.js";
+import { clampFingerCountToThrow, classifyHandSettleForSync, classifySyncThrow, isOrphanVoiceOnset, shouldRevealPhase1 } from "../src/scorer.js";
 
 describe("scorer: classifySyncThrow", () => {
   it("within co-occurrence window -> synced", () => {
@@ -34,22 +34,37 @@ describe("scorer: isOrphanVoiceOnset", () => {
   });
 });
 
-describe("scorer: classifyHandSettleForSync (Phase C.1)", () => {
-  it("fist(0)+silence -> reset", () => {
-    expect(classifyHandSettleForSync(0, null).isReset).toBe(true);
+describe("scorer: clampFingerCountToThrow (Feature 1 — Micatio has no zero)", () => {
+  it("0 clamps to 1 — the fist is a legal throw of one, never a bare zero", () => {
+    expect(clampFingerCountToThrow(0)).toBe(1);
   });
-  it("fist(0)+voice -> throw of 1, not reset", () => {
-    const r = classifyHandSettleForSync(0, 123);
-    expect(r.isReset).toBe(false);
-    expect(r.effectiveFingerCount).toBe(1);
+  it.each([1, 2, 3, 4, 5])("%i passes through unchanged", (n) => {
+    expect(clampFingerCountToThrow(n)).toBe(n);
+  });
+});
+
+describe("scorer: classifyHandSettleForSync (Feature 1 fix — no more silent reset)", () => {
+  // BUG this guards against: a settle at count <=1 with no voice used to be
+  // silently classified as a reset (deleting the throw). It's now a plain
+  // clamp — every settle is a real throw, voice or not; resets come
+  // exclusively from resetPalette.ts's stepResetPalette instead.
+  it("fist(0)+silence -> a real throw of 1, NOT a reset (the fixed bug)", () => {
+    expect(classifyHandSettleForSync(0, null)).toBe(1);
+  });
+  it("fist(0)+voice -> still a throw of 1", () => {
+    expect(classifyHandSettleForSync(0, 123)).toBe(1);
+  });
+  it("count=1, with or without voice, stays 1", () => {
+    expect(classifyHandSettleForSync(1, null)).toBe(1);
+    expect(classifyHandSettleForSync(1, 123)).toBe(1);
   });
   it("count>=2 unchanged regardless of voice", () => {
-    const a = classifyHandSettleForSync(4, null);
-    const b = classifyHandSettleForSync(4, 123);
-    expect(a.effectiveFingerCount).toBe(4);
-    expect(b.effectiveFingerCount).toBe(4);
-    expect(a.isReset).toBe(false);
-    expect(b.isReset).toBe(false);
+    expect(classifyHandSettleForSync(4, null)).toBe(4);
+    expect(classifyHandSettleForSync(4, 123)).toBe(4);
+  });
+  it("no hand (null) stays null", () => {
+    expect(classifyHandSettleForSync(null, null)).toBeNull();
+    expect(classifyHandSettleForSync(null, 123)).toBeNull();
   });
 });
 

@@ -27,6 +27,7 @@ import {
   computeRandomnessScore,
   computeSyncStats,
   computeTopTells,
+  DEFAULT_RESET_PALETTE_CONFIG,
   randomNonceHex,
   recordThrow,
   shouldRevealPhase1,
@@ -40,12 +41,25 @@ import {
   type PlayerModel,
   type PlayerModelStore,
   type RandomSource,
+  type ResetPaletteConfig,
+  type ResetReason,
   type SecureRandomSource,
   type TelemetryEvent,
   type TelemetrySink,
   type VerdictWinner,
 } from "@morra/core";
 import { handHasResetSince } from "./handHasReset.js";
+import {
+  addProfile,
+  normalizeRegistry,
+  resolveInitialProfileId,
+  setLastPlayed,
+  type PlayerProfile,
+  type ProfileRegistry,
+} from "../profiles/profileTypes.js";
+
+export type { ResetReason } from "@morra/core";
+export type { PlayerProfile, ProfileRegistry } from "../profiles/profileTypes.js";
 
 export type SessionMode = "partida" | "entrenament";
 export type SyncOutcome = "synced" | "voice-late" | "voice-early" | "hand-only";
@@ -66,6 +80,11 @@ export interface GameSettings {
   highV: number;
   lowV: number;
   settleMs: number;
+  /** Feature 2 — the reset palette. Per-profile configurable (Feature 3):
+   * different players prefer different resets. Stillness (the held-over/
+   * transition backstop, handHasResetSince below) isn't part of this
+   * config — it's a permanent, non-toggleable safety net, not a gesture. */
+  resetPalette: ResetPaletteConfig;
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -74,13 +93,13 @@ export const DEFAULT_SETTINGS: GameSettings = {
   highV: 0.9,
   lowV: 0.25,
   settleMs: 50,
+  resetPalette: DEFAULT_RESET_PALETTE_CONFIG,
 };
 
 interface ThrowEventState {
   handOnsetPerfTime: number;
   rawFingerCount: number | null;
   effectiveFingerCount: number | null;
-  isReset: boolean;
   voiceOnsetPerfTime: number | null;
   playerWord: string | null;
   outcome: SyncOutcome | "reset" | "pending";
@@ -135,6 +154,13 @@ export interface GameState {
   voskLoaded: boolean;
   gameEndWinner: "player" | "ai" | null;
   mirrorScope: "session" | "allTime";
+  /** Feature 3 — "who's playing". Everything player-specific (playerModel,
+   * settings incl. resetPalette) is keyed by this id; profiles is the full
+   * known list (for the picker's chip list), kept here rather than in a
+   * separate store so the SAME useGameStore/useSyncExternalStore plumbing
+   * gives the picker UI reactivity for free. */
+  profileId: string;
+  profiles: PlayerProfile[];
 }
 
 export interface MirrorData {
@@ -146,8 +172,26 @@ export interface MirrorData {
   syncStats: ReturnType<typeof computeSyncStats>;
 }
 
+/** Feature 3 — per-profile GameSettings persistence. A dedicated small port
+ * (mirroring PlayerModelStore's shape) rather than reusing PlayerModelStore
+ * itself, since GameSettings is an entirely different shape/domain
+ * (app-level tuning, not game history) — keeping them separate also means a
+ * settings-store bug can never corrupt player model data or vice versa. */
+export interface SettingsStore {
+  load(profileId: string): GameSettings | null;
+  save(profileId: string, settings: GameSettings): boolean;
+}
+
+/** Feature 3 — the profile registry's persistence port. */
+export interface ProfileRegistryStore {
+  load(): ProfileRegistry;
+  save(registry: ProfileRegistry): boolean;
+}
+
 export interface GameStoreDeps {
   playerModelStore: PlayerModelStore;
+  settingsStore: SettingsStore;
+  profileRegistryStore: ProfileRegistryStore;
   random: RandomSource;
   secureRandom: SecureRandomSource;
   clock: Clock;
@@ -162,6 +206,15 @@ function emitTelemetry(deps: GameStoreDeps, event: { type: string } & Record<str
   deps.telemetry?.emit(stamped);
 }
 
+// Feature 3 — PlayerModelStore's `key` param (already generic in the port,
+// packages/core/src/ports/player-model-store.ts) is where profile keying
+// lives, chosen over threading a profileId THROUGH the port itself: the
+// port stays exactly as generic as it already was, and this one-line
+// mapping is the ONLY place that needs to know the key's shape.
+function playerModelKey(profileId: string): string {
+  return `morra-playermodel:${profileId}`;
+}
+
 export class GameStore {
   private state: GameState;
   private throwEvent: ThrowEventState | null = null;
@@ -170,7 +223,14 @@ export class GameStore {
   private readonly phase1RevealListeners = new Set<(move: AiMove) => void>();
 
   constructor(private readonly deps: GameStoreDeps, voskLoaded: boolean) {
-    const playerModel = deps.playerModelStore.load();
+    // Feature 3 — "who's playing" is resolved HERE, at construction, from
+    // the persisted registry's last-played profile: the "auto-load without
+    // friction" default (Feature 3a) is simply "GameStore always boots as
+    // whoever played last", no separate app-boot step required.
+    const registry = normalizeRegistry(deps.profileRegistryStore.load());
+    const profileId = resolveInitialProfileId(registry);
+    const playerModel = deps.playerModelStore.load(playerModelKey(profileId));
+    const settings = deps.settingsStore.load(profileId) ?? { ...DEFAULT_SETTINGS };
     this.state = {
       mode: "partida",
       aiLevel: DEFAULT_LEVEL,
@@ -190,10 +250,12 @@ export class GameStore {
       rivalClipPlaybacks: [],
       roundPhase: "idle",
       voidOutcome: null,
-      settings: { ...DEFAULT_SETTINGS },
+      settings,
       voskLoaded,
       gameEndWinner: null,
       mirrorScope: "session",
+      profileId,
+      profiles: registry.profiles,
     };
     this.mintCommitment();
   }
@@ -233,7 +295,73 @@ export class GameStore {
   }
 
   setSetting<K extends keyof GameSettings>(key: K, value: GameSettings[K]): void {
-    this.setState({ settings: { ...this.state.settings, [key]: value } });
+    const settings = { ...this.state.settings, [key]: value };
+    this.setState({ settings });
+    this.deps.settingsStore.save(this.state.profileId, settings); // Feature 3 — per-profile persistence
+  }
+
+  /** Feature 2/3 — one gesture's on/off toggle or the below-zone height,
+   * kept as its own nested-object setter (rather than overloading
+   * setSetting) since resetPalette is itself a sub-object, and Feature 3
+   * makes this per-profile — different players prefer different resets. */
+  setResetPaletteSetting<K extends keyof ResetPaletteConfig>(key: K, value: ResetPaletteConfig[K]): void {
+    const settings = { ...this.state.settings, resetPalette: { ...this.state.settings.resetPalette, [key]: value } };
+    this.setState({ settings });
+    this.deps.settingsStore.save(this.state.profileId, settings);
+  }
+
+  // ------------------------------------------------------------------
+  // Feature 3 — player profiles ("who's playing")
+  // ------------------------------------------------------------------
+
+  /** Activates a different (already-known) profile: reloads ITS playerModel
+   * and settings, and resets in-progress/session-scoped round state so
+   * nothing from the outgoing player leaks into the incoming one's view
+   * (an in-flight throw, the current match's score/history, the currently
+   * displayed AI move). The AI's live secret commitment is re-minted fresh
+   * too — continuing the outgoing player's pending commitment across a
+   * profile switch would be a fairness/privacy oddity, not a real gameplay
+   * concern worth preserving. A no-op if already the active profile. */
+  switchProfile(profileId: string): void {
+    if (profileId === this.state.profileId) return;
+    const nextRegistry = setLastPlayed({ profiles: this.state.profiles, lastPlayedProfileId: this.state.profileId }, profileId);
+    this.deps.profileRegistryStore.save(nextRegistry);
+    const playerModel = this.deps.playerModelStore.load(playerModelKey(profileId));
+    const settings = this.deps.settingsStore.load(profileId) ?? { ...DEFAULT_SETTINGS };
+    this.throwEvent = null;
+    this.setState({
+      profileId,
+      playerModel,
+      settings,
+      matchHistory: [],
+      gameScore: { player: 0, ai: 0 },
+      gameOver: false,
+      gameEndWinner: null,
+      roundPhase: "idle",
+      voidOutcome: null,
+      throwInProgress: false,
+      handArmedForNextThrow: true,
+      displayedAiMove: null,
+      displayedVerified: null,
+      displayedCommitHash: null,
+      lastThrownFingerCount: null,
+      lastRoundAudioEndCtxTime: null,
+      rivalClipPlaybacks: [],
+    });
+    this.mintCommitment();
+  }
+
+  /** Creates a brand-new named profile (starts with an empty playerModel
+   * and DEFAULT_SETTINGS — nothing carries over from whoever was active),
+   * persists it into the registry, and immediately switches to it. Returns
+   * the created profile so the picker UI can e.g. show a confirmation. */
+  createProfile(name: string): PlayerProfile {
+    const currentRegistry: ProfileRegistry = { profiles: this.state.profiles, lastPlayedProfileId: this.state.profileId };
+    const { registry, profile } = addProfile(currentRegistry, name);
+    this.deps.profileRegistryStore.save(registry);
+    this.setState({ profiles: registry.profiles });
+    this.switchProfile(profile.id);
+    return profile;
   }
 
   setVoskLoaded(loaded: boolean): void {
@@ -290,7 +418,6 @@ export class GameStore {
       handOnsetPerfTime,
       rawFingerCount,
       effectiveFingerCount: null,
-      isReset: false,
       voiceOnsetPerfTime: null,
       playerWord: null,
       outcome: "pending",
@@ -320,19 +447,50 @@ export class GameStore {
   onAudioWindowResult(voiceOnsetPerfTime: number | null): void {
     const t = this.throwEvent;
     if (!t) return;
-    const { isReset, effectiveFingerCount } = classifyHandSettleForSync(t.rawFingerCount, voiceOnsetPerfTime);
-    t.isReset = isReset;
-    t.effectiveFingerCount = effectiveFingerCount;
+    // Feature 1 fix: this used to also decide "reset" (a settle at <=1 with
+    // no voice silently deleted the throw) — classifyHandSettleForSync is
+    // now a plain clamp (0->1, Micatio has no zero) and every settle is a
+    // real throw. Resets are exclusively onGestureReset()'s job now (the
+    // reset palette, Feature 2) — see that method below.
+    t.effectiveFingerCount = classifyHandSettleForSync(t.rawFingerCount, voiceOnsetPerfTime);
     t.voiceOnsetPerfTime = voiceOnsetPerfTime;
-    if (isReset) {
-      t.outcome = "reset";
-    } else {
-      const { outcome, syncDeltaMs } = classifySyncThrow(t.handOnsetPerfTime, voiceOnsetPerfTime, this.state.settings.coOccurrenceMs);
-      t.outcome = outcome;
-      t.syncDeltaMs = syncDeltaMs;
-    }
+    const { outcome, syncDeltaMs } = classifySyncThrow(t.handOnsetPerfTime, voiceOnsetPerfTime, this.state.settings.coOccurrenceMs);
+    t.outcome = outcome;
+    t.syncDeltaMs = syncDeltaMs;
     t.audioLanded = true;
     this.tryResolve();
+  }
+
+  /** Feature 2 — the reset palette. Called by sensorPipeline.ts once per
+   * frame it recognizes ANY of the four OR'd reset gestures (out-of-frame,
+   * below-zone, wave; stillness re-arms separately via
+   * updateReadyPillFromFrame below, unchanged). Every reset is logged with
+   * its reason via telemetry, for later pruning (some of the four may turn
+   * out to be redundant with each other in practice). If a throw is
+   * currently in flight and its commitment was already revealed (phase-1,
+   * fingerCount>=2), the reset BURNS it — same fairness/audit-trail
+   * treatment as any other non-synced outcome after a reveal (a revealed
+   * commitment is never silently dropped); otherwise it's a clean,
+   * unrecorded cancel exactly like the old fist-retraction reset was. */
+  onGestureReset(reason: ResetReason): void {
+    emitTelemetry(this.deps, { type: "gesture_reset", reason });
+    const t = this.throwEvent;
+    this.throwEvent = null;
+    if (t && !t.handled) {
+      t.handled = true;
+      if (t.rivalRevealed) {
+        emitTelemetry(this.deps, { type: "reveal_burned", outcome: "reset" });
+        const entry = this.buildHistoryEntry(t.effectiveFingerCount, wordToNumber(t.playerWord), t.playerWord, t.revealedAiMove, null, "reset", t.syncDeltaMs);
+        this.recordMatchHistory(entry);
+        this.markResolved("void", { voidOutcome: null, handArmedForNextThrow: true });
+        return;
+      }
+    }
+    this.setState({
+      throwInProgress: false,
+      handArmedForNextThrow: true,
+      roundPhase: this.state.roundPhase === "analyzing" ? "idle" : this.state.roundPhase,
+    });
   }
 
   /** The grammar-restricted recognizer landed a word (or null/unk). */
@@ -355,10 +513,21 @@ export class GameStore {
     });
   }
 
-  /** Per-frame ready-pill arming — ported from updateReadyPillFromFrame. */
+  /** Per-frame ready-pill arming — ported from updateReadyPillFromFrame.
+   * Feature 2d — the reset palette's "stillness backstop": this pre-existing
+   * mechanism is UNCHANGED (any evidence the hand moved on from the last
+   * thrown count re-arms), kept as-is alongside the three new explicit
+   * gestures (onGestureReset above) so the ready pill can never get stuck
+   * not-armed in a case those three don't happen to catch. Logged with
+   * reason "stillness" the same way the others are (edge-triggered by the
+   * `!handArmedForNextThrow` guard, so this fires once per re-arm, not
+   * every frame) — "for later pruning" per Feature 2's own telemetry ask:
+   * this is likely the MOST common of the four, so it's useful data on
+   * whether the three explicit gestures earn their keep at all. */
   updateReadyPillFromFrame(currentFingerCount: number | null): void {
     if (this.state.throwInProgress) return;
     if (!this.state.handArmedForNextThrow && handHasResetSince(this.state.lastThrownFingerCount, currentFingerCount)) {
+      emitTelemetry(this.deps, { type: "gesture_reset", reason: "stillness" satisfies ResetReason });
       this.setState({ handArmedForNextThrow: true });
     }
   }
@@ -386,18 +555,11 @@ export class GameStore {
     const t = this.throwEvent;
     if (!t || t.handled) return;
 
-    // A reset is fully determined by classifyHandSettleForSync alone (see
-    // onAudioWindowResult) — it never needed a call word in the first
-    // place, so it resolves as soon as the audio window lands, WITHOUT
-    // waiting on wordLanded. Gating it on the word too would leave the
-    // ready pill stuck on "analyzing" for the entire vosk round-trip every
-    // time the player simply lowers their hand — a real usability bug.
-    if (t.audioLanded && t.outcome === "reset") {
-      t.handled = true;
-      this.setState({ throwInProgress: false, handArmedForNextThrow: true });
-      return;
-    }
-
+    // Feature 1 fix: onAudioWindowResult can no longer produce a "reset"
+    // outcome (that early-exit branch was removed along with it) — every
+    // settle it classifies is now a real throw. A "reset" outcome only
+    // ever appears via onGestureReset (Feature 2's reset palette), which
+    // resolves itself directly and never reaches this method.
     if (!t.audioLanded || !t.wordLanded) return; // still waiting on a pending signal
 
     if (this.state.mode === "entrenament") {
@@ -488,7 +650,7 @@ export class GameStore {
       syncDeltaMs,
     };
     const playerModel = recordThrow(this.state.playerModel, entry);
-    this.deps.playerModelStore.save(playerModel);
+    this.deps.playerModelStore.save(playerModel, playerModelKey(this.state.profileId));
     this.setState({ playerModel, lastThrownFingerCount: fingers });
   }
 
@@ -498,7 +660,7 @@ export class GameStore {
     playerWord: string | null,
     aiMove: AiMove | null,
     verdictWinner: VerdictWinner | null,
-    outcome: SyncOutcome,
+    outcome: SyncOutcome | "reset",
     syncDeltaMs: number | null
   ): HistoryEntry {
     return {
@@ -521,7 +683,7 @@ export class GameStore {
   private recordMatchHistory(entry: HistoryEntry): void {
     const matchHistory = [...this.state.matchHistory, entry];
     const playerModel = recordThrow(this.state.playerModel, entry);
-    this.deps.playerModelStore.save(playerModel);
+    this.deps.playerModelStore.save(playerModel, playerModelKey(this.state.profileId));
     this.setState({ matchHistory, playerModel });
   }
 
@@ -557,9 +719,10 @@ export class GameStore {
 
   /** Confirmation UX (the spike's native confirm()) is a DOM concern —
    * belongs in the React layer, which calls this only after the user
-   * confirms. */
+   * confirms. Feature 3 — clears only the ACTIVE profile's data; other
+   * profiles on the same device are untouched. */
   resetProfile(): void {
-    this.deps.playerModelStore.clear();
+    this.deps.playerModelStore.clear(playerModelKey(this.state.profileId));
     this.setState({ playerModel: createEmptyModel() });
   }
 }

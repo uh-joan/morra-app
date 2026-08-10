@@ -37,27 +37,35 @@ export function isOrphanVoiceOnset(
   return !handOnsetPerfTimes.some((h) => Math.abs(voicePerfTime - h) <= partnerWindowMs);
 }
 
-export interface HandSettleClassification {
-  isReset: boolean;
-  effectiveFingerCount: number | null;
+// Micatio has no zero: a settle at a raw hand count of 0 (a closed fist) is
+// a LEGAL throw of ONE finger, never "no throw" — this is where a raw
+// recognized hand count becomes an actual throw's finger value (core's
+// rules.ts stays generic/preset-parameterized; this clamp is the
+// Micatio-specific "no zero" rule, so it lives here in the sync scorer, not
+// there). Counts 1-5 pass through unchanged.
+export function clampFingerCountToThrow(fingerCount: number): number {
+  return fingerCount === 0 ? 1 : fingerCount;
 }
 
-// Phase C.1 (spike): voice disambiguates the fist. Real morra throws land on
-// 0-5 fingers, but a settle at count <=1 with NO voice inside the
-// co-occurrence window is far more often the fist RETRACTING after the
-// previous throw than a genuine silent throw of 0/1 — so it's classified as
-// a reset, never a throw. The SAME low count WITH a voice onset is a real
-// throw, always read as 1. Counts >=2 are never reinterpreted either way.
-export function classifyHandSettleForSync(
-  fingerCount: number | null,
-  voiceOnsetPerfTime: number | null
-): HandSettleClassification {
-  const isLowCount = fingerCount != null && fingerCount <= 1;
-  if (isLowCount && voiceOnsetPerfTime == null) {
-    return { isReset: true, effectiveFingerCount: fingerCount };
-  }
-  const effectiveFingerCount = isLowCount && voiceOnsetPerfTime != null ? 1 : fingerCount;
-  return { isReset: false, effectiveFingerCount };
+// BUG this fixed (found via a live session: 186 silent deletions of
+// throws-of-1 in one sitting): the fist used to double as BOTH a legal
+// throw of 1 AND the reset gesture, disambiguated by whether a voice onset
+// landed alongside it — a settle at count <=1 with no voice was silently
+// discarded as a reset, deleting the player's real throw with no trace.
+// Voice no longer disambiguates a reset here: every settle this function
+// sees IS a real throw (0 clamped to 1 above; 1-5 unchanged) — a settle
+// with no voice caught now flows through classifySyncThrow exactly like
+// counts 2-5 always did, producing a visible "hand-only" outcome instead of
+// vanishing. Resets are now an entirely separate concern, decided BEFORE a
+// throw ever reaches this function — see resetPalette.ts's stepResetPalette
+// (out-of-frame / below-zone / wave / stillness), which never even calls
+// this for a genuine reset gesture. voiceOnsetPerfTime is intentionally
+// unused now (kept as a documented no-op param, not removed, so call sites
+// mapping "the audio window's voice onset" onto "the hand settle it
+// belongs to" don't need reshaping for what is now a one-line clamp).
+export function classifyHandSettleForSync(fingerCount: number | null, voiceOnsetPerfTime: number | null): number | null {
+  void voiceOnsetPerfTime;
+  return fingerCount == null ? null : clampFingerCountToThrow(fingerCount);
 }
 
 // Phase E.1 (spike): gate for the early ("phase-1") rival reveal. Only a
