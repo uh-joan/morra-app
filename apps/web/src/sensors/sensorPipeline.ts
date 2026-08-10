@@ -29,7 +29,7 @@ import {
   type CountFrame,
 } from "@morra/recognition";
 import { AudioContextManager, MicGraph, CameraSource } from "@morra/platform-web";
-import { INITIAL_RESET_PALETTE_STATE, stepResetPalette, type MotionOnsetEvent, type ResetPaletteTrackerState } from "@morra/core";
+import { INITIAL_RESET_PALETTE_STATE, stepResetPalette, type HandMotionPhase, type MotionOnsetEvent, type ResetPaletteTrackerState } from "@morra/core";
 import type { GameStore } from "../game/gameStore.js";
 import { SYNC_POST_MS, SYNC_PRE_MS } from "../game/gameStore.js";
 
@@ -125,7 +125,7 @@ export class SensorPipeline {
         const bitmap = await createImageBitmap(videoEl);
         const result = await this.finger.recognizeFrame(bitmap, performance.now());
         const count = result.hypotheses[0]?.value ?? null;
-        this.onFrame(count, result.capturedAtMs, result.motionOnset, result.handCenterY, result.lateralVelocity);
+        this.onFrame(count, result.capturedAtMs, result.motionOnset, result.handCenterY, result.lateralVelocity, result.velocity, result.handMotionState);
       } catch {
         // a single bad frame is never fatal — keep pumping
       }
@@ -141,7 +141,9 @@ export class SensorPipeline {
     capturedAtMs: number,
     motionOnset: MotionOnsetEvent | null,
     handCenterY: number | null,
-    lateralVelocity: number | null
+    lateralVelocity: number | null,
+    overallVelocity: number | null,
+    handMotionPhase: HandMotionPhase
   ): void {
     this.store.updateReadyPillFromFrame(count);
 
@@ -150,12 +152,21 @@ export class SensorPipeline {
     // explicit cancel, never the start of a throw, so it short-circuits the
     // rest of this frame's processing entirely (no onset fires off the same
     // frame a reset just fired on).
-    const paletteStep = stepResetPalette(this.resetPaletteState, { count, handCenterY, lateralVelocity }, this.store.getSnapshot().settings.resetPalette);
+    //
+    // HARDENING (real-session false positives — see resetPalette.ts's
+    // header comment): motionOnsetAtMs is fed from `lastVelocityOnsetAtMs`
+    // — the SAME timestamp throw-onset detection itself anchors on below —
+    // so the reset palette's grace-period gate and the round pipeline's own
+    // idea of "a throw just started here" can never disagree.
+    const paletteStep = stepResetPalette(
+      this.resetPaletteState,
+      { atMs: capturedAtMs, count, handCenterY, lateralVelocity, overallVelocity, handMotionPhase, motionOnsetAtMs: this.lastVelocityOnsetAtMs },
+      this.store.getSnapshot().settings.resetPalette
+    );
     this.resetPaletteState = paletteStep.state;
     if (paletteStep.reason) {
       this.frames = [];
       this.lastCount = null;
-      this.lastVelocityOnsetAtMs = capturedAtMs;
       this.store.onGestureReset(paletteStep.reason);
       return;
     }

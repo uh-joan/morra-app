@@ -201,8 +201,13 @@ export interface GameStoreDeps {
 
 type Listener = () => void;
 
-function emitTelemetry(deps: GameStoreDeps, event: { type: string } & Record<string, unknown>): void {
-  const stamped: TelemetryEvent = { ...event, type: event.type, atMs: deps.clock.now() };
+// profileId is a required param (not read off deps, which has none) so
+// EVERY event in the envelope carries the CURRENTLY active profile — item 6
+// of the reset-palette hardening fix: telemetry previously carried no
+// profileId at all, making per-player analysis of the false-positive
+// bursts impossible.
+function emitTelemetry(deps: GameStoreDeps, profileId: string, event: { type: string } & Record<string, unknown>): void {
+  const stamped: TelemetryEvent = { ...event, type: event.type, atMs: deps.clock.now(), profileId };
   deps.telemetry?.emit(stamped);
 }
 
@@ -462,30 +467,30 @@ export class GameStore {
   }
 
   /** Feature 2 — the reset palette. Called by sensorPipeline.ts once per
-   * frame it recognizes ANY of the four OR'd reset gestures (out-of-frame,
-   * below-zone, wave; stillness re-arms separately via
+   * frame it recognizes ANY of the three OR'd sensor-level gestures
+   * (out-of-frame, below-zone, wave; stillness re-arms separately via
    * updateReadyPillFromFrame below, unchanged). Every reset is logged with
-   * its reason via telemetry, for later pruning (some of the four may turn
-   * out to be redundant with each other in practice). If a throw is
-   * currently in flight and its commitment was already revealed (phase-1,
-   * fingerCount>=2), the reset BURNS it — same fairness/audit-trail
-   * treatment as any other non-synced outcome after a reveal (a revealed
-   * commitment is never silently dropped); otherwise it's a clean,
-   * unrecorded cancel exactly like the old fist-retraction reset was. */
+   * its reason via telemetry, for later pruning.
+   *
+   * HARDENING — IN-FLIGHT ROUND LOCKOUT (real-session bug, see
+   * resetPalette.ts's header comment): once a throw's commitment has been
+   * REVEALED (phase-1, fingerCount>=2) and is still pending resolution,
+   * gesture resets are disabled ENTIRELY — this exact window is what burned
+   * 4 real commitments in one session (a false-positive reset firing
+   * between reveal and resolution). Hand-loss mid-throw now resolves
+   * through the EXISTING incomplete/void paths (tryResolve) instead, which
+   * is a real, visible, non-destructive outcome on its own. Before this
+   * throw is revealed, or once it's already been handled, a gesture reset
+   * is still a clean, unrecorded cancel exactly like the old
+   * fist-retraction reset was — that path never risked a real commitment. */
   onGestureReset(reason: ResetReason): void {
-    emitTelemetry(this.deps, { type: "gesture_reset", reason });
     const t = this.throwEvent;
-    this.throwEvent = null;
-    if (t && !t.handled) {
-      t.handled = true;
-      if (t.rivalRevealed) {
-        emitTelemetry(this.deps, { type: "reveal_burned", outcome: "reset" });
-        const entry = this.buildHistoryEntry(t.effectiveFingerCount, wordToNumber(t.playerWord), t.playerWord, t.revealedAiMove, null, "reset", t.syncDeltaMs);
-        this.recordMatchHistory(entry);
-        this.markResolved("void", { voidOutcome: null, handArmedForNextThrow: true });
-        return;
-      }
+    if (t && t.rivalRevealed && !t.handled) {
+      emitTelemetry(this.deps, this.state.profileId, { type: "gesture_reset_suppressed", reason, why: "in-flight-round-lockout" });
+      return;
     }
+    emitTelemetry(this.deps, this.state.profileId, { type: "gesture_reset", reason });
+    this.throwEvent = null;
     this.setState({
       throwInProgress: false,
       handArmedForNextThrow: true,
@@ -527,7 +532,7 @@ export class GameStore {
   updateReadyPillFromFrame(currentFingerCount: number | null): void {
     if (this.state.throwInProgress) return;
     if (!this.state.handArmedForNextThrow && handHasResetSince(this.state.lastThrownFingerCount, currentFingerCount)) {
-      emitTelemetry(this.deps, { type: "gesture_reset", reason: "stillness" satisfies ResetReason });
+      emitTelemetry(this.deps, this.state.profileId, { type: "gesture_reset", reason: "stillness" satisfies ResetReason });
       this.setState({ handArmedForNextThrow: true });
     }
   }
@@ -580,7 +585,7 @@ export class GameStore {
     const wordNum = wordToNumber(t.playerWord);
     if (t.outcome !== "synced" || t.effectiveFingerCount == null || wordNum == null) {
       if (t.rivalRevealed) {
-        emitTelemetry(this.deps, { type: "reveal_burned", outcome: t.outcome });
+        emitTelemetry(this.deps, this.state.profileId, { type: "reveal_burned", outcome: t.outcome });
         const entry = this.buildHistoryEntry(t.effectiveFingerCount, wordNum, t.playerWord, t.revealedAiMove, null, t.outcome as SyncOutcome, t.syncDeltaMs);
         this.recordMatchHistory(entry);
         this.markResolved("void", { voidOutcome: t.outcome as SyncOutcome });
@@ -615,7 +620,7 @@ export class GameStore {
 
     const entry = this.buildHistoryEntry(fingers, playerCall, t.playerWord, aiMove, verdict.winner, t.outcome as SyncOutcome, t.syncDeltaMs);
     this.recordMatchHistory(entry);
-    emitTelemetry(this.deps, { type: "game_reveal", verdictWinner: verdict.winner, playerFingers: fingers, playerCall, aiFingers: aiMove.fingers, aiCall: aiMove.call });
+    emitTelemetry(this.deps, this.state.profileId, { type: "game_reveal", verdictWinner: verdict.winner, playerFingers: fingers, playerCall, aiFingers: aiMove.fingers, aiCall: aiMove.call });
 
     const gameOver = gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE;
     this.markResolved(verdict.winner, {

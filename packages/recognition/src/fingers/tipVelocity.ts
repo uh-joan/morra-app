@@ -37,22 +37,26 @@ export function computeTipVelocity(
 }
 
 /**
- * Feature 2 (reset palette) — wave-to-cancel: the SAME per-tip average as
- * computeTipVelocity above, but the x-axis-only component. A deliberate
- * horizontal shake reads much higher on this axis alone than a normal
- * throw's mostly-vertical motion does, which is what makes a wave
- * distinguishable from a throw at all — @morra/core's resetPalette.ts
- * consumes this as ResetPaletteFrame.lateralVelocity.
+ * Feature 2 (reset palette) — wave-to-cancel's SIGNED lateral velocity.
+ *
+ * HARDENING (real-session bug — see resetPalette.ts's header comment): an
+ * earlier version averaged the ABSOLUTE x-displacement across all 5
+ * fingertips, which fired on ANY fast lateral motion — including a normal
+ * throw's own swing. Two changes fix that:
+ *   1. SIGNED, not magnitude — the caller (resetPalette.ts) needs
+ *      DIRECTION to detect a shake's repeated reversals; a throw's swing
+ *      moves mostly one way and never reverses direction 2+ times.
+ *   2. A SINGLE representative point (the wrist, x only) instead of
+ *      averaging across fingertips — fingers spreading apart during a
+ *      throw partially cancel out in a signed average (some tips move +x,
+ *      some -x), while a genuine shake moves the WHOLE HAND (and thus the
+ *      wrist) the same direction each frame. The wrist is also what
+ *      counting.ts's handCenterYOf already uses for the below-zone
+ *      gesture's Y position — same landmark, same rationale (most stable
+ *      relative to the rest of the hand as fingers move).
  */
-export function computeLateralTipVelocity(
-  tips: readonly Landmark[],
-  prevTips: readonly Landmark[] | null,
-  prevTs: number | null,
-  timestampMs: number
-): number | null {
-  if (!prevTips || prevTs == null) return null;
+export function computeSignedLateralVelocity(x: number, prevX: number | null, prevTs: number | null, timestampMs: number): number | null {
+  if (prevX == null || prevTs == null) return null;
   const dt = Math.max(1, timestampMs - prevTs) / 1000;
-  let totalDx = 0;
-  for (let i = 0; i < tips.length; i++) totalDx += Math.abs(tips[i]!.x - prevTips[i]!.x);
-  return totalDx / tips.length / dt;
+  return (x - prevX) / dt;
 }

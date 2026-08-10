@@ -96,6 +96,15 @@ export interface MotionOnsetEvent {
   motionStartPerfTime: number | null;
 }
 
+/** Mirrors @morra/recognition's velocity.ts `HandMotionState` (the SAME
+ * state machine that anchors throw-onset timing) — surfaced per-frame so
+ * @morra/core's resetPalette.ts can tell "hand at rest" apart from "hand
+ * mid-throw" without depending on the recognition package. Fixed a real
+ * production bug (see resetPalette.ts's own header comment): out-of-frame/
+ * below-zone reset gestures fired DURING a throw's own swing/settle before
+ * this existed to gate on. */
+export type HandMotionPhase = "idle" | "spiking" | "settling";
+
 /**
  * Extends RecognitionResult<FingerCount> with the velocity surface a
  * caller needs to anchor round timing the way the spike did. `velocity` is
@@ -112,18 +121,26 @@ export interface MotionOnsetEvent {
  *
  * `handCenterY` and `lateralVelocity` (Feature 2, the reset palette) feed
  * @morra/core's resetPalette.ts's stepResetPalette: a normalized 0(top)-1
- * (bottom) hand position for the below-zone gesture, and an x-axis-only
- * velocity component for the wave-to-cancel gesture — both null under the
- * same "no hand this frame" / "no prior frame yet" conditions as velocity
- * above, with the same fallback contract (a recognizer that can't supply
- * them returns null, and callers must treat those two gestures as simply
- * unavailable rather than failing).
+ * (bottom) hand position for the below-zone gesture, and a SIGNED x-axis
+ * velocity (positive/negative by direction, based on the wrist landmark's
+ * own frame-to-frame displacement — NOT an average-of-fingertips magnitude,
+ * which can't distinguish "whole hand shaking side to side" from "fingers
+ * spreading during a throw") for the wave-to-cancel gesture's direction-
+ * reversal detector. `handMotionState` is the recognizer's OWN internal
+ * velocity-state-machine phase this frame — required (not optional) so the
+ * reset palette can gate position-based resets to genuinely-idle frames.
+ * All four are null/`"idle"` under the same "no hand this frame" / "no
+ * prior frame yet" conditions as velocity above, with the same fallback
+ * contract (a recognizer that can't supply them returns null/"idle", and
+ * callers must treat the affected gestures as simply unavailable rather
+ * than failing).
  */
 export interface FingerRecognitionResult extends RecognitionResult<FingerCount> {
   velocity: number | null;
   motionOnset: MotionOnsetEvent | null;
   handCenterY: number | null;
   lateralVelocity: number | null;
+  handMotionState: HandMotionPhase;
 }
 
 /** A single frame's finger reading. `input` is opaque to core (it's

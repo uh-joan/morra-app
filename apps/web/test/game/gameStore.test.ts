@@ -355,20 +355,46 @@ describe("GameStore: Feature 2 — the reset palette (onGestureReset)", () => {
     expect(s.currentCommitHash).toBe(hashBefore); // nothing was burned — same commitment stands
   });
 
-  it("resetting a REVEALED throw (fingerCount>=2, phase-1 already fired) BURNS it — recorded as a void entry, verdictWinner null, score untouched", () => {
+  // HARDENING (real-session bug — spikes/logs/session-acfcf6f6.ndjson: a
+  // false-positive reset firing between reveal and resolution burned 4 real
+  // commitments in one session). A gesture reset on a REVEALED, still-
+  // pending throw must now be a COMPLETE NO-OP — never burn, never touch
+  // the throwEvent — letting the round resolve through the ordinary
+  // tryResolve pipeline instead (incomplete/void/synced, whichever the
+  // hand/voice data actually supports).
+  it("the IN-FLIGHT ROUND LOCKOUT: resetting a REVEALED throw (fingerCount>=2, phase-1 already fired) is suppressed entirely — commitment stands, throwEvent untouched, round still resolves normally afterward", () => {
     const store = makeStore();
     store.onHandOnset(4, 1000); // >=2 -> phase-1 reveal fires immediately
     const revealed = store.getSnapshot();
     expect(revealed.displayedAiMove).not.toBeNull();
-    store.onGestureReset("wave");
-    const s = store.getSnapshot();
-    expect(s.roundPhase).toBe("void");
-    expect(s.gameScore).toEqual({ player: 0, ai: 0 });
-    expect(s.handArmedForNextThrow).toBe(true); // still re-arms, unlike a plain void from a bad sync
-    expect(s.matchHistory.length).toBe(1);
-    expect(s.matchHistory[0]!.verdictWinner).toBeNull();
-    expect(s.matchHistory[0]!.aiFingers).toBe(revealed.displayedAiMove!.fingers); // the revealed move IS recorded
-    expect(s.matchHistory[0]!.syncOutcome).toBe("reset");
+    const hashBefore = revealed.currentCommitHash;
+
+    store.onGestureReset("wave"); // must be a no-op — the lockout
+    const afterReset = store.getSnapshot();
+    expect(afterReset.roundPhase).toBe("analyzing"); // unchanged — NOT resolved by the reset
+    expect(afterReset.matchHistory.length).toBe(0); // nothing recorded
+    expect(afterReset.currentCommitHash).toBe(hashBefore); // nothing burned
+    expect(afterReset.throwInProgress).toBe(true); // the throw is still genuinely in flight
+
+    // The round still resolves normally afterward, through the ordinary
+    // pipeline — proving the lockout didn't just silently drop the throw.
+    store.onAudioWindowResult(1050);
+    store.onWordResult("vuit");
+    const resolved = store.getSnapshot();
+    expect(resolved.matchHistory.length).toBe(1);
+    expect(["player", "ai", "parata"]).toContain(resolved.roundPhase);
+  });
+
+  it("once a revealed throw is HANDLED (already resolved), a later gesture reset is a normal clean cancel again — the lockout only covers the pending window", () => {
+    const store = makeStore();
+    store.onHandOnset(4, 1000);
+    store.onAudioWindowResult(1050);
+    store.onWordResult("vuit"); // resolves the round one way or another
+    expect(store.getSnapshot().throwInProgress).toBe(false);
+    const historyBefore = store.getSnapshot().matchHistory.length;
+    store.onGestureReset("wave"); // no throw in flight anymore -> safe no-op
+    expect(store.getSnapshot().matchHistory.length).toBe(historyBefore);
+    expect(store.getSnapshot().handArmedForNextThrow).toBe(true);
   });
 
   it.each(["out-of-frame", "below-zone", "wave", "stillness"] as const)("%s is a valid ResetReason accepted by onGestureReset", (reason) => {
@@ -638,12 +664,20 @@ describe("GameStore: vosk not loaded — an honest degrade, not a silent one", (
     expect(s.matchHistory[0]!.playerFingers).toBe(1);
   });
 
-  it("a genuine gesture reset (Feature 2) still resolves immediately even with voskLoaded=false", () => {
+  it("a genuine gesture reset (Feature 2) on an UNREVEALED throw still resolves immediately even with voskLoaded=false", () => {
     const store = makeStore(1, false);
-    store.onHandOnset(3, 1000);
+    store.onHandOnset(1, 1000); // <2 -> never phase-1 revealed, so NOT subject to the in-flight lockout
     store.onGestureReset("wave");
     const s = store.getSnapshot();
     expect(s.throwInProgress).toBe(false);
     expect(s.handArmedForNextThrow).toBe(true);
+  });
+
+  it("a gesture reset on a REVEALED throw is locked out (suppressed) regardless of voskLoaded", () => {
+    const store = makeStore(1, false);
+    store.onHandOnset(4, 1000); // >=2 -> phase-1 reveal fires
+    expect(store.getSnapshot().displayedAiMove).not.toBeNull();
+    store.onGestureReset("wave");
+    expect(store.getSnapshot().throwInProgress).toBe(true); // untouched by the suppressed reset
   });
 });

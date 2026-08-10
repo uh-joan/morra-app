@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeLateralTipVelocity, computeTipVelocity, fingertipsOf } from "../../src/fingers/tipVelocity.js";
+import { computeSignedLateralVelocity, computeTipVelocity, fingertipsOf } from "../../src/fingers/tipVelocity.js";
 import type { Landmark } from "../../src/fingers/counting.js";
 
 function makeLandmarks(tipPositions: Partial<Record<4 | 8 | 12 | 16 | 20, Landmark>>): Landmark[] {
@@ -65,36 +65,33 @@ describe("tipVelocity: computeTipVelocity", () => {
   });
 });
 
-describe("tipVelocity: computeLateralTipVelocity (Feature 2 — wave-to-cancel)", () => {
-  it("no previous frame -> null", () => {
-    const tips: Landmark[] = [{ x: 0, y: 0 }];
-    expect(computeLateralTipVelocity(tips, null, null, 1000)).toBeNull();
-    expect(computeLateralTipVelocity(tips, tips, null, 1000)).toBeNull();
+describe("tipVelocity: computeSignedLateralVelocity (Feature 2 — wave-to-cancel)", () => {
+  it("no previous x -> null", () => {
+    expect(computeSignedLateralVelocity(0, null, null, 1000)).toBeNull();
+    expect(computeSignedLateralVelocity(0, 0, null, 1000)).toBeNull();
   });
 
-  it("purely vertical motion contributes ZERO lateral velocity, unlike computeTipVelocity", () => {
-    const prevTips: Landmark[] = [{ x: 0, y: 0 }];
-    const tips: Landmark[] = [{ x: 0, y: 1 }]; // moved 1 unit straight down, no x change
-    expect(computeLateralTipVelocity(tips, prevTips, 0, 1000)).toBe(0);
-    expect(computeTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9); // the full-motion version DOES see it
+  it("moving right (+x) is POSITIVE", () => {
+    expect(computeSignedLateralVelocity(1, 0, 0, 1000)).toBeCloseTo(1, 9);
   });
 
-  it("purely horizontal motion matches computeTipVelocity exactly (all displacement is lateral)", () => {
-    const prevTips: Landmark[] = [{ x: 0, y: 0.5 }];
-    const tips: Landmark[] = [{ x: 1, y: 0.5 }];
-    expect(computeLateralTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9);
-    expect(computeTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9);
+  it("moving left (-x) is NEGATIVE — this is the whole point vs. the old abs-magnitude version: direction is preserved so a caller can detect reversals", () => {
+    expect(computeSignedLateralVelocity(0, 1, 0, 1000)).toBeCloseTo(-1, 9);
   });
 
-  it("uses absolute x-displacement — direction doesn't matter, a shake reverses direction every frame", () => {
-    const prevTips: Landmark[] = [{ x: 1, y: 0 }];
-    const tips: Landmark[] = [{ x: 0, y: 0 }]; // moved LEFT this time
-    expect(computeLateralTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9);
+  it("no motion -> zero", () => {
+    expect(computeSignedLateralVelocity(5, 5, 0, 1000)).toBe(0);
   });
 
-  it("averages the x-only displacement across all tips", () => {
-    const prevTips: Landmark[] = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
-    const tips: Landmark[] = [{ x: 2, y: 0 }, { x: 0, y: 0 }]; // one tip moves 2 in x, the other doesn't move
-    expect(computeLateralTipVelocity(tips, prevTips, 0, 1000)).toBeCloseTo(1, 9); // (2+0)/2
+  it("dt is floored at 1ms to avoid division blowups", () => {
+    const v = computeSignedLateralVelocity(1, 0, 1000, 1000);
+    expect(v).toBeCloseTo(1000, 6);
+    expect(Number.isFinite(v)).toBe(true);
+  });
+
+  it("a faster frame rate yields a proportionally larger magnitude for the same displacement", () => {
+    const vSlow = computeSignedLateralVelocity(1, 0, 0, 1000);
+    const vFast = computeSignedLateralVelocity(1, 0, 0, 100);
+    expect(vFast).toBeCloseTo(vSlow! * 10, 6);
   });
 });
