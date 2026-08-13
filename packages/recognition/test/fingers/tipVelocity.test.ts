@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTipVelocity, fingertipsOf } from "../../src/fingers/tipVelocity.js";
+import { computeCentroidVelocity, computeTipVelocity, fingertipsOf } from "../../src/fingers/tipVelocity.js";
 import type { Landmark } from "../../src/fingers/counting.js";
 
 function makeLandmarks(tipPositions: Partial<Record<4 | 8 | 12 | 16 | 20, Landmark>>): Landmark[] {
@@ -62,5 +62,61 @@ describe("tipVelocity: computeTipVelocity", () => {
     const tips: Landmark[] = [{ x: 5, y: 5 }, { x: 1, y: 1 }];
     const v = computeTipVelocity(tips, tips, 0, 1000);
     expect(v).toBe(0);
+  });
+});
+
+describe("tipVelocity: computeCentroidVelocity (s03-beat.html's formula)", () => {
+  it("no previous centroid -> null v (first frame a hand appears / after hand loss)", () => {
+    const tips: Landmark[] = [{ x: 1, y: 2 }];
+    const r = computeCentroidVelocity(tips, null, null, 1000);
+    expect(r.v).toBeNull();
+    expect(r.centroid).toEqual({ x: 1, y: 2 });
+  });
+
+  it("dt <= 0 -> null v (the spike's `if (dt > 0)` skip, NOT a 1ms clamp)", () => {
+    const tips: Landmark[] = [{ x: 1, y: 0 }];
+    expect(computeCentroidVelocity(tips, { x: 0, y: 0 }, 1000, 1000).v).toBeNull();
+    expect(computeCentroidVelocity(tips, { x: 0, y: 0 }, 1000, 999).v).toBeNull();
+  });
+
+  it("replicates the spike's arithmetic on a concrete frame pair", () => {
+    // 5 tips whose centroid is (0.30, 0.40); previous centroid (0.27, 0.36);
+    // dt = 33ms. Spike: moveDist = hypot(0.03, 0.04) = 0.05; v = 0.05/0.033.
+    const tips: Landmark[] = [
+      { x: 0.1, y: 0.4 },
+      { x: 0.2, y: 0.2 },
+      { x: 0.3, y: 0.6 },
+      { x: 0.4, y: 0.3 },
+      { x: 0.5, y: 0.5 },
+    ];
+    const r = computeCentroidVelocity(tips, { x: 0.27, y: 0.36 }, 0, 33);
+    expect(r.centroid.x).toBeCloseTo(0.3, 9);
+    expect(r.centroid.y).toBeCloseTo(0.4, 9);
+    expect(r.v).toBeCloseTo(0.05 / 0.033, 6);
+  });
+
+  it("centroid ignores z (2D like the spike) where mean-per-tip includes it", () => {
+    const prev: Landmark[] = [{ x: 0, y: 0, z: 0 }];
+    const tips: Landmark[] = [{ x: 0, y: 0, z: 1 }];
+    expect(computeCentroidVelocity(tips, { x: 0, y: 0 }, 0, 1000).v).toBe(0);
+    expect(computeTipVelocity(tips, prev, 0, 1000)).toBeCloseTo(1, 9);
+  });
+
+  it("DIVERGES from mean-per-tip on opposing motion: centroid ~0, mean-per-tip > 0", () => {
+    // Two tips swap places (fingers spreading): each moves 1 unit, but the
+    // centroid doesn't move at all. This is exactly why HIGH_V=0.9 (tuned on
+    // the centroid form) misfires when fed mean-per-tip velocity.
+    const prev: Landmark[] = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+    ];
+    const tips: Landmark[] = [
+      { x: 1, y: 0 },
+      { x: 0, y: 0 },
+    ];
+    const centroidV = computeCentroidVelocity(tips, { x: 0.5, y: 0 }, 0, 1000).v;
+    const meanPerTipV = computeTipVelocity(tips, prev, 0, 1000);
+    expect(centroidV).toBeCloseTo(0, 9);
+    expect(meanPerTipV).toBeCloseTo(1, 9);
   });
 });
