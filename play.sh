@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Launch morra: either the spike (static + live logs, default — unchanged
-# behavior) or the real app (M4/M5's apps/web, Vite dev server) — run both
-# side by side for the M5 human acceptance pass.
+# behavior) or the real app (apps/play, Vite dev server) — run both side by
+# side for feel comparison.
 #
 # Usage:
 #   ./play.sh                 spike on :8080 (default, same as before)
 #   ./play.sh [port]          spike on a custom port (same as before)
 #   ./play.sh spike [port]    spike, explicit
-#   ./play.sh app [port]      the real app (apps/web), Vite dev server on :5173 by default
+#   ./play.sh app [port]      the real app (apps/play), Vite dev server on :5173 by default
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -23,9 +23,9 @@ fi
 if [[ "$MODE" == "app" ]]; then
   PORT="${PORT_ARG:-5173}"
   URL="http://localhost:${PORT}/"
-  echo "app: starting apps/web's Vite dev server on :${PORT} (Partida + Entrenament, the real game)…"
+  echo "app: starting apps/play's Vite dev server on :${PORT} (Partida + Entrenament, the real game)…"
   echo "app: first run? \`pnpm install\` at the repo root first if you haven't already."
-  ( cd apps/web && pnpm dev --port "${PORT}" ) &
+  ( cd apps/play && pnpm dev --port "${PORT}" ) &
   DEV_PID=$!
   sleep 2
   open "${URL}" 2>/dev/null || true
@@ -52,5 +52,5 @@ open "${URL}"
 echo "spike: ${URL}"
 echo "other spikes: s01-fingers.html · s02-voice.html · s04-contention.html"
 echo
-echo "for the real app instead (M4/M5's apps/web): ./play.sh app"
-echo "to run both side by side for the M5 acceptance pass: ./play.sh in one terminal, ./play.sh app in another"
+echo "for the real app instead (apps/play): ./play.sh app"
+echo "to run both side by side for feel comparison: ./play.sh in one terminal, ./play.sh app in another"

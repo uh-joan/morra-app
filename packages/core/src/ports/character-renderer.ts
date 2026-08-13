@@ -2,9 +2,9 @@
 // M4 dispatch: "an imperative CharacterRenderer implementation behind
 // core's renderer contract, React owns only its mount point." Same pattern
 // as types.ts's FingerRecognizer/CallRecognizer: a pure TYPE-ONLY interface
-// here, no DOM — the real DOM-owning implementation lives in apps/web
-// (SvgHandCharacterRenderer), imperatively driven outside React's render
-// cycle so high-frequency reveal/settle updates never touch React state.
+// here, no DOM — the real DOM-owning implementation lives in apps/play
+// (SvgHandCharacterRenderer), imperatively driven so high-frequency
+// reveal/settle updates stay outside any view-layer render cycle.
 import type { FingerCount } from "../types.js";
 
 export interface CharacterRenderState {

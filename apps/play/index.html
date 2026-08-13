@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morra</title>
+</head>
+<body>
+
+<!-- Ported from spikes/s03-beat.html HTML L299–657, minus the beat-mode
+     controls (#btnModeBeat, #beatModeControls, #beatModeHints, #heroPulse,
+     #heroKillMark) and the collapsed research harness <details> — apps/play
+     is permanently sync-mode. The "Ajustos" <details> below carries the 5
+     tunables + sensor diagnostics that used to live inside the harness. -->
+
+<h1>Morra</h1>
+<p class="sub">Tira els dits i canta el número — contra el rival, quan tu vulguis.</p>
+
+<div class="panel hero-panel" id="handMirror">
+  <div class="row" style="justify-content:space-between; margin-bottom:8px;">
+    <h2 style="margin:0;">Hand + Voice Mirror</h2>
+    <div class="row" style="margin:0;">
+      <button id="btnModePartida" class="primary">Partida</button>
+      <button id="btnModeEntrenament">Entrenament</button>
+    </div>
+  </div>
+  <div class="row" style="justify-content:space-between; margin-bottom:12px;">
+    <div class="row" style="margin:0;">
+      <button id="btnCam" class="primary">Start Camera</button>
+      <button id="btnMic" class="primary">Start Mic</button>
+      <button id="btnLoadVosk">Load Voice Recognition (CA)</button>
+    </div>
+    <div class="row" id="syncModeControls" style="margin:0;">
+      <label for="syncCoOccurrenceMs" style="white-space:nowrap;">Co-occurrence window ±ms</label>
+      <input id="syncCoOccurrenceMs" type="number" step="50" min="100" max="1000" value="400" style="width:70px;">
+    </div>
+    <button id="btnExportDebug">Export debug log (JSON)</button>
+  </div>
+  <div id="voskStatus" class="status" style="display:none;"></div>
+  <div class="hero-body">
+    <div class="face-off">
+      <div class="player-side">
+        <div class="hero-video">
+          <div class="video-wrap">
+            <video id="camPreview" autoplay muted playsinline></video>
+            <canvas id="handOverlay" class="hand-overlay"></canvas>
+          </div>
+          <div class="row" style="margin-top:6px; margin-bottom:0;">
+            <span id="handIndicator" class="hand-indicator"><span class="dot"></span><span id="handIndicatorText">no hand</span></span>
+          </div>
+        </div>
+        <div class="big-number-wrap">
+          <div class="big-duo">
+            <div class="big-item">
+              <div id="bigNumber" class="big-number">–</div>
+              <div id="bigNumberLabel" class="big-number-label">no hand</div>
+            </div>
+            <div class="big-item">
+              <div id="bigWord" class="big-word">–</div>
+              <div id="bigWordLabel" class="big-number-label">voice rec off</div>
+            </div>
+          </div>
+          <div id="readyPill" class="ready-pill" style="display:none;">Llest — tira!</div>
+        </div>
+        <div class="shout-wrap">
+          <div id="shoutBadge" class="shout-badge idle">mic off</div>
+          <div class="voice-meter" id="voiceMeter">
+            <div id="voiceMeterFill" class="fill"></div>
+            <div id="voiceThreshMark" class="thresh-mark"></div>
+          </div>
+          <div class="row" style="margin:0; gap:6px; align-items:center; flex-wrap:nowrap;">
+            <label for="tuneVadMult" style="white-space:nowrap;">Sensitivity</label>
+            <input id="tuneVadMult" type="range" min="2" max="20" step="0.5" value="6" style="width:130px;">
+          </div>
+          <div id="onsetInfo" class="onset-info">no onset yet</div>
+        </div>
+      </div>
+      <div class="rival-side" id="rivalSide" style="display:none;">
+        <div class="rival-avatar-frame">
+          <div class="rival-avatar" id="rivalAvatar">🧔</div>
+        </div>
+        <div class="rival-hand-wrap">
+          <div id="rivalHandSvg"></div>
+          <div id="rivalHandDigit" class="rival-hand-digit">?</div>
+        </div>
+        <div id="rivalWord" class="big-word">…</div>
+        <div id="aiCommitStatus" class="rival-commit-status">—</div>
+      </div>
+      <div class="training-panel" id="trainingPanel" style="display:none;">
+        <div class="training-tiles" id="trainingTiles">
+          <div class="training-tile"><div class="training-tile-value" id="tileExploitability">—</div><div class="training-tile-label">Explotabilitat</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileRandomness">—</div><div class="training-tile-label">Aleatorietat</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileSyncRate">—</div><div class="training-tile-label">Sincronia</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileMedianDelta">—</div><div class="training-tile-label">Δ mediana</div></div>
+        </div>
+        <div class="row" id="mirrorScopeRow" style="margin:8px 0; gap:6px; align-items:center;">
+          <button id="btnScopeSession" class="primary">Aquesta sessió</button>
+          <button id="btnScopeAllTime">Tot el temps</button>
+          <span id="trainingSampleCount" class="hero-prompt" style="margin:0 0 0 auto;"></span>
+        </div>
+        <div class="training-section">
+          <h3>Els teus números</h3>
+          <div class="training-hist-row">
+            <div class="training-hist-col">
+              <div class="training-hist-title">Dits (f)</div>
+              <ul id="fHistogram" class="training-hist-list"></ul>
+            </div>
+            <div class="training-hist-col">
+              <div class="training-hist-title">Endevinalles (g)</div>
+              <ul id="gHistogram" class="training-hist-list"></ul>
+            </div>
+            <div class="training-hist-col">
+              <div class="training-hist-title">Crits més usats</div>
+              <ul id="topCallsList" class="training-hist-list"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="training-section">
+          <h3>Els teus defectes</h3>
+          <ul id="tellsList" class="training-tells-list"></ul>
+        </div>
+        <div class="training-section">
+          <h3>Seqüència — després de tirar X, tires Y</h3>
+          <div id="bigramHeatmap" class="training-heatmap"></div>
+        </div>
+        <div class="row" style="margin-top:10px; gap:8px;">
+          <button id="btnExportProfile">Exporta perfil (JSON)</button>
+          <button id="btnResetProfile" class="danger">Reinicia perfil</button>
+        </div>
+      </div>
+    </div>
+    <div class="beat-wrap">
+      <div id="heroPrompt" class="hero-prompt">Throw and shout together — whenever you're ready.</div>
+      <div id="gamePanel" style="display:none; width:100%;">
+        <div class="row" id="aiLevelRow" style="margin:0 0 6px; gap:8px; align-items:center; flex-wrap:nowrap;">
+          <label for="selAiLevel" style="white-space:nowrap;">Rival</label>
+          <select id="selAiLevel" style="flex:1;"></select>
+        </div>
+        <div id="aiLevelDescription" class="hero-prompt" style="opacity:.75; margin:0 0 8px;"></div>
+        <div class="scoreboard" id="scoreboard">Tu 0 — 0 Rival</div>
+        <div id="roundResultCard" class="verdict-card idle">
+          <div class="verdict-result" id="roundResultText">–</div>
+          <div class="verdict-detail" id="roundResultDetail">Throw and call your number!</div>
+        </div>
+        <div id="gameEndBanner" style="display:none; text-align:center; margin-top:8px;">
+          <div id="gameEndText" class="hero-prompt" style="font-weight:700; font-size:16px;"></div>
+          <div id="postMatchCard" class="training-tiles" style="margin:10px 0;">
+            <div class="training-tile"><div class="training-tile-value" id="postMatchExploitability">—</div><div class="training-tile-label">Explotabilitat</div></div>
+            <div class="training-tile"><div class="training-tile-value" id="postMatchRandomness">—</div><div class="training-tile-label">Aleatorietat</div></div>
+            <div class="training-tile"><div class="training-tile-value" id="postMatchSyncRate">—</div><div class="training-tile-label">Sincronia</div></div>
+          </div>
+          <button id="btnGoToTraining" style="margin-top:2px;">Ves a Entrenament per l'anàlisi completa</button>
+          <button id="btnPlayAgain" class="primary" style="margin-top:6px;">Torna a jugar</button>
+        </div>
+      </div>
+      <div id="verdictCard" class="verdict-card idle">
+        <div class="verdict-result" id="verdictResult">–</div>
+        <div class="verdict-detail" id="verdictDetail">waiting for a throw…</div>
+        <div class="verdict-word" id="verdictWord" style="display:none;"></div>
+      </div>
+      <div class="hero-tally">
+        <div class="row" style="justify-content:space-between; margin:0;">
+          <div class="hitrate" id="heroHitRate">—</div>
+          <div id="heroThrowCount" style="font-size:14px; font-weight:700; color:var(--dim);">0 throws</div>
+        </div>
+        <div class="bar" style="margin-top:4px;"><div id="heroHitBarFill" class="fill"></div></div>
+        <div id="syncMedianDelta" class="hero-prompt" style="margin-top:4px; display:none;"></div>
+        <div id="syncNaturalLead" class="hero-prompt" style="margin-top:2px; opacity:.75; display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="statusStrip" class="status-strip">
+  <div class="status-chip dim" id="chipCamera"><span class="label">Camera</span><span class="detail">idle</span></div>
+  <div class="status-chip dim" id="chipModel"><span class="label">Model</span><span class="detail">not loaded</span></div>
+  <div class="status-chip dim" id="chipHand"><span class="label">Hand</span><span class="detail">—</span></div>
+  <div class="status-chip dim" id="chipMic"><span class="label">Mic</span><span class="detail">idle</span></div>
+  <div class="status-chip dim" id="chipVad"><span class="label">VAD</span><span class="detail">—</span></div>
+  <div class="status-chip dim" id="chipVosk"><span class="label">Voice Rec</span><span class="detail">not loaded</span></div>
+  <div class="status-chip dim" id="chipClock"><span class="label">Clock</span><span class="detail">unsampled</span></div>
+</div>
+
+<div id="sessionIdFooter" style="font-size:11px; color:var(--dim); text-align:center; margin:4px 0 10px; font-variant-numeric:tabular-nums;"></div>
+
+<div id="errorPanel" class="error-panel">
+  <div class="error-head">
+    <strong id="errorHeadText">Errors</strong>
+    <button id="btnClearErrors">Clear</button>
+  </div>
+  <ul id="errorList"></ul>
+</div>
+
+<details class="harness-toggle" id="ajustos">
+<summary>Ajustos (detectors) — click to expand</summary>
+  <div class="row" style="align-items:flex-start;">
+    <div style="flex:1; min-width:180px;">
+      <div class="kv">
+        <div class="k">fingertip velocity (norm/s)</div><div class="v" id="handVel">—</div>
+        <div class="k">hand state (throw-onset detector)</div><div class="v" id="handState">idle</div>
+      </div>
+      <div class="meter-bar"><div id="handVelMeterFill" class="meter-fill"></div></div>
+    </div>
+    <div style="flex:1; min-width:180px;">
+      <div class="kv">
+        <div class="k">mic RMS</div><div class="v" id="micRms">—</div>
+        <div class="k">threshold</div><div class="v" id="micThresh">—</div>
+      </div>
+      <div class="meter-bar"><div id="micMeterFill" class="meter-fill"></div></div>
+      <div class="kv" style="margin-top:8px;">
+        <div class="k">Hand: HIGH velocity</div><div class="v"><input id="tuneHighV" type="number" step="0.1" value="0.9" style="width:70px;"></div>
+        <div class="k">Hand: LOW velocity</div><div class="v"><input id="tuneLowV" type="number" step="0.05" value="0.25" style="width:70px;"></div>
+        <div class="k">Hand: settle ms</div><div class="v"><input id="tuneSettleMs" type="number" step="10" value="50" style="width:70px;"></div>
+      </div>
+    </div>
+  </div>
+</details>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

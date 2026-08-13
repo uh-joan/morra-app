@@ -1,0 +1,28 @@
+{
+  "name": "@morra/play",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The morra micatio game app — a spike-faithful vanilla TS port of spikes/s03-beat.html (the oracle; every src/ module header cites the spike line range it ports). No framework: same rVFC frame loop, same single-rAF analysis drain, same imperative DOM renders. Consumes the machine-verified @morra/{core,recognition,platform-web}; all device/timing glue is ported fresh from the spike. spikes/** stays untouched.",
+  "scripts": {
+    "predev": "node scripts/prepare-assets.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/prepare-assets.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run --passWithNoTests",
+    "test:integration": "node test/integration/run.mjs",
+    "test:parity": "node test/parity/run.mjs"
+  },
+  "dependencies": {
+    "@morra/core": "workspace:*",
+    "@morra/platform-web": "workspace:*",
+    "@morra/recognition": "workspace:*"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.5.0",
+    "typescript": "^5.7.3",
+    "vite": "^8.2.1",
+    "vitest": "^3.0.4"
+  }
+}

@@ -1,4 +1,0 @@
-# Assets copied in from spikes/ by scripts/prepare-assets.mjs (rival-voice
-# clips + the vosk CA model zip) — never duplicated in git. See that
-# script's header comment for the full rationale.
-public/assets/
