@@ -24,6 +24,7 @@ import { installExport } from "./export.js";
 import { installTraining } from "./training.js";
 import { installModes } from "./modes.js";
 import { installSettings } from "./settings.js";
+import { installProfiles } from "./profiles.js";
 
 installErrorHandling();
 installTelemetryFlushing();
@@ -49,6 +50,7 @@ installExport();
 installTraining();
 installModes();
 installSettings();
+installProfiles();
 
 installSeam();
 renderReadyPill();

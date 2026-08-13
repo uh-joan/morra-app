@@ -80,5 +80,15 @@ export const TRAINING_PANEL_TEXT = {
 
 export const MODE_BUTTONS = { partida: "Partida", entrenament: "Entrenament" } as const;
 
+export const PROFILE_TEXT = {
+  label: "Perfil",
+  defaultName: "Principal",
+  newButton: "Nou perfil",
+  deleteButton: "Esborra",
+  newPrompt: "Nom del nou perfil:",
+  deleteConfirm: (name: string): string =>
+    `Esborrar el perfil «${name}» i tot el seu historial? Això no es pot desfer.`,
+} as const;
+
 // AI level avatar glyphs, from the spike's 4-level selector.
 export const AI_LEVEL_AVATAR: Record<string, string> = { L1: "🙂", L2: "🧔", L3: "🧙", L4: "👹" };

@@ -26,8 +26,12 @@ Architecture notes:
   deferred extraction; player-only pacing; blanking + clamping with the
   clamp floor snapshotted at onset) are structural — see
   `src/analysis.ts`'s header.
-- Future-profiles seam: `src/profile.ts` (sole owner of the storage key).
-  Presentation seam: only `src/render/*` + `src/status.ts` touch the DOM.
+- Profiles: `src/profileRegistry.ts` (pure, node-tested) +
+  `src/profile.ts` (storage IO, sole owner of the keys) +
+  `src/profiles.ts` (picker UI). The default profile IS the spike's legacy
+  key (`morra-s03-playermodel-v1`) — zero migration; extra profiles use
+  `morra-playermodel-v1:<id>`. Presentation seam: only `src/render/*` +
+  `src/status.ts` touch the DOM.
 - `window.__play` mirrors the spike's `__s03` member signatures — the
   parity harness drives both with one driver.
 

@@ -167,6 +167,21 @@ vosk; without it every round is incomplete by design, same as the spike).
 7. The 5 tunables (co-occurrence ±ms, Sensitivity, HIGH_V/LOW_V/settle in
    Ajustos) apply live and are logged as setting_change events.
 
+## Profiles
+
+1. On load the top bar shows **Perfil: Principal** — that's your existing
+   history (same storage key as always; nothing migrated).
+2. **Nou perfil** → name it → it becomes active immediately: fresh empty
+   profile, the match resets, and the rival re-seals its commitment (a
+   move informed by another profile's history never carries over).
+   Entrenament's all-time scope now reads the new profile's (empty)
+   history.
+3. Switch back and forth in the select: each profile keeps its own
+   history, exploitability, tells — the L4 rival studies only the active
+   profile.
+4. **Esborra** (disabled for Principal): confirm → the profile AND its
+   stored history are gone; you fall back to Principal.
+
 ## M7 — Automated suite
 
 From the repo root:

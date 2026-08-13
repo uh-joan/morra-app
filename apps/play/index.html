@@ -30,6 +30,12 @@
       <button id="btnMic" class="primary">Start Mic</button>
       <button id="btnLoadVosk">Load Voice Recognition (CA)</button>
     </div>
+    <div class="row" id="profileControls" style="margin:0;">
+      <label for="selProfile" style="white-space:nowrap;">Perfil</label>
+      <select id="selProfile"></select>
+      <button id="btnNewProfile">Nou perfil</button>
+      <button id="btnDeleteProfile" class="danger">Esborra</button>
+    </div>
     <div class="row" id="syncModeControls" style="margin:0;">
       <label for="syncCoOccurrenceMs" style="white-space:nowrap;">Co-occurrence window ±ms</label>
       <input id="syncCoOccurrenceMs" type="number" step="50" min="100" max="1000" value="400" style="width:70px;">

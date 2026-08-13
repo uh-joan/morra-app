@@ -28,7 +28,8 @@ const browser = await launchWithFakeDevices(chrome);
 const page = await browser.newPage();
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
-page.on("dialog", (d) => d.accept());
+let promptText = null; // what the next prompt() dialog answers with
+page.on("dialog", (d) => d.accept(promptText ?? undefined));
 
 await page.goto(`http://127.0.0.1:${srv.address().port}/`, { waitUntil: "networkidle0" });
 
@@ -83,6 +84,29 @@ await page.click("#btnModeEntrenament");
 r.check("training panel visible", (await page.$eval("#trainingPanel", (n) => n.style.display)) === "block");
 r.check("heatmap renders 25 cells", (await page.$$eval("#bigramHeatmap .hm-cell", (n) => n.length)) === 25);
 r.check("sample count rendered", /tir/.test(await page.$eval("#trainingSampleCount", (n) => n.textContent)));
+
+// Profiles: default = legacy key; create/switch/delete isolate histories
+r.check("boots with the default profile only", await page.evaluate(() =>
+  window.__play.activeProfileId === "default" && window.__play.profiles.length === 1));
+r.check("delete disabled for the default profile", await page.$eval("#btnDeleteProfile", (n) => n.disabled));
+const defaultThrows = await page.evaluate(() => window.__play.playerModel.throws.length);
+r.check("default profile carries this session's history", defaultThrows >= 1, `throws=${defaultThrows}`);
+promptText = "Bea";
+await page.click("#btnNewProfile");
+promptText = null;
+r.check("new profile activates with a fresh empty model", await page.evaluate(() =>
+  window.__play.activeProfileId !== "default" && window.__play.playerModel.throws.length === 0));
+r.check("select shows both profiles", (await page.$$eval("#selProfile option", (n) => n.length)) === 2);
+r.check("match reset for the new player", /Tu 0 — 0 Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
+r.check("delete enabled for a non-default profile", await page.$eval("#btnDeleteProfile", (n) => !n.disabled));
+await page.select("#selProfile", "default");
+r.check("switching back restores the default profile's history", await page.evaluate((expected) =>
+  window.__play.activeProfileId === "default" && window.__play.playerModel.throws.length === expected, defaultThrows));
+const beaId = await page.$$eval("#selProfile option", (n) => n.map((o) => o.value).find((v) => v !== "default"));
+await page.select("#selProfile", beaId);
+await page.click("#btnDeleteProfile"); // confirm auto-accepted
+r.check("deleting the active profile falls back to default", await page.evaluate(() =>
+  window.__play.activeProfileId === "default" && window.__play.profiles.length === 1));
 
 // Error surfacing
 await page.evaluate(() => { setTimeout(() => { throw new Error("integration probe"); }); });

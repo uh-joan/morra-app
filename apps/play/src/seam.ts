@@ -43,6 +43,7 @@ import {
 } from "./game.js";
 import { setSessionMode } from "./modes.js";
 import { getMirrorScope, setMirrorScope } from "./training.js";
+import { getActiveProfileId, getProfiles } from "./profile.js";
 
 export function installSeam(): void {
   (window as unknown as { __play: object }).__play = {
@@ -80,6 +81,12 @@ export function installSeam(): void {
     },
     set mirrorScope(scope: "session" | "allTime") {
       setMirrorScope(scope);
+    },
+    get activeProfileId() {
+      return getActiveProfileId();
+    },
+    get profiles() {
+      return getProfiles();
     },
     // sync pipeline
     onSyncHandOnset,
