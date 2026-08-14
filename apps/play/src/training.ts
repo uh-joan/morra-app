@@ -12,7 +12,12 @@ import { renderTrainingPanel, type MirrorScope } from "./render/training.js";
 import { download } from "./export.js";
 import { TRAINING_PANEL_TEXT } from "./game/copy.js";
 
-let mirrorScope: MirrorScope = "session";
+// Deliberate deviation from the spike (which defaulted to "session"): the
+// session id is minted per page load, so right after a reload the session
+// slice is always empty and L'Espill read as "data gone". Defaulting to
+// all-time always shows the accumulated picture; "Aquesta sessió" is one
+// click away when practicing. (User decision, 2026-08-14.)
+let mirrorScope: MirrorScope = "allTime";
 
 export function getMirrorScope(): MirrorScope {
   return mirrorScope;

@@ -155,8 +155,10 @@ vosk; without it every round is incomplete by design, same as the spike).
    feeds the same profile the L4 rival reads.
 2. Throw a few times: the panel updates live after each throw; the sample
    count line shows "N tirs (aquesta sessió)".
-3. "Tot el temps" widens the scope to your whole stored history (including
-   Partida rounds from previous sessions); "Aquesta sessió" narrows back.
+3. The panel opens on "Tot el temps" — your whole stored history
+   (deliberate deviation from the spike: the session slice is empty right
+   after every reload and read as lost data). "Aquesta sessió" narrows to
+   this page load only.
 4. **Exporta perfil (JSON)** downloads your player model; **Reinicia
    perfil** asks for confirmation and wipes it (this cannot be undone).
 5. Switch back to **Partida**: the rival panel returns showing the SAME
