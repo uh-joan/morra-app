@@ -9,6 +9,10 @@ on `ux-pirates`:
 | 2 | `bf895d7` | Entorn preset (🎧 Tranquil / 🔊 Local sorollós) + ambient calibration + tunable live-VAD floor |
 | 3 | `92ece69` | Sorollós verdict softening: preWindow-pinned onsets ≠ voice evidence |
 
+Those are fixes #1–#3 of the six ranked in `iteration-1-playtest-analysis.md`
+§5. The remaining three are closed out in **§ Fixes #4–#6** at the end of this
+document.
+
 ## The design in one paragraph
 
 Everything hangs off ONE player-facing switch, **Entorn**, on the title
@@ -94,7 +98,62 @@ with the r2 pass.
 
 ## New telemetry to watch in the next logs
 
-`ambient_calibration` (floor, suggestion decision), `primedNoiseFloor` on
-every `recognition_window`, `prewindow_demoted` (phase-3 rule firing),
-`setting_change {setting: "entorn"}` (preset switches, with source
-ui/suggestion/init).
+`ambient_calibration` (floor, suggestion decision, and the `dspMode`/`dsp`
+capture config in force), `primedNoiseFloor` on every `recognition_window`,
+`prewindow_demoted` (phase-3 rule firing), `setting_change {setting:
+"entorn"}` (preset switches, with source ui/suggestion/init), and
+`setting_change {setting: "dsp"}` (override switches, carrying the
+`effective` boolean).
+
+## Fixes #4–#6 (closed 2026-08-16)
+
+### #4 — A/B the mic constraints: **the toggle now exists**
+
+Phase 2 turned `noiseSuppression` + `echoCancellation` on inside the
+sorollós preset (AGC stays off everywhere — it rescales RMS mid-window and
+would fight the onset detector's adaptive floor). That shipped the DSP but
+*not* the experiment: switching to sorollós moves three things at once —
+browser DSP, the raised live-VAD floor, and the phase-3 preWindow demotion
+— so no field session could ever attribute a win to the DSP alone.
+
+There is now an independent override: **DSP del navegador** in mode tècnic
+(Auto / Sempre / Mai), also settable as `?dsp=1` / `?dsp=0`, persisted in
+`localStorage.morra_dsp`. `auto` keeps the preset's own answer, so nothing
+changes for a player who never opens the drawer. Switching it takes the
+same mic-restart path the preset switch does. Every `ambient_calibration`
+event records the `dspMode` and the `effective` boolean, so a session log
+can be segmented by capture config after the fact.
+
+**Still open:** the measurement itself. Pin `Sempre` vs `Mai` within one
+venue, one entorn, and compare synced rate and no-word rate on synced
+throws. That is a field task, not a code task.
+
+### #5 — Field kit: **not a code task**
+
+Directional/headset mic for the shouting player, and record a noisy-venue
+corpus on the s02 rig while there (the current corpus is all
+headphones-at-home — the exact condition that never failed). Carried in the
+field protocol above.
+
+### #6 — `gesture_reset` events: **false alarm, no code change**
+
+The iteration-1 item asked to "check the event didn't get lost in the
+ux-pirates refactor". It wasn't. The evidence:
+
+- `gesture_reset` appears nowhere in the current tree **and nowhere in
+  `spikes/s03-beat.html`** — it was never a spike event.
+- All 636 events come from exactly two sessions, `61ec5348` and
+  `acfcf6f6`, both 2026-08-10. Reasons: `wave` 281, `stillness` 180,
+  `below-zone` 122, `out-of-frame` 53 — the four gestures of the
+  short-lived **reset palette**.
+- That feature landed in `cf1ffd1`, was hardened in `fb0c867` (whose own
+  message names incident session `acfcf6f6`), and was then reverted
+  wholesale at the user's request in `9ad7a7c` — all on 2026-08-10, three
+  days before the apps/play rebuild (`7ae176d`, 08-13) and six before the
+  ux-pirates work.
+
+So the event stopped because the feature it belonged to was deliberately
+removed. The `reset` outcomes that continue are M5 fist-as-reset — a
+different mechanism that never emitted `gesture_reset`. Nothing to restore;
+if the reset palette is ever re-landed (it is parked for redesign in
+`9ad7a7c`'s message), the event comes back with it.
