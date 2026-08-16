@@ -184,6 +184,16 @@ r.check("error panel surfaces runtime errors", (await page.$eval("#errorPanel", 
 const unexpected = pageErrors.filter((e) => !/integration probe/.test(e));
 r.check("no unexpected page errors", unexpected.length === 0, unexpected.join("; "));
 
+// Corpus recorder (?rec=1): absent by default, present + inert when armed.
+r.check("recorder strip absent without ?rec=1", (await page.$$eval(".rec-strip", (n) => n.length)) === 0);
+const page2 = await browser.newPage();
+await page2.goto(`http://127.0.0.1:${srv.address().port}/?rec=1`, { waitUntil: "networkidle0" });
+r.check("recorder strip mounts under ?rec=1", (await page2.$$eval(".rec-strip", (n) => n.length)) === 1);
+r.check("recorder starts idle with no frames", await page2.evaluate(() => window.__rec && window.__rec.frames.length === 0));
+await page2.evaluate(() => { window.__rec.label(4); window.__rec.start(); });
+r.check("recorder R/label/start reflect in the status line", /REC.*truth=4/.test(await page2.$eval("#recStatus", (n) => n.textContent)));
+await page2.close();
+
 await browser.close();
 srv.close();
 r.finish();

@@ -49,7 +49,17 @@ export function countFingers(lm: readonly Landmark[]): number {
   // sits clearly farther from the wrist than its IP joint. Margin 1.15
   // (vs the fingers' 1.05) because the thumb is short and its folded tip
   // hovers nearer the wrist-distance boundary than a folded finger's.
-  const thumbUp = dist(thumbTip, wrist) > dist(thumbIp, wrist) * 1.15;
+  //
+  // Gated on the other four fingers being FOLDED (2026-08-16 console probe,
+  // 74 onsets): a thumbs-up "1" is by definition thumb + fist, and the
+  // wrist rule uses the 3-D distance — a thumb tucked across the palm with
+  // the hand pointed at the camera puts the tip nearer the lens (larger
+  // dz), which read a 4 as 5 on 6 of 74 onsets. With the gate the rule can
+  // only ever turn a 0 into a 1; a thumb alongside open fingers is judged
+  // by the spike's lateral rule alone, exactly as before r2. (That lateral
+  // rule is 3-D too, so depth can inflate it the same way — a pre-existing
+  // route the counting corpus will measure; not touched here.)
+  const thumbUp = count === 0 && dist(thumbTip, wrist) > dist(thumbIp, wrist) * 1.15;
   if (thumbLateral || thumbUp) count++;
   return count;
 }

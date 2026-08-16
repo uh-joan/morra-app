@@ -77,10 +77,18 @@ describe("worker countFingers stays identical to the module's countFingers", () 
     atWrist[17] = { x: 5, y: 5 }; // lateral rule far from firing either way
     atWrist[3] = { x: 0, y: 0.2 };
     atWrist[4] = { x: 0, y: 0.2 * 1.15 + 1e-6 };
-    for (const lm of [up, tucked, atLateral, atWrist]) {
+    // gate: four fingers up + thumb pulled toward the lens (dz) — the
+    // wrist rule must NOT fire because count !== 0
+    const gated = base();
+    for (const [tip, pip] of [[8, 6], [12, 10], [16, 14], [20, 18]]) { gated[pip] = { x: 0, y: 0.3 }; gated[tip] = { x: 0, y: 0.6 }; }
+    gated[3] = { x: 0.15, y: 0.25, z: 0 };
+    gated[4] = { x: 0.15, y: 0.25, z: -0.2 };
+    gated[17] = { x: 0.5, y: 0.37, z: -0.2 }; // lateral rule stays false; only the wrist rule is gated
+    for (const lm of [up, tucked, atLateral, atWrist, gated]) {
       expect(workerCount(lm)).toBe(countFingers(lm));
     }
     expect(countFingers(up)).toBe(1);
     expect(countFingers(tucked)).toBe(0);
+    expect(countFingers(gated)).toBe(4);
   });
 });
