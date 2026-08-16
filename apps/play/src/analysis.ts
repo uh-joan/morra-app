@@ -103,6 +103,10 @@ export interface ThrowEvent {
   handOnsetPerfTime: number | null;
   handSettlePerfTime: number | null;
   handFingerCount: number | null;
+  /** resting count just before motion start (camera.ts preOnsetFingerCount);
+   * null = unknown. Throw-of-one reveal gate input, and logged so the next
+   * field analysis can validate the rule against real retractions. */
+  handPreOnsetFingerCount: number | null;
   voiceOnsetPerfTime: number | null;
   voicePreWindow: boolean;
   syncDeltaMs: number | null;
@@ -167,7 +171,8 @@ let activeRecognitions = 0;
 export function onSyncHandOnset(
   settlePerfTime: number,
   motionStartPerfTime: number | null,
-  fingerCount: number | null
+  fingerCount: number | null,
+  preOnsetFingerCount: number | null = null
 ): void {
   if (!syncReady()) return;
   const anchorPerfTime = motionStartPerfTime != null ? motionStartPerfTime : settlePerfTime;
@@ -177,6 +182,7 @@ export function onSyncHandOnset(
     handOnsetPerfTime: anchorPerfTime,
     handSettlePerfTime: settlePerfTime,
     handFingerCount: fingerCount,
+    handPreOnsetFingerCount: preOnsetFingerCount,
     voiceOnsetPerfTime: null,
     voicePreWindow: false,
     syncDeltaMs: null,
@@ -200,6 +206,7 @@ export function onSyncHandOnset(
     handOnsetPerfTime: anchorPerfTime,
     settlePerfTime,
     fingerCount,
+    preOnsetFingerCount,
   });
   renderSyncVerdictPending(throwEvent);
   renderSyncTally(syncThrows);
@@ -528,6 +535,7 @@ function recordSyncIncompleteThrow(voicePerfTime: number): void {
     handOnsetPerfTime: null,
     handSettlePerfTime: null,
     handFingerCount: null,
+    handPreOnsetFingerCount: null,
     voiceOnsetPerfTime: voicePerfTime,
     voicePreWindow: false,
     syncDeltaMs: null,

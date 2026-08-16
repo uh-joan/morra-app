@@ -157,3 +157,50 @@ removed. The `reset` outcomes that continue are M5 fist-as-reset — a
 different mechanism that never emitted `gesture_reset`. Nothing to restore;
 if the reset palette is ever re-landed (it is parked for redesign in
 `9ad7a7c`'s message), the event comes back with it.
+
+## Rules change: a throw of ONE reveals (2026-08-16, decided by Janis)
+
+Not one of the six — it surfaced right after, testing 0 → 1 without voice:
+the rival never revealed. That was the spike's `shouldRevealPhase1 =
+fingerCount >= 2`, ported verbatim. Janis: "it should def work with 0 → 1".
+
+**Why the spike gated at 2 — measured, not assumed.** Across all 3,622
+`throw_outcome` events in the field logs:
+
+| settle count | n | share | outcomes |
+|---|---|---|---|
+| 0 | 219 | 6% | reset 100% |
+| **1** | **1,503** | **41%** | **reset 53%**, voice-early 31%, synced 13%, voice-late 3% |
+| 2 | 354 | 10% | synced 50%, hand-only 25%, voice-early 23% |
+| 3–5 | 1,546 | 43% | synced ~50%, voice-early ~30%, hand-only ~20% |
+
+fc=1 is the single most common settle, and it is *both* the number players
+throw most *and* what a resting fist reads as (the thumb-lateral rule
+fires on a relaxed fist far more often than the count drops to 0). Of the
+800 fc=1 resets, **73% follow a ≥2 throw within 3 s (median 0.87 s)** —
+they are the hand coming back down. A naive `>= 1` reveal would burn the
+commitment on more than half of all fc=1 settles.
+
+**The rule that ships.** Where the hand *came from* separates the two: a
+throw of one starts from a resting fist (reads 0 or 1); a retraction
+starts from the held ≥2 pose. `core.shouldRevealPhase1From(fc, preOnset)`:
+fc ≥ 2 → reveal (spike); **fc = 1 and pre-onset ≤ 1 → reveal**; fc = 1 and
+pre-onset ≥ 2 → no (retraction); pre-onset unknown → spike answer. The
+pre-onset count is the median of the detected-hand frames in the 200 ms
+before the velocity FSM's motion start (`apps/play/src/game/preOnset.ts`);
+unknown when fewer than 2 such frames exist — hand entered mid-motion, or a
+headless harness with a fake camera. So parity stays 18/18 unchanged and
+the degraded case is exactly today: no early reveal, the round still
+resolves through voice.
+
+The spike's `shouldRevealPhase1` stays byte-identical in core (the
+conformance corpus pins it, 7 cases); the new function is the only caller
+that widens it. `throw_onset` telemetry now carries `preOnsetFingerCount`
+so the next field analysis can measure how often the rule fires and how
+often it's wrong.
+
+**Known residual:** a genuine throw of one that follows a ≥2 throw *without*
+the retraction registering as its own settle (retract-and-throw in one
+motion, < 200 ms at rest) reads pre-onset ≥ 2 and does not early-reveal —
+it degrades to the spike path (resolves through voice, no burn). Watch
+`preOnsetFingerCount` on synced fc=1 throws in the next logs to size it.

@@ -1,6 +1,6 @@
 // Ported from spikes/modules/test.mjs's "scorer.mjs" section.
 import { describe, expect, it } from "vitest";
-import { classifyHandSettleForSync, classifySyncThrow, isOrphanVoiceOnset, shouldRevealPhase1 } from "../src/scorer.js";
+import { classifyHandSettleForSync, classifySyncThrow, isOrphanVoiceOnset, shouldRevealPhase1, shouldRevealPhase1From } from "../src/scorer.js";
 
 describe("scorer: classifySyncThrow", () => {
   it("within co-occurrence window -> synced", () => {
@@ -62,5 +62,29 @@ describe("scorer: shouldRevealPhase1 (Phase E.1)", () => {
   });
   it("shouldRevealPhase1(null) -> false", () => {
     expect(shouldRevealPhase1(null)).toBe(false);
+  });
+});
+
+describe("scorer: shouldRevealPhase1From (deliberate divergence: a throw of ONE reveals)", () => {
+  it.each([2, 3, 4, 5])("fc=%i reveals regardless of where the hand came from", (n) => {
+    expect(shouldRevealPhase1From(n, null)).toBe(true);
+    expect(shouldRevealPhase1From(n, 0)).toBe(true);
+    expect(shouldRevealPhase1From(n, 4)).toBe(true);
+  });
+  it("fc=1 from a resting fist (pre-onset 0 or 1) reveals — the throw-of-one case", () => {
+    expect(shouldRevealPhase1From(1, 0)).toBe(true);
+    expect(shouldRevealPhase1From(1, 1)).toBe(true);
+  });
+  it("fc=1 coming down from a held >=2 pose is a retraction — no reveal (this is the 73%)", () => {
+    expect(shouldRevealPhase1From(1, 2)).toBe(false);
+    expect(shouldRevealPhase1From(1, 5)).toBe(false);
+  });
+  it("fc=1 with UNKNOWN pre-onset keeps the spike's answer (parity-safe degradation)", () => {
+    expect(shouldRevealPhase1From(1, null)).toBe(false);
+  });
+  it("fc=0 and null never reveal, whatever came before", () => {
+    expect(shouldRevealPhase1From(0, 0)).toBe(false);
+    expect(shouldRevealPhase1From(0, 3)).toBe(false);
+    expect(shouldRevealPhase1From(null, 0)).toBe(false);
   });
 });

@@ -22,8 +22,18 @@ let state: VelocityMachineState = INITIAL_VELOCITY_STATE;
 export type HandOnsetHandler = (
   settlePerfTime: number,
   motionStartPerfTime: number | null,
-  fingerCount: number | null
+  fingerCount: number | null,
+  /** the resting count just BEFORE motion start (see camera.ts
+   * preOnsetFingerCount) — throw-of-one reveal gate; null = unknown */
+  preOnsetFingerCount?: number | null
 ) => void;
+
+/** camera.ts registers "what was the hand doing right before this motion
+ * started?" here — it owns the frame history and the time base. */
+let preOnsetCountFor: (motionStartPerfTime: number | null) => number | null = () => null;
+export function setPreOnsetCountProvider(fn: (motionStartPerfTime: number | null) => number | null): void {
+  preOnsetCountFor = fn;
+}
 
 let onHandOnset: HandOnsetHandler = () => {};
 export function setHandOnsetHandler(handler: HandOnsetHandler): void {
@@ -50,7 +60,12 @@ export function processHandVelocity(t: number, v: number, lastKnownFingerCount: 
   state = result.state;
   if (result.onset) {
     const onset: VelocityOnsetEvent = result.onset;
-    onHandOnset(onset.settlePerfTime, onset.motionStartPerfTime, lastKnownFingerCount);
+    onHandOnset(
+      onset.settlePerfTime,
+      onset.motionStartPerfTime,
+      lastKnownFingerCount,
+      preOnsetCountFor(onset.motionStartPerfTime)
+    );
   }
   el.handState.textContent = state.handState;
 }

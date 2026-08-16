@@ -244,6 +244,16 @@ timing, that's a bug in the pass, not a new rule.
    It must stay **4** (the spike read 5 on a third of held frames). Open
    the thumb out → 5. `?count=spike` restores the old rule for
    comparison; the tècnic export's `page_load` says which is active.
+9b. **A throw of ONE reveals** (deliberate divergence from the spike, which
+   only revealed at ≥2): from a resting fist, throw one finger — the
+   rival's hand flips and the voice fires instantly, same as a 3. Then
+   the retraction test that makes this safe: throw **3** (reveal), hold
+   it a beat, and drop back to a fist — if the fist reads 1 on the way
+   down, that 1 must NOT reveal (the commit is not burned; the pill
+   re-arms). The rule keys on where the hand came from, not on the count:
+   `mode tècnic → Export debug log` → each `throw_onset` now carries
+   `preOnsetFingerCount` (≤1 = came from a fist → reveal; ≥2 = came
+   down from a held pose → no reveal; null = unknown → spike behavior).
 10. **Canvia de rival** (top bar) → back to the select with the score
     reset; **Morra** wordmark → title. Switching screens never burns a
     commitment.
@@ -257,13 +267,13 @@ pnpm build && pnpm test && pnpm cross-check:conformance
 cd apps/play && pnpm test:integration && pnpm test:parity
 ```
 
-- Unit: 444 across the workspace (225 core, 80 recognition, 55
-  platform-web, 44 apps/play). Recognition includes the worker/module
+- Unit: 477 across the workspace (233 core, 96 recognition, 55
+  platform-web, 53 apps/play). Recognition includes the worker/module
   `countFingers` drift test — the worker Blob inlines its own copy of the
   rule, and this is what stops the two from diverging.
 - `cross-check:conformance`: 105 cases replayed against the untouched
   spikes/modules/*.mjs — zero discrepancies (THE SPIKE IS THE TRUTH).
-- Integration (`test/integration/run.mjs`): 43 checks driving the built
+- Integration (`test/integration/run.mjs`): 52 checks driving the built
   app headless with fake devices — shell, gesture-gated sensors, the
   character select, a full synced round via the __play seam, L'Espill,
   profiles, mode tècnic, entorn + DSP override restarts, error surfacing.

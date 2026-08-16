@@ -20,7 +20,8 @@ import {
 import { el } from "./dom.js";
 import { reportError, setChip } from "./status.js";
 import { ensureAudioResumed } from "./audioClock.js";
-import { currentHandState, processHandVelocity } from "./velocity.js";
+import { currentHandState, processHandVelocity, setPreOnsetCountProvider } from "./velocity.js";
+import { preOnsetFingerCount } from "./game/preOnset.js";
 import { renderBigNumber, renderBigNumberError, renderBigNumberNoHand } from "./render/bigNumber.js";
 import { recordFrame } from "./landmarkRecorder.js";
 
@@ -35,6 +36,10 @@ export let handTrackingActive = false;
 let lastKnownFingerCount: number | null = null;
 let camFrameTimes: number[] = []; // rolling perf timestamps, for the fps readout
 export const handFrameHistory: { t: number; count: number }[] = []; // {t, count} per detected-hand frame
+
+// Registered at module init: the velocity FSM asks for the resting count the
+// instant it fires an onset (same frame, before the history moves on).
+setPreOnsetCountProvider((motionStart) => preOnsetFingerCount(handFrameHistory, motionStart));
 
 let lastHandPos: Centroid | null = null;
 let lastHandT: number | null = null;

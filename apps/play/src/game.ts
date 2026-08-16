@@ -21,7 +21,7 @@ import {
   verifyCommitment,
   computeMicatioVerdict,
   wordToNumber,
-  shouldRevealPhase1,
+  shouldRevealPhase1From,
   type AiMove,
   type HistoryEntry,
   type PlayerModel,
@@ -457,9 +457,12 @@ export function installGame(): void {
       if (!playVsOpponent() || gameOver) return;
       renderGameRoundAnalyzing();
       // Phase E.1: a settle at fingerCount>=2 is confident enough to be a
-      // real throw — reveal the sealed move immediately. Counts <=1 could
-      // still turn out to be a reset, so they keep showing the fist.
-      if (shouldRevealPhase1(t.handFingerCount)) {
+      // real throw — reveal the sealed move immediately. A settle at 1
+      // reveals too IF the hand came from a resting fist (pre-onset count
+      // <=1) — the throw-of-one rule, core shouldRevealPhase1From; a 1
+      // coming DOWN from a held >=2 pose is a retraction and keeps showing
+      // the fist. Unknown pre-onset = spike behavior.
+      if (shouldRevealPhase1From(t.handFingerCount, t.handPreOnsetFingerCount)) {
         revealRivalPhase1(t);
       } else if (currentAiMove) {
         renderRivalCommitted(currentAiMove);
