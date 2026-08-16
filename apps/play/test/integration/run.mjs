@@ -157,6 +157,25 @@ await page.click('#entornToggle button[data-entorn="tranquil"]');
 await page.waitForFunction(() => document.querySelector("#chipMic .detail").textContent === "running", { timeout: 10000 });
 r.check("entorn switch back to tranquil restores the mic", true);
 
+// DSP override (iteration-2 fix #4): pinned independently of the preset,
+// and it takes the same mic-restart path the preset does. It lives in the
+// tècnic drawer, which the block above left closed — reopen to click it.
+await page.keyboard.press("t");
+r.check("dsp override defaults to auto", await page.evaluate(() => {
+  const active = document.querySelectorAll("#dspToggle button.active");
+  return active.length === 1 && active[0].dataset.dsp === "auto";
+}));
+await page.click('#dspToggle button[data-dsp="on"]');
+r.check("dsp pinned on in tranquil, persisted", await page.evaluate(() =>
+  document.querySelector('#dspToggle button[data-dsp="on"]').classList.contains("active") &&
+  localStorage.getItem("morra_dsp") === "on"));
+await page.waitForFunction(() => document.querySelector("#chipMic .detail").textContent === "running", { timeout: 10000 });
+r.check("mic running again after the dsp restart", true);
+await page.click('#dspToggle button[data-dsp="auto"]');
+await page.waitForFunction(() => document.querySelector("#chipMic .detail").textContent === "running", { timeout: 10000 });
+r.check("dsp back to auto restores the mic", true);
+await page.keyboard.press("t"); // leave the drawer as this block found it
+
 // Error surfacing
 await page.evaluate(() => { setTimeout(() => { throw new Error("integration probe"); }); });
 await new Promise((r2) => setTimeout(r2, 300));

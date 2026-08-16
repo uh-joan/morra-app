@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   computeAmbientFloor,
   demotePreWindowOnset,
+  dspEnabledFor,
   liveFloorMinFor,
   micConstraintsFor,
+  resolveDspMode,
   resolveEntorn,
   shouldSuggestSorollos,
   SOROLLOS_FALLBACK_FLOOR_MIN,
@@ -82,6 +84,35 @@ describe("entorn: micConstraintsFor", () => {
     expect(micConstraintsFor("sorollos")).toEqual({
       echoCancellation: true,
       noiseSuppression: true,
+      autoGainControl: false,
+    });
+  });
+});
+
+describe("entorn: DSP override (iteration-2 fix #4 — A/B the mic constraints)", () => {
+  it("defaults to auto, so the preset alone decides", () => {
+    expect(resolveDspMode(null, null)).toBe("auto");
+    expect(dspEnabledFor("tranquil", "auto")).toBe(false);
+    expect(dspEnabledFor("sorollos", "auto")).toBe(true);
+  });
+  it("?dsp=1 / ?dsp=0 pin the DSP against the preset in BOTH directions", () => {
+    expect(dspEnabledFor("tranquil", resolveDspMode(null, "1"))).toBe(true);
+    expect(dspEnabledFor("sorollos", resolveDspMode(null, "0"))).toBe(false);
+  });
+  it("the URL beats the stored value, and junk falls back to the stored one", () => {
+    expect(resolveDspMode("off", "on")).toBe("on");
+    expect(resolveDspMode("off", "banana")).toBe("off");
+    expect(resolveDspMode("banana", null)).toBe("auto");
+  });
+  it("pinning the DSP on in tranquil changes ONLY the DSP pair — AGC stays off", () => {
+    expect(micConstraintsFor("tranquil", "on")).toEqual({
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: false,
+    });
+    expect(micConstraintsFor("sorollos", "off")).toEqual({
+      echoCancellation: false,
+      noiseSuppression: false,
       autoGainControl: false,
     });
   });

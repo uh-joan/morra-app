@@ -15,6 +15,7 @@ import { MicGraph } from "@morra/platform-web";
 import {
   beginAmbientCalibration,
   feedAmbientSample,
+  getDspMode,
   getEntorn,
   getMeasuredAmbientFloor,
   liveFloorMinFor,
@@ -66,8 +67,9 @@ export async function startMic(): Promise<void> {
     await ensureAudioResumed();
     // Entorn preset picks the constraints: tranquil = spike-verbatim raw
     // capture; sorollós = browser noiseSuppression/echoCancellation on
-    // (iteration-2 noisy-venue bundle, see entorn.ts).
-    ring = await mic.start(micConstraintsFor(getEntorn()));
+    // (iteration-2 noisy-venue bundle, see entorn.ts). The mode tècnic DSP
+    // override pins that choice independently of the preset for A/B.
+    ring = await mic.start(micConstraintsFor(getEntorn(), getDspMode()));
     beginAmbientCalibration(); // ~1.5s ambient sample off the live level stream
     ring.onLevel((_t, rms, threshold) => {
       latestMicLevel = { rms, threshold };
