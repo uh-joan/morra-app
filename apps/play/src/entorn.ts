@@ -67,6 +67,20 @@ export function liveFloorMinFor(entorn: Entorn, ambientFloor: number | null): nu
   return Math.min(0.12, Math.max(0.015, ambientFloor * 3));
 }
 
+/** Phase-3 verdict softening (iteration-2 fix #3): in sorollós, an onset
+ * pinned at the window edge (preWindow=true) is treated as NO voice
+ * evidence — the round classifies by hand alone (hand-only void, "cap crit
+ * sentit") instead of burning as voice-early ("massa aviat"). Rationale
+ * from the field data: after floor priming, a residual pinned onset in a
+ * noisy room is near-certainly the room, not the player. Tradeoff, by
+ * design: a REAL 600ms-early shout in sorollós also reads hand-only — the
+ * round is void either way, no advantage to be had; and in tranquil the
+ * strict spike semantics are untouched. Kept as a pure function so the
+ * rule is unit-testable and greppable. */
+export function demotePreWindowOnset(entorn: Entorn, preWindow: boolean): boolean {
+  return entorn === "sorollos" && preWindow;
+}
+
 /** getUserMedia constraints per preset. Tranquil = spike-verbatim raw
  * capture; sorollós = let the browser fight the room. AGC stays off in
  * both: it rescales RMS mid-window, which would fight the onset detector's

@@ -43,6 +43,7 @@ import { el } from "./dom.js";
 import { clockMap } from "./audioClock.js";
 import { handTrackingActive } from "./camera.js";
 import { micReady, micRing } from "./mic.js";
+import { demotePreWindowOnset, getEntorn } from "./entorn.js";
 import { voskLoaded, voskRecognizer } from "./vosk.js";
 import { logEvent, pushDebugLog } from "./telemetry.js";
 import { reportError } from "./status.js";
@@ -389,6 +390,14 @@ function triggerSyncAudioAnalysis(handPerfTime: number, throwEvent: ThrowEvent, 
         const onsetCtxTime = extraction.windowStartCtxTime + onsetResult.onsetMs / 1000;
         voiceOnsetPerfTime = clockMap.toPerformanceTime(onsetCtxTime);
         preWindow = onsetResult.preWindow;
+        // Iteration-2 phase 3: in sorollós a pinned (preWindow) onset is
+        // room noise, not voice evidence — classify by hand alone. The raw
+        // reading stays in rec.bufferOnsetPreWindow for the debug export.
+        if (demotePreWindowOnset(getEntorn(), preWindow)) {
+          logEvent("prewindow_demoted", { throwIndex: throwEvent.throwIndex, entorn: getEntorn() });
+          voiceOnsetPerfTime = null;
+          preWindow = false;
+        }
       }
       finalizeSyncThrow(throwEvent, debugRec, voiceOnsetPerfTime, preWindow);
 

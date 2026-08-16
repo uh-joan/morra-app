@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeAmbientFloor,
+  demotePreWindowOnset,
   liveFloorMinFor,
   micConstraintsFor,
   resolveEntorn,
@@ -83,5 +84,18 @@ describe("entorn: micConstraintsFor", () => {
       noiseSuppression: true,
       autoGainControl: false,
     });
+  });
+});
+
+describe("entorn: demotePreWindowOnset (phase-3 verdict softening)", () => {
+  it("sorollós demotes a pinned (preWindow) onset to no-voice-evidence", () => {
+    expect(demotePreWindowOnset("sorollos", true)).toBe(true);
+  });
+  it("sorollós leaves real in-window onsets alone", () => {
+    expect(demotePreWindowOnset("sorollos", false)).toBe(false);
+  });
+  it("tranquil NEVER demotes — strict spike semantics preserved (parity world)", () => {
+    expect(demotePreWindowOnset("tranquil", true)).toBe(false);
+    expect(demotePreWindowOnset("tranquil", false)).toBe(false);
   });
 });
