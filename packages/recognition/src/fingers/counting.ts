@@ -39,6 +39,17 @@ export function countFingers(lm: readonly Landmark[]): number {
     if (dist(lm[tip]!, wrist) > dist(lm[pip]!, wrist) * 1.05) count++;
   }
   const thumbTip = lm[4]!, thumbIp = lm[3]!, pinkyMcp = lm[17]!;
-  if (dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05) count++;
+  // Verbatim spike rule: lateral separation from the pinky side of the palm.
+  const thumbLateral = dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05;
+  // ux-pirates r2 divergence (2026-08-16, session 90fac889): a thumbs-UP
+  // "1" (closed fist, thumb toward the top of the frame — the classic
+  // Mediterranean morra one) barely separates the tip from the pinky MCP,
+  // so the lateral rule alone read it as fingers=0. The wrist-distance
+  // rule the other four fingers use catches it: an extended thumb's tip
+  // sits clearly farther from the wrist than its IP joint. Margin 1.15
+  // (vs the fingers' 1.05) because the thumb is short and its folded tip
+  // hovers nearer the wrist-distance boundary than a folded finger's.
+  const thumbUp = dist(thumbTip, wrist) > dist(thumbIp, wrist) * 1.15;
+  if (thumbLateral || thumbUp) count++;
   return count;
 }

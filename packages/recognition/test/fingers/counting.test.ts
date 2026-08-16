@@ -69,6 +69,25 @@ describe("counting: countFingers — all 6 real-world settle states", () => {
   it("thumb alone counts as 1", () => {
     expect(countFingers(makeLandmarks({ thumb: true }))).toBe(1);
   });
+  it("thumbs-UP 'one' counts as 1 (fist + thumb toward frame top — lateral rule misses it, wrist rule catches it)", () => {
+    const lm = makeLandmarks({});
+    // Thumb pointing "up": tip far from the WRIST but at nearly the same
+    // distance from the pinky MCP as the IP joint (real thumbs-up
+    // geometry: session 90fac889 read this pose as fingers=0).
+    lm[3] = { x: 0.15, y: 0.25 }; // thumb IP — dist to wrist ~0.29
+    lm[4] = { x: 0.18, y: 0.55 }; // thumb TIP — dist to wrist ~0.58 (> 1.15x)
+    // pinky MCP placed so tip and IP are EQUIDISTANT from it (lateral rule
+    // false: 0.367 < 0.370*1.05) — only the new wrist rule can count this.
+    lm[17] = { x: 0.5, y: 0.37 };
+    expect(countFingers(lm)).toBe(1);
+  });
+  it("a folded thumb tucked over the fist still counts 0 under both rules", () => {
+    const lm = makeLandmarks({});
+    lm[3] = { x: 0.15, y: 0.25 }; // thumb IP
+    lm[4] = { x: 0.18, y: 0.27 }; // tip barely past IP — inside both margins
+    lm[17] = { x: 0.5, y: 0.37 };
+    expect(countFingers(lm)).toBe(0);
+  });
 });
 
 describe("counting: countFingers — margin behavior (the 1.05x threshold)", () => {
