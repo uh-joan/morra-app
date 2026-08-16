@@ -103,6 +103,37 @@ r.check(
   })
 );
 
+// Throw-of-one reveal rule (core shouldRevealPhase1From): a settle at 1
+// reveals iff the hand came from a resting fist. Each throw here is left
+// silent and finalized as-is so it never resolves a round — we only look
+// at whether phase 1 fired. Between throws the ready pill needs a count
+// change (handHasResetSince) — the seam's onset does that on its own.
+const oneRule = await page.evaluate(async () => {
+  const P = window.__play;
+  const fire = async (fingers, preOnset) => {
+    const now = performance.now();
+    P.onSyncHandOnset(now - 50, now - 150, fingers, preOnset);
+    const t = P.syncThrows[P.syncThrows.length - 1];
+    await new Promise((r2) => setTimeout(r2, 60));
+    const revealed = !!t.rivalRevealed;
+    P.finalizeSyncThrow(t, t.debugRec, null, false);
+    await new Promise((r2) => setTimeout(r2, 60));
+    return revealed;
+  };
+  return {
+    fromFist0: await fire(1, 0),
+    fromFist1: await fire(1, 1),
+    fromHeld3: await fire(1, 3),
+    unknown: await fire(1, undefined),
+    zeroFromFist: await fire(0, 0),
+  };
+});
+r.check("throw of ONE from a fist (pre-onset 0) reveals", oneRule.fromFist0);
+r.check("throw of ONE from a fist that reads 1 reveals", oneRule.fromFist1);
+r.check("a 1 coming down from a held 3 is a retraction — no reveal", !oneRule.fromHeld3);
+r.check("a 1 with unknown pre-onset keeps the spike answer — no reveal", !oneRule.unknown);
+r.check("a 0 never reveals", !oneRule.zeroFromFist);
+
 // Entrenament switch renders L'Espill from real history
 await page.click("#btnModeEntrenament");
 r.check("training panel visible", (await page.$eval("#trainingPanel", (n) => n.style.display)) === "block");

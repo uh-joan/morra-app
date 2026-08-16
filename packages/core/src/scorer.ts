@@ -67,3 +67,29 @@ export function classifyHandSettleForSync(
 export function shouldRevealPhase1(fingerCount: number | null): boolean {
   return fingerCount != null && fingerCount >= 2;
 }
+
+// DELIBERATE DIVERGENCE from the spike (2026-08-16, decided by Janis after
+// the field playtest): a throw of ONE must reveal at phase 1 like any other
+// throw. The spike's >=2 gate exists because, at settle time, "1" and "a
+// fist" are the same number — the field logs make that concrete: fc=1 is
+// the single most common settle (41% of 3,622 throws) and 53% of those are
+// resets, 73% of which are the hand retracting from a >=2 throw within a
+// median 0.87 s. Revealing on every fc=1 would burn the commitment on more
+// than half of them.
+//
+// What tells the two apart is where the hand CAME FROM: a throw of one
+// starts from a resting fist (which itself reads 0 or 1), a retraction
+// starts from the held >=2 pose. So fc=1 reveals iff the pre-onset count is
+// known and <=1. Unknown pre-onset (no hand frames before motion start —
+// hand entered the frame mid-motion; also every headless harness with a
+// fake camera) keeps the spike's answer, so parity stays meaningful and the
+// degraded case is exactly today's behavior: no early reveal, the round
+// still resolves through voice.
+//
+// shouldRevealPhase1 above stays byte-identical to the spike — the
+// conformance corpus pins it, and this function is the ONLY caller that
+// widens it.
+export function shouldRevealPhase1From(fingerCount: number | null, preOnsetFingerCount: number | null): boolean {
+  if (shouldRevealPhase1(fingerCount)) return true;
+  return fingerCount === 1 && preOnsetFingerCount != null && preOnsetFingerCount <= 1;
+}
