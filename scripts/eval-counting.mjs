@@ -5,11 +5,17 @@
 // changing countFingers: the 2026-08-16 console probe put the shipped rule
 // at ~20% on 3s and 4s for one hand, and the fix must be picked on data.
 //
-//   node scripts/eval-counting.mjs <corpus.json> [more.json ...] [--settled]
+//   node scripts/eval-counting.mjs <corpus.json> [more.json ...] [--settled] [--open[=1.4]]
 //
 // --settled : only frames the hand was HOLDING (count unchanged for the
 //             surrounding ±3 frames of the shipped rule) — closer to what
 //             the pipeline samples at settle; default is every frame.
+// --open    : drop the between-throw FISTS a "throw"-style recording labels
+//             with the truth. Openness = max over the 5 tips of tip-to-wrist
+//             / wrist-to-middle-MCP; a fist sits ≈0.8–1.0, a shown hand
+//             ≈1.6–2.5. Rule-independent (assumes only that a fist has
+//             every tip near the palm), so fair to every candidate. Default
+//             threshold 1.4 (the 2026-08-16 corpus is bimodal there).
 //
 // Needs @morra/recognition built (pnpm build). Unlabeled frames (truth
 // null) are excluded from accuracy but reported.
@@ -23,6 +29,8 @@ const { DEFAULT_CANDIDATES } = await import(REC);
 
 const args = process.argv.slice(2);
 const settledOnly = args.includes("--settled");
+const openArg = args.find((a) => a.startsWith("--open"));
+const openMin = openArg ? (openArg.includes("=") ? parseFloat(openArg.split("=")[1]) : 1.4) : null;
 const files = args.filter((a) => !a.startsWith("--"));
 if (!files.length) {
   console.error("usage: node scripts/eval-counting.mjs <corpus.json> [...] [--settled]");
@@ -53,11 +61,22 @@ if (settledOnly) {
   }
   frames = keep;
 }
+let droppedClosed = 0;
+if (openMin != null) {
+  const d3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const openness = (lm) => {
+    const palm = d3(lm[0], lm[9]) || 1e-6;
+    return Math.max(...[4, 8, 12, 16, 20].map((i) => d3(lm[0], lm[i]))) / palm;
+  };
+  const before = frames.length;
+  frames = frames.filter((f) => openness(f.lm) >= openMin);
+  droppedClosed = before - frames.length;
+}
 const labeled = frames.filter((f) => f.label != null);
 const unlabeled = frames.length - labeled.length;
 const toLm = (fr) => fr.lm.map(([x, y, z]) => ({ x, y, z }));
 
-console.log(`corpus: ${files.length} file(s), ${total} frames` + (settledOnly ? ` → ${frames.length} settled` : "") + `, ${labeled.length} labeled, ${unlabeled} unlabeled`);
+console.log(`corpus: ${files.length} file(s), ${total} frames` + (settledOnly ? ` → settled` : "") + (openMin != null ? ` → open≥${openMin} (dropped ${droppedClosed} closed)` : "") + ` → ${frames.length} used, ${labeled.length} labeled, ${unlabeled} unlabeled`);
 const perTruth = {};
 for (const f of labeled) perTruth[f.label] = (perTruth[f.label] ?? 0) + 1;
 console.log("frames per truth: " + Object.entries(perTruth).sort().map(([k, v]) => `${k}:${v}`).join("  "));

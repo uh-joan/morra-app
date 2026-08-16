@@ -114,3 +114,11 @@ export const EVENT_BUS_CAP = 5000;
 export const RIVAL_VOICE_DEFER =
   typeof location === "undefined" || new URLSearchParams(location.search).get("veudelay") !== "0";
 export const RIVAL_VOICE_DEFER_EPS_MS = 60;
+
+// Finger-count rule (2026-08-16, docs/finger-counting-accuracy.md): the
+// shipped countFingers judges the thumb by its MCP angle — picked on a
+// recorded corpus where the spike's lateral rule read a 4 as 5 on 36% of
+// held frames. ?count=spike restores the verbatim spike rule for a field
+// A/B; page_load logs which one is active.
+export const FINGER_COUNT_RULE: "mcp" | "spike" =
+  typeof location !== "undefined" && new URLSearchParams(location.search).get("count") === "spike" ? "spike" : "mcp";

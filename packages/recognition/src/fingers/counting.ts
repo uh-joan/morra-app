@@ -27,39 +27,62 @@ export function dist(a: Landmark, b: Landmark): number {
   return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
 }
 
-// Raw per-frame finger count: tip-vs-wrist distance compared against the
-// PIP joint's own wrist distance (a 5% margin), for the four non-thumb
-// fingers; the thumb is special-cased against the pinky MCP since its tip-
-// to-wrist distance doesn't cleanly separate extended/folded the same way.
-export function countFingers(lm: readonly Landmark[]): number {
+/** Interior angle at b (degrees, 3-D). Degenerate (coincident points) → 180
+ * so a missing joint reads "straight" rather than throwing. */
+export function jointAngleDeg(a: Landmark, b: Landmark, c: Landmark): number {
+  const ux = a.x - b.x, uy = a.y - b.y, uz = (a.z || 0) - (b.z || 0);
+  const vx = c.x - b.x, vy = c.y - b.y, vz = (c.z || 0) - (b.z || 0);
+  const nu = Math.hypot(ux, uy, uz), nv = Math.hypot(vx, vy, vz);
+  if (nu === 0 || nv === 0) return 180;
+  const cos = (ux * vx + uy * vy + uz * vz) / (nu * nv);
+  return (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI;
+}
+
+/** The thumb reads extended iff it is STRAIGHT at its MCP joint (CMC=1,
+ * MCP=2, IP=3). Recorded corpus 2026-08-16 (one hand, 1,025 held open
+ * frames): a thumb folded across the palm bends there — truth 4: p50 140°,
+ * p90 156° — while an extended thumb is straight, p10 ≥ 170° on truths
+ * 1/2/3/5. 160° sits in the gap. */
+export const THUMB_MCP_STRAIGHT_DEG = 160;
+
+const FINGER_TIP_PIP: readonly [number, number][] = [[8, 6], [12, 10], [16, 14], [20, 18]];
+
+function countExtendedFingers(lm: readonly Landmark[]): number {
   const wrist = lm[0]!;
-  const fingers: [number, number][] = [[8, 6], [12, 10], [16, 14], [20, 18]];
   let count = 0;
-  for (const [tip, pip] of fingers) {
+  for (const [tip, pip] of FINGER_TIP_PIP) {
     if (dist(lm[tip]!, wrist) > dist(lm[pip]!, wrist) * 1.05) count++;
   }
+  return count;
+}
+
+// Raw per-frame finger count. Four fingers: the spike's tip-vs-wrist
+// distance compared against the PIP joint's own wrist distance (a 5%
+// margin) — unchanged. Thumb: DELIBERATE DIVERGENCE from the spike
+// (2026-08-16, decided on data — docs/finger-counting-accuracy.md). The
+// spike judged the thumb by lateral separation from the pinky MCP; on a
+// recorded corpus that ratio OVERLAPS between "folded across the palm"
+// (1.05–1.23) and "extended" (1.13–1.23), which read a 4 as 5 on 36% of
+// held frames — the worst number in the game. The angle at the thumb's MCP
+// separates the two states cleanly (see THUMB_MCP_STRAIGHT_DEG); with it
+// the corpus reads 99/99/96/99/97% on truths 1–5 vs 100/99/96/63/97% before.
+// It also reads the thumbs-up "1" (a straight thumb on a fist) directly, so
+// the r2 wrist-ratio rule is gone. countFingersSpike below keeps the
+// verbatim spike rule for the evaluator baseline and the ?count=spike
+// field fallback.
+export function countFingers(lm: readonly Landmark[]): number {
+  let count = countExtendedFingers(lm);
+  if (jointAngleDeg(lm[1]!, lm[2]!, lm[3]!) > THUMB_MCP_STRAIGHT_DEG) count++;
+  return count;
+}
+
+/** The spike's countFingers, verbatim (spikes/s01-fingers.html /
+ * s03-beat.html): four fingers by wrist-distance ratio, thumb by lateral
+ * separation from the pinky MCP. Kept for the evaluator baseline, the
+ * conformance story, and the ?count=spike fallback. */
+export function countFingersSpike(lm: readonly Landmark[]): number {
+  let count = countExtendedFingers(lm);
   const thumbTip = lm[4]!, thumbIp = lm[3]!, pinkyMcp = lm[17]!;
-  // Verbatim spike rule: lateral separation from the pinky side of the palm.
-  const thumbLateral = dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05;
-  // ux-pirates r2 divergence (2026-08-16, session 90fac889): a thumbs-UP
-  // "1" (closed fist, thumb toward the top of the frame — the classic
-  // Mediterranean morra one) barely separates the tip from the pinky MCP,
-  // so the lateral rule alone read it as fingers=0. The wrist-distance
-  // rule the other four fingers use catches it: an extended thumb's tip
-  // sits clearly farther from the wrist than its IP joint. Margin 1.15
-  // (vs the fingers' 1.05) because the thumb is short and its folded tip
-  // hovers nearer the wrist-distance boundary than a folded finger's.
-  //
-  // Gated on the other four fingers being FOLDED (2026-08-16 console probe,
-  // 74 onsets): a thumbs-up "1" is by definition thumb + fist, and the
-  // wrist rule uses the 3-D distance — a thumb tucked across the palm with
-  // the hand pointed at the camera puts the tip nearer the lens (larger
-  // dz), which read a 4 as 5 on 6 of 74 onsets. With the gate the rule can
-  // only ever turn a 0 into a 1; a thumb alongside open fingers is judged
-  // by the spike's lateral rule alone, exactly as before r2. (That lateral
-  // rule is 3-D too, so depth can inflate it the same way — a pre-existing
-  // route the counting corpus will measure; not touched here.)
-  const thumbUp = count === 0 && dist(thumbTip, wrist) > dist(thumbIp, wrist) * 1.15;
-  if (thumbLateral || thumbUp) count++;
+  if (dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05) count++;
   return count;
 }

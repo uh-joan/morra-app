@@ -10,7 +10,7 @@
 // counted). A distance ratio to the wrist is orientation- and
 // foreshortening-sensitive; a finger's CURL ANGLE at its joints is not.
 
-import { dist, type Landmark } from "./counting.js";
+import { countFingers, countFingersSpike, dist, jointAngleDeg, THUMB_MCP_STRAIGHT_DEG, type Landmark } from "./counting.js";
 
 export interface CountRule {
   id: string;
@@ -48,12 +48,10 @@ const FINGERS: readonly [number, number, number, number][] = [
   [17, 18, 19, 20],
 ];
 
-/** Shipped thumb rules (lateral vs pinky MCP; wrist rule gated on a fist). */
-function shippedThumb(lm: readonly Landmark[], othersCount: number): boolean {
-  const wrist = lm[0]!, tip = lm[4]!, ip = lm[3]!, pinkyMcp = lm[17]!;
-  const lateral = dist(tip, pinkyMcp) > dist(ip, pinkyMcp) * 1.05;
-  const up = othersCount === 0 && dist(tip, wrist) > dist(ip, wrist) * 1.15;
-  return lateral || up;
+/** The shipped thumb rule — angle at the thumb MCP (counting.ts) — for
+ * candidates that only vary the finger rule. */
+function shippedThumb(lm: readonly Landmark[]): boolean {
+  return jointAngleDeg(lm[1]!, lm[2]!, lm[3]!) > THUMB_MCP_STRAIGHT_DEG;
 }
 
 /** Thumb by its own curl: angle at the IP joint (MCP=2, IP=3, TIP=4) plus
@@ -68,31 +66,18 @@ function thumbByAngle(lm: readonly Landmark[], straightDeg: number, abductDeg: n
 
 // ------------------------------------------------------------- candidates
 
-/** The shipped rule, for the baseline row. */
+/** The shipped rule, for the baseline row — literally countFingers. */
 export const RULE_SHIPPED: CountRule = {
   id: "shipped",
-  describe: "tip-vs-PIP wrist-distance ratio ×1.05 (spike) + thumb lateral ×1.05 + gated thumbs-up ×1.15",
-  count(lm) {
-    const wrist = lm[0]!;
-    let count = 0;
-    for (const [, pip, , tip] of FINGERS) if (dist(lm[tip]!, wrist) > dist(lm[pip]!, wrist) * 1.05) count++;
-    if (shippedThumb(lm, count)) count++;
-    return count;
-  },
+  describe: "countFingers as shipped: tip-vs-PIP wrist-distance ratio ×1.05 + thumb by MCP angle > 160°",
+  count: (lm) => countFingers(lm),
 };
 
-/** Same as shipped but WITHOUT the r2 thumbs-up wrist rule — the exact
- * pre-r2 spike, to see what that rule costs/gains on real hands. */
+/** The spike's rule verbatim (lateral thumb) — the pre-2026-08-16 baseline. */
 export const RULE_SPIKE_VERBATIM: CountRule = {
   id: "spike",
-  describe: "spike verbatim: ratio ×1.05, thumb lateral only",
-  count(lm) {
-    const wrist = lm[0]!;
-    let count = 0;
-    for (const [, pip, , tip] of FINGERS) if (dist(lm[tip]!, wrist) > dist(lm[pip]!, wrist) * 1.05) count++;
-    if (dist(lm[4]!, lm[17]!) > dist(lm[3]!, lm[17]!) * 1.05) count++;
-    return count;
-  },
+  describe: "spike verbatim: ratio ×1.05, thumb lateral ×1.05 vs pinky MCP",
+  count: (lm) => countFingersSpike(lm),
 };
 
 /** Margin sweep on the shipped ratio — is 1.05 simply too strict for a
@@ -105,7 +90,7 @@ export function ruleRatio(margin: number): CountRule {
       const wrist = lm[0]!;
       let count = 0;
       for (const [, pip, , tip] of FINGERS) if (dist(lm[tip]!, wrist) > dist(lm[pip]!, wrist) * margin) count++;
-      if (shippedThumb(lm, count)) count++;
+      if (shippedThumb(lm)) count++;
       return count;
     },
   };
@@ -165,7 +150,29 @@ export function ruleCurlShippedThumb(pipDeg: number, opts: { twoD?: boolean; dip
         const open = ang(lm[mcp]!, lm[pip]!, lm[dip]!) > pipDeg && (!both || ang(lm[pip]!, lm[dip]!, lm[tip]!) > (opts.dipDeg as number));
         if (open) count++;
       }
-      if (shippedThumb(lm, count)) count++;
+      if (shippedThumb(lm)) count++;
+      return count;
+    },
+  };
+}
+
+/** Thumb by the angle at its MCP joint (CMC=1, MCP=2, IP=3): a thumb folded
+ * across the palm bends at the MCP (2026-08-16 corpus, truth 4: p50 140°,
+ * p90 156°); an extended thumb is straight there (truths 1/2/3/5: p10
+ * ≥170°). The spike's lateral ratio OVERLAPS between those two states
+ * (folded 1.05–1.23 vs extended 1.13–1.23) — which is the whole 4→5
+ * failure. Fingers = shipped ratio rule. Threshold is a candidate. */
+export function ruleThumbMcpAngle(mcpDeg: number, opts: { wristRatio?: number } = {}): CountRule {
+  return {
+    id: `thumbMcp>${mcpDeg}°${opts.wristRatio ? `&wr>${opts.wristRatio}` : ""}`,
+    describe: `fingers = shipped ratio; thumb extended iff angle at thumb MCP > ${mcpDeg}°${opts.wristRatio ? ` AND tip/IP wrist ratio > ${opts.wristRatio}` : ""}`,
+    count(lm) {
+      const wrist = lm[0]!;
+      let count = 0;
+      for (const [, pip, , tip] of FINGERS) if (dist(lm[tip]!, wrist) > dist(lm[pip]!, wrist) * 1.05) count++;
+      const straight = angleDeg(lm[1]!, lm[2]!, lm[3]!) > mcpDeg;
+      const wr = opts.wristRatio ? dist(lm[4]!, wrist) > dist(lm[3]!, wrist) * opts.wristRatio : true;
+      if (straight && wr) count++;
       return count;
     },
   };
@@ -191,4 +198,8 @@ export const DEFAULT_CANDIDATES: readonly CountRule[] = [
   ruleCurlShippedThumb(135, { twoD: true }),
   ruleCurlShippedThumb(150, { twoD: true }),
   ruleCurlShippedThumb(140, { dipDeg: 140 }),
+  ruleThumbMcpAngle(155),
+  ruleThumbMcpAngle(160),
+  ruleThumbMcpAngle(165),
+  ruleThumbMcpAngle(160, { wristRatio: 1.14 }),
 ];

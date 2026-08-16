@@ -9,8 +9,9 @@
 // only (its calculator graph hard-requires strictly increasing timestamps,
 // which expectedDisplayTime does not guarantee — race #1).
 
-import { countFingers, HAND_CONNECTIONS, computeCentroidVelocity, type Centroid, type Landmark } from "@morra/recognition";
+import { countFingers, countFingersSpike, HAND_CONNECTIONS, computeCentroidVelocity, type Centroid, type Landmark } from "@morra/recognition";
 import {
+  FINGER_COUNT_RULE,
   HAND_FRAME_HISTORY_MS,
   MEDIAPIPE_HAND_LANDMARKER_TASK_URL,
   MEDIAPIPE_VISION_ESM_URL,
@@ -180,7 +181,7 @@ function onVideoFrame(now: number, metadata: VideoFrameCallbackMetadata): void {
     const lm = result.landmarks[0]!;
     setHandDetected(true);
     drawHandOverlay(lm, currentHandState() !== "spiking");
-    const count = countFingers(lm);
+    const count = FINGER_COUNT_RULE === "spike" ? countFingersSpike(lm) : countFingers(lm);
     renderBigNumber(count);
     lastKnownFingerCount = count;
     handFrameHistory.push({ t, count });

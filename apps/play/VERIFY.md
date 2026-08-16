@@ -236,9 +236,14 @@ timing, that's a bug in the pass, not a new rule.
 8. **Overdriven mic**: shout right into the mic → the voice meter turns
    red and the "massa fort" warning shows for ~1.2 s. Recognition
    failures at peak RMS ≥ 0.9 are clipping, not vosk.
-9. **Thumbs-up one**: closed fist, thumb up toward the camera → the big
-   number reads **1** (the spike read this as 0). Tuck the thumb over
-   the fist → back to 0.
+9. **The thumb, thumb-first** (docs/finger-counting-accuracy.md): the
+   count judges the thumb by whether it's straight at its base joint.
+   Thumbs-up on a fist → **1** (the spike read 0). Thumb + index → 2.
+   Now the one that used to break: show **4** with the thumb folded
+   across the palm and rotate the hand — flat, then pointed at the lens.
+   It must stay **4** (the spike read 5 on a third of held frames). Open
+   the thumb out → 5. `?count=spike` restores the old rule for
+   comparison; the tècnic export's `page_load` says which is active.
 10. **Canvia de rival** (top bar) → back to the select with the score
     reset; **Morra** wordmark → title. Switching screens never burns a
     commitment.
