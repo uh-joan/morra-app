@@ -672,3 +672,13 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
 }
 /* the hidden attribute must win over the display:flex above */
 .entorn-suggest[hidden] { display: none; }
+
+/* ------------------------------------------ corpus recorder (?rec=1) */
+.rec-strip { border-top: 1px dashed var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.rec-title { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+.rec-hint { font-size: 10px; opacity: .6; margin-left: 6px; }
+.rec-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.rec-row button { font-size: 12px; padding: 4px 9px; }
+.rec-row button.active { outline: 1px solid currentColor; }
+.rec-status { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.rec-strip.rec-on .rec-status { color: var(--bad, #ff6b6b); }

@@ -4,3 +4,4 @@ export * from "./tipVelocity.js";
 export * from "./stableRun.js";
 export * from "./workerSource.js";
 export * from "./mediapipeFingerRecognizer.js";
+export * from "./countingCandidates.js";

@@ -15,7 +15,8 @@ const TYPES = {
 export function serve(root, indexFile = "index.html") {
   const srv = createServer((req, res) => {
     if (req.method === "POST" && req.url === "/log") { res.writeHead(204); res.end(); return; }
-    const p = join(root, req.url === "/" ? indexFile : decodeURIComponent(req.url.split("?")[0]));
+    const path = req.url.split("?")[0]; // "/?rec=1" is still the index
+    const p = join(root, path === "/" ? indexFile : decodeURIComponent(path));
     if (!existsSync(p)) { res.writeHead(404); res.end(); return; }
     const data = readFileSync(p);
     res.writeHead(200, { "Content-Type": TYPES[extname(p)] || "application/octet-stream", "Content-Length": data.length });

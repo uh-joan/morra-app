@@ -21,6 +21,7 @@ import { reportError, setChip } from "./status.js";
 import { ensureAudioResumed } from "./audioClock.js";
 import { currentHandState, processHandVelocity } from "./velocity.js";
 import { renderBigNumber, renderBigNumberError, renderBigNumberNoHand } from "./render/bigNumber.js";
+import { recordFrame } from "./landmarkRecorder.js";
 
 interface HandLandmarkerLike {
   detectForVideo(video: HTMLVideoElement, timestampMs: number): { landmarks?: Landmark[][] };
@@ -183,6 +184,7 @@ function onVideoFrame(now: number, metadata: VideoFrameCallbackMetadata): void {
     renderBigNumber(count);
     lastKnownFingerCount = count;
     handFrameHistory.push({ t, count });
+    recordFrame(t, lm, count); // corpus recorder — no-op unless ?rec=1 and recording
     const cutoff = t - HAND_FRAME_HISTORY_MS;
     while (handFrameHistory.length && handFrameHistory[0]!.t < cutoff) handFrameHistory.shift();
     // Centroid velocity — the spike's formula (L1999–2008), NOT mean-per-tip
