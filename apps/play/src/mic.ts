@@ -27,6 +27,7 @@ import type { VadRingBuffer } from "@morra/recognition";
 import { clockMap, ctx, ensureAudioResumed } from "./audioClock.js";
 import { el } from "./dom.js";
 import { reportError, setChip } from "./status.js";
+import { logEvent } from "./telemetry.js";
 import { renderShoutError, renderShoutListening, renderShoutRequesting, triggerShoutFlash } from "./render/shout.js";
 
 const mic = new MicGraph(ctx);
@@ -69,7 +70,30 @@ export async function startMic(): Promise<void> {
     // capture; sorollós = browser noiseSuppression/echoCancellation on
     // (iteration-2 noisy-venue bundle, see entorn.ts). The mode tècnic DSP
     // override pins that choice independently of the preset for A/B.
-    ring = await mic.start(micConstraintsFor(getEntorn(), getDspMode()));
+    const requested = micConstraintsFor(getEntorn(), getDspMode());
+    ring = await mic.start(requested);
+    // Requested vs APPLIED: the UA may silently ignore DSP constraints, so
+    // the fix-#4 A/B keys off what the track reports, not what we asked.
+    const applied = mic.appliedSettings;
+    logEvent("mic_start", {
+      entorn: getEntorn(),
+      dspMode: getDspMode(),
+      requested,
+      applied: applied
+        ? {
+            echoCancellation: applied.echoCancellation ?? null,
+            noiseSuppression: applied.noiseSuppression ?? null,
+            autoGainControl: applied.autoGainControl ?? null,
+            sampleRate: applied.sampleRate ?? null,
+            channelCount: applied.channelCount ?? null,
+            deviceId: applied.deviceId ?? null,
+          }
+        : null,
+      honored: applied
+        ? applied.noiseSuppression === requested.noiseSuppression &&
+          applied.echoCancellation === requested.echoCancellation
+        : null,
+    });
     beginAmbientCalibration(); // ~1.5s ambient sample off the live level stream
     ring.onLevel((_t, rms, threshold) => {
       latestMicLevel = { rms, threshold };

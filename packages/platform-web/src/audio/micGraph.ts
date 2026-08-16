@@ -32,6 +32,15 @@ export class MicGraph {
     return this.ring;
   }
 
+  /** What the browser ACTUALLY applied to the live audio track — the
+   * requested constraints are advisory (a device or UA may silently ignore
+   * noiseSuppression/echoCancellation), so any A/B over them must log this,
+   * not the request. Null when no track is live. */
+  get appliedSettings(): MediaTrackSettings | null {
+    const track = this.stream?.getAudioTracks()[0];
+    return track ? track.getSettings() : null;
+  }
+
   stop(): void {
     this.ring?.dispose();
     this.ring = null;
