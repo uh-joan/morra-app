@@ -184,6 +184,65 @@ vosk; without it every round is incomplete by design, same as the spike).
 4. **Esborra** (disabled for Principal): confirm → the profile AND its
    stored history are gone; you fall back to Principal.
 
+## ux-pirates r2 — the skin, onboarding, entorn, mode tècnic
+
+The presentation pass (docs/ux-report-apps-play.md direction A) plus the
+iteration-2 noise work (docs/iteration-2-noise-fixes.md). Everything below
+sits on top of M0–M7 semantics — if a step here changes a verdict or a
+timing, that's a bug in the pass, not a new rule.
+
+1. **Title screen**: wordmark, "⚓ Juga", "🪞 L'Espill", the hint line,
+   and the small *Preparació manual* row (Càmera / Micròfon / Veu +
+   the 🎧 Tranquil / 🔊 Local sorollós Entorn switch). Nothing else — no
+   chips, no meters, no hash. Resize the window down to a phone-ish
+   400×225: the prep row must drop below the buttons and wrap, never
+   overlap them.
+2. **Juga**: one tap → the onboarding overlay walks càmera → micròfon →
+   veu with Catalan copy. Both permission prompts fire from that single
+   click (gesture-gated). The overlay advances the moment camera + mic
+   are live; the 47 MB model keeps downloading behind a mini progress
+   banner. You land on **Tria el teu rival**.
+3. **Character select**: four cards — Nino el Grumet (1 pip, taverna),
+   Bru el Contramestre (2, coberta), Mercè la Vella Corsària (3, cala),
+   El Rei del Fons (4, abissal) — each with the core level name in small
+   caps at the bottom (L'Aprenent … El Déu de la Morra). Pick one: a
+   ~1.4 s VS splash, then the fight, with the stage scenery and the
+   corsair figure in the rival slot. The commitment was ALREADY minted
+   before you chose (the hash predates the card click).
+4. **Fight screen**: your video left, the corsair right; the round card
+   and the ring scoreboard below. Play a round exactly as in M5 — the
+   reveal snap, the voice, the ~0.7 s verdict — nothing may feel slower.
+   The corsair reacts (bubble line) to win / lose / parata / void.
+   Rival voice: since r2 the clip fires just AFTER the capture window
+   closes (window close + 60 ms), never during it — you should hear it
+   a beat after the hand flips, and your own shout tail no longer gets
+   blanked. `?veudelay=0` restores the instant clip for comparison.
+5. **Mode tècnic**: press **T** (or load with `?tecnic=1`). The drawer
+   slides in from the right with the 7 chips, co-occurrence, sensitivity,
+   **DSP del navegador** (Auto / Sempre / Mai), Ajustos, export, session
+   id. Press T again: gone. Nothing in the drawer is required to play.
+   Typing T inside an input must NOT toggle it.
+6. **Entorn**: on the title screen switch to 🔊 Local sorollós → the mic
+   restarts (chip: reiniciant… → running), persisted across reload
+   (`localStorage.morra_entorn`). Start the mic in a genuinely noisy room
+   while in Tranquil: within ~2 s the "Sembla que hi ha soroll de
+   taverna" banner offers the switch in one tap.
+7. **DSP override**: in the drawer set **Sempre** while in Tranquil → the
+   mic restarts with browser noise suppression on, independent of the
+   preset. Export the debug log: the `mic_start` event carries
+   `requested` vs `applied` and an `honored` boolean — if the browser or
+   device silently ignored the request, `honored` is false and any A/B
+   over that session is void.
+8. **Overdriven mic**: shout right into the mic → the voice meter turns
+   red and the "massa fort" warning shows for ~1.2 s. Recognition
+   failures at peak RMS ≥ 0.9 are clipping, not vosk.
+9. **Thumbs-up one**: closed fist, thumb up toward the camera → the big
+   number reads **1** (the spike read this as 0). Tuck the thumb over
+   the fist → back to 0.
+10. **Canvia de rival** (top bar) → back to the select with the score
+    reset; **Morra** wordmark → title. Switching screens never burns a
+    commitment.
+
 ## M7 — Automated suite
 
 From the repo root:
@@ -193,14 +252,17 @@ pnpm build && pnpm test && pnpm cross-check:conformance
 cd apps/play && pnpm test:integration && pnpm test:parity
 ```
 
-- Unit: 357 across the workspace (225 core, 65 recognition, 55
-  platform-web, 12 apps/play).
+- Unit: 444 across the workspace (225 core, 80 recognition, 55
+  platform-web, 44 apps/play). Recognition includes the worker/module
+  `countFingers` drift test — the worker Blob inlines its own copy of the
+  rule, and this is what stops the two from diverging.
 - `cross-check:conformance`: 105 cases replayed against the untouched
   spikes/modules/*.mjs — zero discrepancies (THE SPIKE IS THE TRUTH).
-- Integration (`test/integration/run.mjs`): 19 checks driving the built
-  app headless with fake devices — shell, gesture-gated sensors, a full
-  synced round via the __play seam, L'Espill, error surfacing. SKIPs
-  without a local Chrome.
+- Integration (`test/integration/run.mjs`): 43 checks driving the built
+  app headless with fake devices — shell, gesture-gated sensors, the
+  character select, a full synced round via the __play seam, L'Espill,
+  profiles, mode tècnic, entorn + DSP override restarts, error surfacing.
+  SKIPs without a local Chrome.
 - Parity (`test/parity/run.mjs`): ONE shared driver runs identical
   scenarios through the live spike's __s03 and the app's __play — synced +
   void across L1–L4, incomplete, reset, preWindow demotion, reset-latest

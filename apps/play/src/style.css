@@ -155,6 +155,18 @@ body.vs-on #vsSplash { display: flex; }
 }
 .title-prep:hover { opacity: 1; }
 .title-prep button { font-size: 11px; padding: 4px 10px; }
+/* Short or narrow viewports (propped phone/tablet, small windows): the
+   absolutely-positioned prep row climbs into the CTA stack. Return it to
+   normal flow under the buttons and let it wrap instead. */
+@media (max-height: 640px), (max-width: 640px) {
+  #screenTitle { justify-content: flex-start; padding-top: 12px; }
+  .title-inner { gap: 12px; padding: 12px 16px; }
+  .title-wordmark { width: min(360px, 70vw); }
+  .title-prep {
+    position: relative; bottom: auto; left: auto; transform: none;
+    flex-wrap: wrap; justify-content: center; max-width: 94vw; margin: 4px 0 100px;
+  }
+}
 .title-waves { position: absolute; bottom: 0; left: 0; right: 0; height: 90px; z-index: 1; }
 .title-waves svg { width: 100%; height: 100%; }
 .tw-a { fill: #14263c; animation: wave-scroll 9s linear infinite; }
