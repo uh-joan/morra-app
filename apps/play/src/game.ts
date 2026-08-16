@@ -385,7 +385,7 @@ export function maybeResolveGameRound(throwEvent: ThrowEvent): void {
   if (throwEvent.outcome !== "synced" || playerFingers == null || playerCallNumber == null) {
     if (throwEvent.rivalRevealed) {
       // Phase E.2/E.3: revealed but didn't pair up — burned, round void.
-      renderGameRoundVoid(throwEvent.outcome);
+      renderGameRoundVoid(throwEvent.outcome, throwEvent.syncDeltaMs ?? null, playerFingers ?? null, !!throwEvent.voicePreWindow);
       const revealed = throwEvent.revealedAiMove as CommittedAiMove | null;
       const burnedHash = revealed ? revealed.hashHex : null;
       if (throwEvent.debugRec)
@@ -408,7 +408,9 @@ export function maybeResolveGameRound(throwEvent: ThrowEvent): void {
         playerFingers,
         throwEvent.word,
         throwEvent.outcome,
-        currentAiMove ? currentAiMove.hashHex.slice(0, 8) : null
+        currentAiMove ? currentAiMove.hashHex.slice(0, 8) : null,
+        throwEvent.syncDeltaMs ?? null,
+        !!throwEvent.voicePreWindow
       );
       if (throwEvent.debugRec)
         throwEvent.debugRec.game = {

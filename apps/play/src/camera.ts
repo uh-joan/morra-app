@@ -156,7 +156,7 @@ function drawHandOverlay(lm: Landmark[] | null, settled: boolean): void {
 
 function setHandDetected(detected: boolean): void {
   el.handIndicator.classList.toggle("on", detected);
-  el.handIndicatorText.textContent = detected ? "hand detected" : "no hand";
+  el.handIndicatorText.textContent = detected ? "mà a la vista" : "cap mà";
   setChip(el.chipHand, detected ? `detected (${currentHandState()})` : `none (${currentHandState()})`, detected ? "ok" : "dim");
 }
 

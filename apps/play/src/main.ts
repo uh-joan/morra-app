@@ -1,15 +1,16 @@
 // main.ts — bootstrap, ports the M0 slice of spikes/s03-beat.html's init
 // (L3808–3857): session footer, error handling, telemetry flushing, initial
 // chip states. Sensor startup is GESTURE-GATED behind the spike's own three
-// buttons (Start Camera / Start Mic / Load Voice Recognition) — handlers
-// arrive in M1/M2/M4; the AudioContext is only ever resumed inside those
-// button handlers, never on load (Chrome autoplay policy).
+// buttons (Start Camera / Start Mic / Load Voice Recognition) — the
+// ux-pirates "Juga" flow only proxies .click() onto them inside its own
+// click gesture, so the AudioContext still only ever resumes inside a real
+// user gesture, never on load (Chrome autoplay policy).
 
 import "./style.css";
 import { el } from "./dom.js";
 import { installErrorHandling, setChip } from "./status.js";
 import { installTelemetryFlushing, logEvent, LOG_SESSION_ID } from "./telemetry.js";
-import { PAGE_VERSION } from "./config.js";
+import { PAGE_VERSION, RIVAL_VOICE_DEFER } from "./config.js";
 import { installClockUpkeep } from "./audioClock.js";
 import { setFrameCountHandler, startCamera } from "./camera.js";
 import { pushVadTuning, setVoiceOnsetHandler, startMic, updateMicMeterUI } from "./mic.js";
@@ -26,6 +27,8 @@ import { installModes } from "./modes.js";
 import { installSettings } from "./settings.js";
 import { installEntorn } from "./entorn.js";
 import { installProfiles } from "./profiles.js";
+import { installScreens } from "./screens.js";
+import { installTecnic } from "./tecnic.js";
 
 installErrorHandling();
 installTelemetryFlushing();
@@ -58,6 +61,12 @@ installSeam();
 renderReadyPill();
 resetSyncVerdict();
 
+// ux-pirates presentation layer: screens (title → select → fight), the
+// one-tap onboarding, the corsair figures + choreography, mode tècnic.
+// Installed last — it reads the level installGame restored.
+installTecnic();
+installScreens();
+
 // The shared rAF frame loop (spike frame(), L1385–1449): mic meters + the
 // sync-analysis drain — extraction fires only once now >= anchor +
 // SYNC_POST_MS (single loop, never a second one; invariant 2).
@@ -79,4 +88,4 @@ setChip(el.chipVad, "—", "dim");
 setChip(el.chipVosk, "not loaded", "dim");
 setChip(el.chipClock, "unsampled", "dim");
 
-logEvent("page_load", { pageVersion: PAGE_VERSION });
+logEvent("page_load", { pageVersion: PAGE_VERSION, veudelayActive: RIVAL_VOICE_DEFER });

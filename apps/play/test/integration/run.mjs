@@ -4,6 +4,11 @@
 // window.__play seam (same-signature port of the spike's __s03). SKIPs
 // (exit 0) without a local Chrome; FAILs if dist/ is missing (build first:
 // pnpm --filter @morra/play build).
+//
+// ux-pirates: the app boots on a title screen; the manual sensor buttons
+// live there (same ids). After the sensors are up we enter the fight the
+// way a player does — through the character select — before exercising the
+// game surfaces.
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -37,8 +42,9 @@ await page.goto(`http://127.0.0.1:${srv.address().port}/`, { waitUntil: "network
 r.check("7 status chips render", (await page.$$eval(".status-chip", (n) => n.length)) === 7);
 r.check("session id in footer", /session [0-9a-f]{8}/.test(await page.$eval("#sessionIdFooter", (n) => n.textContent)));
 r.check("commitment minted at boot", /Opponent committed: [0-9a-f]{8}/.test(await page.$eval("#aiCommitStatus", (n) => n.textContent)));
+r.check("boots on the title screen", (await page.evaluate(() => document.body.dataset.screen)) === "title");
 
-// Gesture-gated sensors
+// Gesture-gated sensors (the manual buttons on the title screen)
 await page.click("#btnCam");
 await page.click("#btnMic");
 await page.waitForFunction(() => window.__play && window.__play.syncReady(), { timeout: 60000 });
@@ -46,6 +52,16 @@ r.check("camera chip ok", /@ \d+fps|\d+x\d+/.test(await page.$eval("#chipCamera 
 r.check("model loaded", /loaded/.test(await page.$eval("#chipModel .detail", (n) => n.textContent)));
 r.check("mic running", (await page.$eval("#chipMic .detail", (n) => n.textContent)) === "running");
 r.check("audio clock live after gesture", /outputLatency ok|baseLatency/.test(await page.$eval("#chipClock .detail", (n) => n.textContent)));
+
+// Enter the fight through the character select (the harness bypassed the
+// "Juga" onboarding by starting the sensors directly, so navigate there).
+await page.evaluate(() => { document.body.dataset.screen = "select"; });
+await page.click("#pirateCard-L2");
+await page.waitForFunction(() => document.body.dataset.screen === "fight", { timeout: 5000 });
+await page.waitForFunction(() => !document.body.classList.contains("vs-on"), { timeout: 5000 });
+r.check("character select enters the fight", true);
+r.check("stage scenery mounted", (await page.$$eval("#stageScenery svg", (n) => n.length)) >= 1);
+r.check("corsair figure mounted", (await page.$$eval("#rivalAvatar svg", (n) => n.length)) === 1);
 
 // A full synced round via the seam (word injected; no vosk download needed)
 const round = await page.evaluate(async () => {
@@ -78,6 +94,14 @@ r.check(
 );
 r.check("scoreboard updated or parata", /Tu [01] — [01] Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
 r.check("verdict card shows SYNCED", /SYNCED/.test(await page.$eval("#verdictResult", (n) => n.textContent)));
+r.check(
+  "treasure coins mirror the scoreboard",
+  await page.evaluate(() => {
+    const m = /Tu (\d+) — (\d+) Rival/.exec(document.getElementById("scoreboard").textContent);
+    const lit = (id) => document.querySelectorAll(`#${id} .coin.full`).length;
+    return m && lit("coinsPlayer") === parseInt(m[1], 10) && lit("coinsRival") === parseInt(m[2], 10);
+  })
+);
 
 // Entrenament switch renders L'Espill from real history
 await page.click("#btnModeEntrenament");
@@ -107,6 +131,31 @@ await page.select("#selProfile", beaId);
 await page.click("#btnDeleteProfile"); // confirm auto-accepted
 r.check("deleting the active profile falls back to default", await page.evaluate(() =>
   window.__play.activeProfileId === "default" && window.__play.profiles.length === 1));
+
+// Mode tècnic: hidden by default, T toggles the drawer
+r.check("tècnic drawer hidden by default", await page.evaluate(() =>
+  getComputedStyle(document.getElementById("tecnicDrawer")).display === "none"));
+await page.keyboard.press("t");
+r.check("T opens the tècnic drawer", await page.evaluate(() =>
+  getComputedStyle(document.getElementById("tecnicDrawer")).display !== "none"));
+await page.keyboard.press("t");
+
+// Entorn preset (iteration-2 noisy-venue bundle) — lives on the title screen
+await page.evaluate(() => { document.body.dataset.screen = "title"; });
+r.check("entorn toggle renders, tranquil active by default", await page.evaluate(() => {
+  const active = document.querySelectorAll("#entornToggle button.active");
+  return active.length === 1 && active[0].dataset.entorn === "tranquil";
+}));
+await page.click('#entornToggle button[data-entorn="sorollos"]');
+r.check("entorn switch activates sorollós and persists", await page.evaluate(() =>
+  document.querySelector('#entornToggle button[data-entorn="sorollos"]').classList.contains("active") &&
+  localStorage.getItem("morra_entorn") === "sorollos"));
+// the switch restarts the mic under the new constraints — wait for it, don't sleep
+await page.waitForFunction(() => document.querySelector("#chipMic .detail").textContent === "running", { timeout: 10000 });
+r.check("mic running again after the entorn restart", true);
+await page.click('#entornToggle button[data-entorn="tranquil"]');
+await page.waitForFunction(() => document.querySelector("#chipMic .detail").textContent === "running", { timeout: 10000 });
+r.check("entorn switch back to tranquil restores the mic", true);
 
 // Error surfacing
 await page.evaluate(() => { setTimeout(() => { throw new Error("integration probe"); }); });
