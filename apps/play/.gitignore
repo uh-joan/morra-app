@@ -1,2 +1,4 @@
 dist
 public/assets
+# vendored CDN modules (downloaded by scripts/prepare-assets.mjs)
+src/vendor/

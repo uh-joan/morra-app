@@ -26,11 +26,13 @@ import {
   blankExclusionRegions,
   clampWindowStart,
   findEnergyOnsetInBuffer,
+  primeNoiseFloorFromBuffer,
 } from "@morra/recognition";
 import { classifyHandSettleForSync, classifySyncThrow, isOrphanVoiceOnset, type AiMove } from "@morra/core";
 import {
   BUFFER_FLOOR_CAP,
   OFFLINE_ONSET_SUSTAIN_MS,
+  ONSET_FLOOR_PRIME_MS,
   SYNC_COOCCURRENCE_MS_DEFAULT,
   SYNC_PARTNER_TIMEOUT_MS,
   SYNC_POST_MS,
@@ -41,6 +43,7 @@ import { el } from "./dom.js";
 import { clockMap } from "./audioClock.js";
 import { handTrackingActive } from "./camera.js";
 import { micReady, micRing } from "./mic.js";
+import { demotePreWindowOnset, getEntorn } from "./entorn.js";
 import { voskLoaded, voskRecognizer } from "./vosk.js";
 import { logEvent, pushDebugLog } from "./telemetry.js";
 import { reportError } from "./status.js";
@@ -351,6 +354,14 @@ function triggerSyncAudioAnalysis(handPerfTime: number, throwEvent: ThrowEvent, 
         rec.vadMultUsed = parseFloat(el.tuneVadMult.value) || 6;
       }
 
+      // Iteration-2: prime the onset floor from the window's own leading
+      // ambience (blanked regions only pull it down — fail-safe). 0.001 =
+      // primed-off / quiet room, in which case behavior is spike-verbatim.
+      const primedNoiseFloor = ONSET_FLOOR_PRIME_MS > 0
+        ? primeNoiseFloorFromBuffer(analysisSamples, extraction.sampleRate, ONSET_FLOOR_PRIME_MS)
+        : 0.001;
+      rec.primedNoiseFloor = primedNoiseFloor;
+
       logEvent("recognition_window", {
         throwIndex: throwEvent.throwIndex,
         windowStartCtxTime: rec.windowStartCtxTime,
@@ -360,6 +371,7 @@ function triggerSyncAudioAnalysis(handPerfTime: number, throwEvent: ThrowEvent, 
         peakBlockRms: rec.peakBlockRms,
         meanBlockRms: rec.meanBlockRms,
         vadMultUsed: rec.vadMultUsed,
+        primedNoiseFloor,
       });
 
       // No metronome click in sync mode, so no exclusion band is needed here.
@@ -367,6 +379,7 @@ function triggerSyncAudioAnalysis(handPerfTime: number, throwEvent: ThrowEvent, 
         sustainMs: OFFLINE_ONSET_SUSTAIN_MS,
         vadMult: parseFloat(el.tuneVadMult.value) || 6,
         floorCap: BUFFER_FLOOR_CAP,
+        initialNoiseFloor: primedNoiseFloor,
       });
       let voiceOnsetPerfTime: number | null = null;
       let preWindow = false;
@@ -377,6 +390,14 @@ function triggerSyncAudioAnalysis(handPerfTime: number, throwEvent: ThrowEvent, 
         const onsetCtxTime = extraction.windowStartCtxTime + onsetResult.onsetMs / 1000;
         voiceOnsetPerfTime = clockMap.toPerformanceTime(onsetCtxTime);
         preWindow = onsetResult.preWindow;
+        // Iteration-2 phase 3: in sorollós a pinned (preWindow) onset is
+        // room noise, not voice evidence — classify by hand alone. The raw
+        // reading stays in rec.bufferOnsetPreWindow for the debug export.
+        if (demotePreWindowOnset(getEntorn(), preWindow)) {
+          logEvent("prewindow_demoted", { throwIndex: throwEvent.throwIndex, entorn: getEntorn() });
+          voiceOnsetPerfTime = null;
+          preWindow = false;
+        }
       }
       finalizeSyncThrow(throwEvent, debugRec, voiceOnsetPerfTime, preWindow);
 

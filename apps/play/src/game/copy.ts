@@ -1,16 +1,18 @@
-// copy.ts — the literal Catalan UI strings from spikes/s03-beat.html,
-// centralized so the render layer stays a thin projection (render this
-// text, don't compose it) and so a future i18n pass has one place to touch.
-// Every string here is DEAD TEXT (a template with numbers substituted in) —
-// only ever rendered via textContent, never HTML interpolation. Salvaged
-// from apps/web (verbatim spike port); SyncOutcome now derives from
-// @morra/core's SyncClassification instead of the deleted gameStore.
+// copy.ts — the Catalan UI strings, centralized so the render layer stays a
+// thin projection (render this text, don't compose it) and so a future i18n
+// pass has one place to touch. Every string here is DEAD TEXT (a template
+// with numbers substituted in) — only ever rendered via textContent, never
+// HTML interpolation. ux-pirates: the English remnants inherited from the
+// spike are now Catalan too. FROZEN strings (asserted by the parity/
+// integration harnesses against the untouched spike): "RONDA ANUL·LADA",
+// "TU GUANYES!", "RIVAL GUANYA", "PARATA", the scoreboard format
+// "Tu N — M Rival", and AI_COMMIT_STATUS's "Opponent committed:" line.
 import type { SyncClassification } from "@morra/core";
 
 export type SyncOutcome = SyncClassification["outcome"];
 
 export const READY_PILL_TEXT = {
-  analyzing: "Reading your throw…",
+  analyzing: "Llegint la tirada…",
   armed: "Llest — tira!",
   notArmed: "Torna al puny…",
 } as const;
@@ -23,7 +25,7 @@ export function roundResultText(
   switch (phase) {
     case "idle": return "–";
     case "analyzing": return "…";
-    case "incomplete": return "INCOMPLETE — try again";
+    case "incomplete": return "INCOMPLETA — torna-hi";
     case "void": return "RONDA ANUL·LADA";
     case "player": return "TU GUANYES!";
     case "ai": return "RIVAL GUANYA";
@@ -34,13 +36,13 @@ export function roundResultText(
 // step 8's SYNC_OUTCOME_VOID_REASON — why a round with a phase-1 reveal
 // still got voided.
 export const SYNC_OUTCOME_VOID_REASON: Partial<Record<SyncOutcome, string>> = {
-  "voice-late": "you called it too late",
-  "voice-early": "too early",
-  "hand-only": "no call word heard",
+  "voice-late": "has cantat massa tard",
+  "voice-early": "massa aviat",
+  "hand-only": "cap crit sentit",
 };
 
 export function voidDetail(outcome: SyncOutcome): string {
-  const reason = SYNC_OUTCOME_VOID_REASON[outcome] ?? "no hand onset seen";
+  const reason = SYNC_OUTCOME_VOID_REASON[outcome] ?? "cap tirada de mà vista";
   return `${reason} — torna-hi (el rival ja ha fet una nova aposta)`;
 }
 
@@ -85,10 +87,50 @@ export const PROFILE_TEXT = {
   defaultName: "Principal",
   newButton: "Nou perfil",
   deleteButton: "Esborra",
-  newPrompt: "Nom del nou perfil:",
+  newPrompt: "Nom del nou tripulant:",
   deleteConfirm: (name: string): string =>
-    `Esborrar el perfil «${name}» i tot el seu historial? Això no es pot desfer.`,
+    `Esborrar el tripulant «${name}» i tot el seu historial? Això no es pot desfer.`,
 } as const;
 
-// AI level avatar glyphs, from the spike's 4-level selector.
+// ux-pirates: round-card detail strings (gameCards.ts renders these).
+export const ROUND_CARD_TEXT = {
+  pendingDetail: "Tira i canta el teu número!",
+  analyzingDetail: "Llegint la tirada…",
+  incompleteHeadline: "INCOMPLETA — torna-hi",
+  noHand: "cap mà vista",
+  noWord: "cap crit sentit",
+  unrecognized: "crit no reconegut",
+  notSynced: (outcome: string): string => `fora de temps (${outcome}) — tira i canta a la una`,
+  commitmentStands: (hash8: string): string => `la mateixa aposta segueix en peu (${hash8})`,
+  sealOk: "segell ✓",
+  sealFailed: "SEGELL TRENCAT ✗",
+} as const;
+
+// ux-pirates: honest timing feedback. The sync rule (throw + call a la
+// una, within the co-occurrence window) IS morra — when a round dies on
+// timing we say by how much, and coach the quick-gesture case: session
+// logs show 1–2-finger flicks complete in ~100ms so the shout trails them,
+// while full throws get the shout during the swing.
+export const TIMING_COACH = (
+  outcome: string,
+  deltaMs: number | null | undefined,
+  fingers: number | null | undefined,
+  preWindow?: boolean
+): string => {
+  const ms = deltaMs != null ? Math.abs(Math.round(deltaMs)) : null;
+  let s: string;
+  if (outcome === "voice-late") s = ms != null ? `el crit ha arribat ${ms} ms tard` : "el crit ha arribat tard";
+  else if (outcome === "voice-early" && preWindow)
+    // Pinned onset: the shout began inside audio the analyzer can't use —
+    // usually overlapping the rival's own (deferred) voice clip in fast
+    // back-to-back rounds, or genuinely far too early.
+    return "el crit s'ha encavalcat amb la veu del rival (o ha començat molt d'hora) — deixa'l acabar de cantar i llavors tira";
+  else if (outcome === "voice-early") s = ms != null ? `el crit s'ha avançat ${ms} ms` : "el crit s'ha avançat";
+  else return "";
+  if (fingers != null && fingers <= 2) s += " — amb 1 o 2 dits el gest és ràpid: canta MENTRE mous la mà, no després";
+  else s += " — tira i canta a la una";
+  return s;
+};
+
+// Legacy emoji avatars (superseded by pirate/cast.ts; kept for reference).
 export const AI_LEVEL_AVATAR: Record<string, string> = { L1: "🙂", L2: "🧔", L3: "🧙", L4: "👹" };

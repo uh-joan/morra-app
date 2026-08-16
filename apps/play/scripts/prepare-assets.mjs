@@ -23,7 +23,7 @@
 // too; this script only copies it forward if it's already present, and
 // warns (never hard-fails) if it isn't, since a fresh checkout legitimately
 // won't have it yet.
-import { existsSync, mkdirSync, readdirSync, copyFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, copyFileSync, writeFileSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,6 +63,65 @@ function copyVoskModel() {
   return true;
 }
 
+// ---------------------------------------------------------------- vendor
+// ux-pirates r2 (2026-08-16): vendor the three CDN dependencies (the
+// README's standing follow-up) so the app runs fully OFFLINE once primed.
+// Download-if-missing into public/assets/vendor/ (gitignored like the rest
+// of public/assets). First run needs network; later runs (and offline
+// play) reuse the cached copies. A failed download warns and leaves the
+// app dependent on that CDN — it never hard-fails the build.
+const VENDOR_DIR = join(APP_ROOT, "public", "assets", "vendor");
+const VENDOR_FILES = [
+  // [dest relative to VENDOR_DIR, source URL, required]
+  // NOTE: tasks-vision.mjs is dynamically import()ed, so it lives in
+  // src/vendor/ (Vite refuses module imports from public/); everything
+  // else is fetch()ed or <script>-tagged and stays under public/.
+  ["__SRC__vendor/tasks-vision.mjs", "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm", true],
+  ["mediapipe/wasm/vision_wasm_internal.js", "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm/vision_wasm_internal.js", true],
+  ["mediapipe/wasm/vision_wasm_internal.wasm", "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm/vision_wasm_internal.wasm", true],
+  ["mediapipe/wasm/vision_wasm_nosimd_internal.js", "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm/vision_wasm_nosimd_internal.js", false],
+  ["mediapipe/wasm/vision_wasm_nosimd_internal.wasm", "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm/vision_wasm_nosimd_internal.wasm", false],
+  ["mediapipe/hand_landmarker.task", "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", true],
+  ["vosk/vosk.js", "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js", true],
+  // best-effort siblings some vosk-browser builds fetch next to vosk.js
+  ["vosk/vosk.wasm", "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.wasm", false],
+  ["vosk/vosk.worker.js", "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.worker.js", false],
+];
+
+async function vendorCdnAssets() {
+  let ok = 0, cached = 0, failed = 0;
+  for (const [rel, url, required] of VENDOR_FILES) {
+    const dest = rel.startsWith("__SRC__")
+      ? join(APP_ROOT, "src", rel.slice("__SRC__".length))
+      : join(VENDOR_DIR, rel);
+    if (existsSync(dest) && statSync(dest).size > 0) { cached++; continue; }
+    mkdirSync(dirname(dest), { recursive: true });
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const buf = Buffer.from(await resp.arrayBuffer());
+      writeFileSync(dest, buf);
+      ok++;
+      console.log(`prepare-assets: vendored ${rel} (${(buf.length / 1024 / 1024).toFixed(1)} MB)`);
+    } catch (err) {
+      failed++;
+      const note = required ? "REQUIRED for offline play" : "optional";
+      console.warn(`prepare-assets: could not vendor ${rel} (${note}): ${err.message} — ` +
+        `the app will need this CDN at runtime until a run with network succeeds.`);
+    }
+  }
+  // The jsdelivr +esm bundle must be self-contained for offline use.
+  const esmDest = join(APP_ROOT, "src", "vendor", "tasks-vision.mjs");
+  if (existsSync(esmDest)) {
+    const src = readFileSync(esmDest, "utf8");
+    if (/from\s*["']\/npm\//.test(src) || /import\s*\(?["']\/npm\//.test(src)) {
+      console.warn("prepare-assets: WARNING — vendored tasks-vision.mjs still imports from /npm/ (not self-contained); offline camera model may fail.");
+    }
+  }
+  console.log(`prepare-assets: vendor step — ${ok} downloaded, ${cached} cached, ${failed} failed.`);
+}
+
 const clipCount = copyRivalVoiceClips();
 const modelCopied = copyVoskModel();
+await vendorCdnAssets();
 console.log(`prepare-assets: ${clipCount} rival-voice clip(s) copied; vosk model ${modelCopied ? "copied" : "SKIPPED (not fetched yet)"}.`);

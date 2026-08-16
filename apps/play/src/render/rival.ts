@@ -4,11 +4,16 @@
 // (createElementNS discipline — never innerHTML markup, unlike the spike's
 // handSvgMarkup string; same geometry, same .finger.extended/.folded
 // classes, verified equivalent by apps/web's tests).
+//
+// ux-pirates: the emoji avatar is replaced by the corsair figure
+// (pirate/render.ts owns the art + stage). renderRivalAvatar keeps its
+// signature and call sites — it now just delegates.
 
 import { LEVELS, LEVEL_ORDER, NUMBER_TO_CATALAN_CALL, type AiMove } from "@morra/core";
 import { el } from "../dom.js";
-import { AI_COMMIT_STATUS, AI_LEVEL_AVATAR } from "../game/copy.js";
+import { AI_COMMIT_STATUS } from "../game/copy.js";
 import { SvgHandCharacterRenderer } from "./SvgHandCharacterRenderer.js";
+import { setPirate } from "../pirate/render.js";
 
 const handRenderer = new SvgHandCharacterRenderer();
 let handMounted = false;
@@ -66,5 +71,5 @@ export function renderAiLevelDescription(level: string): void {
 }
 
 export function renderRivalAvatar(level: string): void {
-  el.rivalAvatar.textContent = AI_LEVEL_AVATAR[level] || "🧔";
+  setPirate(level); // ux-pirates: the corsair figure replaces the emoji
 }

@@ -1,8 +1,10 @@
 // render/shout.ts — ports spikes/s03-beat.html L1550–1584 (the shout
-// mirror): idle before mic start, a calm "listening…" state while running,
+// mirror): idle before mic start, a calm "escoltant…" state while running,
 // a ~400ms bright flash on every live-VAD onset, permanent red ERROR text
 // (never just a console line) if the mic or worklet fails. Same
-// "unmissable, never silent" contract as the hand mirror.
+// "unmissable, never silent" contract as the hand mirror. ux-pirates:
+// player-facing strings are Catalan; the onset diagnostic line (mode
+// tècnic) keeps its technical English.
 
 import { el } from "../dom.js";
 
@@ -11,24 +13,24 @@ let shoutHasError = false;
 
 export function renderShoutIdle(): void {
   shoutHasError = false;
-  el.shoutBadge.textContent = "mic off";
+  el.shoutBadge.textContent = "mic apagat";
   el.shoutBadge.className = "shout-badge idle";
 }
 
 export function renderShoutRequesting(): void {
-  el.shoutBadge.textContent = "requesting…";
+  el.shoutBadge.textContent = "demanant…";
   el.shoutBadge.className = "shout-badge idle";
 }
 
 export function renderShoutListening(): void {
   if (shoutHasError) return;
-  el.shoutBadge.textContent = "listening…";
+  el.shoutBadge.textContent = "escoltant…";
   el.shoutBadge.className = "shout-badge listening";
 }
 
 export function triggerShoutFlash(onsetPerfMs: number, onsetCtxTime: number): void {
   if (shoutHasError) return;
-  el.shoutBadge.textContent = "SHOUT!";
+  el.shoutBadge.textContent = "CRIT!";
   el.shoutBadge.className = "shout-badge flash";
   if (shoutFlashTimer) clearTimeout(shoutFlashTimer);
   shoutFlashTimer = setTimeout(renderShoutListening, 400);

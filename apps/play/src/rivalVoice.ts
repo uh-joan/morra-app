@@ -48,7 +48,10 @@ export async function preloadRivalVoiceClips(): Promise<void> {
   );
 }
 
-export function playRivalCall(call: number): { startCtxTime: number; endCtxTime: number } | null {
+export function playRivalCall(
+  call: number,
+  startAtCtxTime?: number
+): { startCtxTime: number; endCtxTime: number } | null {
   const word = NUMBER_TO_CATALAN_CALL[call];
   if (!word) return null;
   const buffer = rivalVoiceBuffers[word];
@@ -65,7 +68,9 @@ export function playRivalCall(call: number): { startCtxTime: number; endCtxTime:
     // Phase C.3/C.4: explicit ctx-time scheduling (equivalent to start(0)'s
     // "now", but lets us record the real [start,end] window for later
     // blanking/clamping) instead of the ambiguous start(0) shorthand.
-    const startCtxTime = ctx.currentTime;
+    // ?veudelay=1: an explicit future start defers the clip past the
+    // capture window's close (never earlier than now).
+    const startCtxTime = Math.max(ctx.currentTime, startAtCtxTime ?? ctx.currentTime);
     source.start(startCtxTime);
     const endCtxTime = startCtxTime + buffer.duration;
     registerClipPlayback({ word, call, startCtxTime, endCtxTime });
