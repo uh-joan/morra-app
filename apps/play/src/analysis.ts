@@ -28,7 +28,7 @@ import {
   findEnergyOnsetInBuffer,
   primeNoiseFloorFromBuffer,
 } from "@morra/recognition";
-import { classifyHandSettleForSync, classifySyncThrow, isOrphanVoiceOnset, type AiMove } from "@morra/core";
+import { classifyHandSettleForSyncFrom, classifySyncThrow, isOrphanVoiceOnset, type AiMove } from "@morra/core";
 import {
   BUFFER_FLOOR_CAP,
   OFFLINE_ONSET_SUSTAIN_MS,
@@ -459,7 +459,11 @@ export function finalizeSyncThrow(
 ): void {
   // Phase C.1: settle first through the fist/voice disambiguator — a reset
   // never reaches classifySyncThrow as a throw at all.
-  const settleCls = classifyHandSettleForSync(throwEvent.handFingerCount, voiceOnsetPerfTime);
+  const settleCls = classifyHandSettleForSyncFrom(
+    throwEvent.handFingerCount,
+    voiceOnsetPerfTime,
+    throwEvent.handPreOnsetFingerCount
+  );
   throwEvent.handFingerCount = settleCls.effectiveFingerCount;
   debugRec.hand.fingerCount = settleCls.effectiveFingerCount;
 
