@@ -31,6 +31,14 @@ import { renderShoutError, renderShoutListening, renderShoutRequesting, triggerS
 const mic = new MicGraph(ctx);
 let ring: VadRingBuffer | null = null;
 let latestMicLevel = { rms: 0, threshold: 0 };
+// ux-pirates: overdriven-input warning. Session logs (c358f352) show every
+// recognition failure in the loud stretch had peak block RMS >= 0.9 —
+// clipped audio that vosk can't read — while 0.2–0.5 recognized 100%. The
+// meter said "loud enough" but never "too loud"; this makes saturation
+// visible the moment it happens instead of failing silently per-throw.
+const CLIP_RMS = 0.75;
+let clipHotUntilPerf = -Infinity;
+let clipWarnEl: HTMLElement | null | undefined;
 let lastVoiceOnsetAtPerf = -Infinity;
 
 export type VoiceOnsetHandler = (voicePerfTime: number) => void;
@@ -123,6 +131,12 @@ export function updateMicMeterUI(): void {
   (el.voiceMeterFill as HTMLElement).style.width = pct + "%";
   el.voiceMeterFill.classList.toggle("hot", latestMicLevel.rms > latestMicLevel.threshold);
   (el.voiceThreshMark as HTMLElement).style.left = threshPct + "%";
+
+  if (latestMicLevel.rms > CLIP_RMS) clipHotUntilPerf = performance.now() + 1200;
+  const clipping = performance.now() < clipHotUntilPerf;
+  el.voiceMeterFill.classList.toggle("clip", clipping);
+  if (clipWarnEl === undefined) clipWarnEl = document.getElementById("clipWarn");
+  if (clipWarnEl) clipWarnEl.hidden = !clipping;
 
   if (ring) {
     const firing = performance.now() - lastVoiceOnsetAtPerf < 300;

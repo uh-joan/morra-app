@@ -27,7 +27,7 @@ import {
   type PlayerModel,
 } from "@morra/core";
 import { CryptoRandomSource } from "@morra/platform-web";
-import { GAME_WIN_SCORE } from "./config.js";
+import { GAME_WIN_SCORE, RIVAL_VOICE_DEFER, RIVAL_VOICE_DEFER_EPS_MS, SYNC_POST_MS } from "./config.js";
 import { el } from "./dom.js";
 import { ctx } from "./audioClock.js";
 import { logEvent, LOG_SESSION_ID } from "./telemetry.js";
@@ -162,7 +162,18 @@ function revealRivalPhase1(throwEvent: ThrowEvent): void {
   throwEvent.revealedAiMove = move;
   throwEvent.revealedVerified = verified;
   renderRivalReveal(move, verified);
-  const clipPlayback = playRivalCall(move.call); // scheduled during the player's own capture window (blanking covers it)
+  // Default: clip fires at reveal, i.e. DURING the player's own capture
+  // window (blanking covers it -- at the cost of erasing whatever tail of
+  // the player's shout overlaps it). ?veudelay=1 (A/B, 2026-08-16): defer
+  // the clip to window close + epsilon, anchored to THIS throw's motion
+  // start -- still a pure reaction to the player's own event, never a
+  // metronome.
+  let startAtCtxTime: number | undefined;
+  if (RIVAL_VOICE_DEFER && throwEvent.handOnsetPerfTime != null) {
+    const delayMs = throwEvent.handOnsetPerfTime + SYNC_POST_MS + RIVAL_VOICE_DEFER_EPS_MS - performance.now();
+    if (delayMs > 0) startAtCtxTime = ctx.currentTime + delayMs / 1000;
+  }
+  const clipPlayback = playRivalCall(move.call, startAtCtxTime);
   // Phase C.4: floor for the NEXT throw's window clamp (see clampFloorCtxTime
   // in onSyncHandOnset — never used against THIS throw's own window).
   setLastRoundAudioEndCtxTime(clipPlayback ? clipPlayback.endCtxTime : ctx.currentTime);
