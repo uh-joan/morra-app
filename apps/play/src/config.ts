@@ -36,6 +36,17 @@ export const GAME_WIN_SCORE = 10;
 // analysis (findEnergyOnsetInBuffer) over the extracted ring buffer.
 export const OFFLINE_ONSET_SUSTAIN_MS = 60; // sustained-energy requirement for the buffer-based voice onset
 export const BUFFER_FLOOR_CAP = 0.15;       // adaptive noise floor cap, so a loud room can't out-shout a real shout
+
+// Iteration-2 noisy-venue fix (2026-08-16 field playtest, see
+// docs/iteration-1-playtest-analysis.md §5.1): seed the offline onset
+// detector's noise floor from the window's own leading ~150ms of ambience
+// instead of the spike's constant 0.001, which made continuous room noise
+// read as a preWindow voice onset on 64% of field throws. Flag-gated
+// DELIBERATE divergence from the spike oracle: set to 0 to disable and get
+// spike-verbatim onset behavior (also overridable at runtime with
+// ?primefloor=0 for A/B testing in the field).
+export const ONSET_FLOOR_PRIME_MS: number =
+  new URLSearchParams(location.search).get("primefloor") === "0" ? 0 : 150;
 export const HAND_FRAME_HISTORY_MS = 3000;  // finger-count history ring retained for debugging/seam
 
 // Vosk word recognition. Same CDN + self-hosted-model pattern as the spike:
