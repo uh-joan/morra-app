@@ -116,9 +116,15 @@ const oneRule = await page.evaluate(async () => {
     const t = P.syncThrows[P.syncThrows.length - 1];
     await new Promise((r2) => setTimeout(r2, 60));
     const revealed = !!t.rivalRevealed;
-    P.finalizeSyncThrow(t, t.debugRec, null, false);
+    P.finalizeSyncThrow(t, t.debugRec, null, false); // silent: no voice onset
     await new Promise((r2) => setTimeout(r2, 60));
-    return revealed;
+    const card = document.getElementById("roundResultText")?.textContent ?? "";
+    // A RESOLVED throw records its count as lastThrownFingerCount and puts
+    // the pill on "Torna al puny…"; a reset touches neither. (The pill
+    // itself can't be asserted here: the fake camera has no hand, so the
+    // very next frame's null count re-arms it — the spike's own hand-gone
+    // rule. At a real camera the thumb stays in view and the pill holds.)
+    return { revealed, outcome: t.outcome, lastThrown: P.lastThrownFingerCount, card };
   };
   return {
     fromFist0: await fire(1, 0),
@@ -128,11 +134,35 @@ const oneRule = await page.evaluate(async () => {
     zeroFromFist: await fire(0, 0),
   };
 });
-r.check("throw of ONE from a fist (pre-onset 0) reveals", oneRule.fromFist0);
-r.check("throw of ONE from a fist that reads 1 reveals", oneRule.fromFist1);
-r.check("a 1 coming down from a held 3 is a retraction — no reveal", !oneRule.fromHeld3);
-r.check("a 1 with unknown pre-onset keeps the spike answer — no reveal", !oneRule.unknown);
-r.check("a 0 never reveals", !oneRule.zeroFromFist);
+r.check("throw of ONE from a fist (pre-onset 0) reveals", oneRule.fromFist0.revealed);
+r.check("throw of ONE from a fist that reads 1 reveals", oneRule.fromFist1.revealed);
+r.check("a 1 coming down from a held 3 is a retraction — no reveal", !oneRule.fromHeld3.revealed);
+r.check("a 1 with unknown pre-onset keeps the spike answer — no reveal", !oneRule.unknown.revealed);
+r.check("a 0 never reveals", !oneRule.zeroFromFist.revealed);
+// …and a SILENT throw of one is a throw, not a reset: hand-only → the round
+// is void (revealed move burned) and the pill waits for the fist.
+r.check("silent 1 from a fist classifies hand-only (not reset)", oneRule.fromFist0.outcome === "hand-only", oneRule.fromFist0.outcome);
+r.check("silent 1 from a fist voids the round (RONDA ANUL·LADA)", /ANUL/i.test(oneRule.fromFist0.card), oneRule.fromFist0.card.slice(0, 60));
+r.check("silent 1 from a fist RESOLVES (lastThrownFingerCount=1 → pill 'Torna al puny')", oneRule.fromFist0.lastThrown === 1, String(oneRule.fromFist0.lastThrown));
+r.check("silent 1 down from a held 3 is still a reset", oneRule.fromHeld3.outcome === "reset", oneRule.fromHeld3.outcome);
+r.check("a reset does not resolve (lastThrownFingerCount unchanged)", oneRule.fromHeld3.lastThrown === oneRule.fromFist1.lastThrown, String(oneRule.fromHeld3.lastThrown));
+// Every seam onset above ALSO queued the app's own analysis drain, which
+// re-finalizes the same throw ~SYNC_POST_MS later off the fake mic. Let all
+// of those land before moving on: two of these throws are now real
+// (hand-only) throws, and a re-finalize arriving while the harness is in
+// Entrenament would record them into the profile at a random moment and
+// flake the profile checks. (The real app never double-finalizes — only
+// the drain finalizes there.)
+// "Landed" = the drain ran (debugRec.recognition exists) AND its extraction
+// resolved (windowStartCtxTime set, or skipped) — the drain's own
+// finalizeSyncThrow runs synchronously right after that.
+await page.waitForFunction(() =>
+  window.__play.syncPendingAnalysisCount === 0 &&
+  window.__play.syncThrows.filter((t) => t.handOnsetPerfTime != null).every((t) => {
+    const rec = t.debugRec && t.debugRec.recognition;
+    return !!rec && (rec.windowStartCtxTime != null || rec.skipped);
+  }),
+  { timeout: 10000 });
 
 // Entrenament switch renders L'Espill from real history
 await page.click("#btnModeEntrenament");

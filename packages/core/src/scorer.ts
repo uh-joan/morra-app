@@ -93,3 +93,26 @@ export function shouldRevealPhase1From(fingerCount: number | null, preOnsetFinge
   if (shouldRevealPhase1(fingerCount)) return true;
   return fingerCount === 1 && preOnsetFingerCount != null && preOnsetFingerCount <= 1;
 }
+
+// The other half of the same divergence. classifyHandSettleForSync (spike
+// Phase C.1) reads "count <=1 with no voice" as a reset — right for a hand
+// coming back to a fist, wrong for a throw of one from a fist, which
+// shouldRevealPhase1From has ALREADY judged a throw (and revealed the rival
+// on). If that same 1 then went silent, it is a hand-only throw exactly
+// like a silent 3 — the round is void, the revealed move burns, the pill
+// says "Torna al puny" — not a retraction that never happened. Same
+// inputs, same answer, one place: a settle is a throw-of-one iff the
+// reveal rule says so; otherwise the spike's classification stands
+// untouched (unknown pre-onset included, so parity's reset scenarios are
+// unchanged).
+export function classifyHandSettleForSyncFrom(
+  fingerCount: number | null,
+  voiceOnsetPerfTime: number | null,
+  preOnsetFingerCount: number | null
+): HandSettleClassification {
+  const base = classifyHandSettleForSync(fingerCount, voiceOnsetPerfTime);
+  if (base.isReset && fingerCount === 1 && shouldRevealPhase1From(fingerCount, preOnsetFingerCount)) {
+    return { isReset: false, effectiveFingerCount: 1 };
+  }
+  return base;
+}

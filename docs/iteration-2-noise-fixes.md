@@ -199,6 +199,18 @@ that widens it. `throw_onset` telemetry now carries `preOnsetFingerCount`
 so the next field analysis can measure how often the rule fires and how
 often it's wrong.
 
+**Follow-up the same night (found by Janis at the camera):** the reveal
+fired for a silent thumb-1, but the pill never said "Torna al puny" — the
+spike's Phase C.1 rule (`count ≤ 1` + no voice = *reset*) still classified
+that 1 as a retraction 700 ms later, so the round was dropped, the revealed
+move burned silently, and the pill re-armed straight away. A silent 3 goes
+hand-only → RONDA ANUL·LADA → "Torna al puny"; a silent 1 that revealed
+must too. `core.classifyHandSettleForSyncFrom(fc, voice, preOnset)`: the
+spike's classification, except that a silent 1 the reveal rule judged a
+throw-of-one is **hand-only, not reset**. Same inputs, same answer, one
+place; unknown pre-onset and 0 keep the spike answer, so parity's reset
+scenarios are unchanged.
+
 **Known residual:** a genuine throw of one that follows a ≥2 throw *without*
 the retraction registering as its own settle (retract-and-throw in one
 motion, < 200 ms at rest) reads pre-onset ≥ 2 and does not early-reveal —

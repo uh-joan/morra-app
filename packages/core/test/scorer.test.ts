@@ -1,6 +1,6 @@
 // Ported from spikes/modules/test.mjs's "scorer.mjs" section.
 import { describe, expect, it } from "vitest";
-import { classifyHandSettleForSync, classifySyncThrow, isOrphanVoiceOnset, shouldRevealPhase1, shouldRevealPhase1From } from "../src/scorer.js";
+import { classifyHandSettleForSync, classifyHandSettleForSyncFrom, classifySyncThrow, isOrphanVoiceOnset, shouldRevealPhase1, shouldRevealPhase1From } from "../src/scorer.js";
 
 describe("scorer: classifySyncThrow", () => {
   it("within co-occurrence window -> synced", () => {
@@ -86,5 +86,34 @@ describe("scorer: shouldRevealPhase1From (deliberate divergence: a throw of ONE 
     expect(shouldRevealPhase1From(0, 0)).toBe(false);
     expect(shouldRevealPhase1From(0, 3)).toBe(false);
     expect(shouldRevealPhase1From(null, 0)).toBe(false);
+  });
+});
+
+describe("scorer: classifyHandSettleForSyncFrom (a silent throw of ONE is a throw, not a reset)", () => {
+  it("silent 1 from a fist (pre-onset <=1) is NOT a reset — hand-only like a silent 3", () => {
+    expect(classifyHandSettleForSyncFrom(1, null, 0)).toEqual({ isReset: false, effectiveFingerCount: 1 });
+    expect(classifyHandSettleForSyncFrom(1, null, 1)).toEqual({ isReset: false, effectiveFingerCount: 1 });
+  });
+  it("silent 1 coming down from a held >=2 pose is still the spike's reset", () => {
+    expect(classifyHandSettleForSyncFrom(1, null, 3)).toEqual(classifyHandSettleForSync(1, null));
+    expect(classifyHandSettleForSyncFrom(1, null, 3).isReset).toBe(true);
+  });
+  it("unknown pre-onset keeps the spike answer (parity's reset scenarios)", () => {
+    expect(classifyHandSettleForSyncFrom(1, null, null)).toEqual(classifyHandSettleForSync(1, null));
+  });
+  it("a 0 is always the spike's reset, whatever came before", () => {
+    expect(classifyHandSettleForSyncFrom(0, null, 0).isReset).toBe(true);
+    expect(classifyHandSettleForSyncFrom(0, null, 4).isReset).toBe(true);
+  });
+  it("with voice present nothing changes: low counts read as 1, never reset (spike)", () => {
+    for (const pre of [null, 0, 1, 4]) {
+      expect(classifyHandSettleForSyncFrom(1, 100, pre)).toEqual(classifyHandSettleForSync(1, 100));
+      expect(classifyHandSettleForSyncFrom(0, 100, pre)).toEqual(classifyHandSettleForSync(0, 100));
+    }
+  });
+  it("counts >=2 are untouched", () => {
+    for (const fc of [2, 3, 4, 5]) for (const pre of [null, 0, 3]) {
+      expect(classifyHandSettleForSyncFrom(fc, null, pre)).toEqual(classifyHandSettleForSync(fc, null));
+    }
   });
 });

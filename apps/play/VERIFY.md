@@ -246,7 +246,9 @@ timing, that's a bug in the pass, not a new rule.
    comparison; the tècnic export's `page_load` says which is active.
 9b. **A throw of ONE reveals** (deliberate divergence from the spike, which
    only revealed at ≥2): from a resting fist, throw one finger — the
-   rival's hand flips and the voice fires instantly, same as a 3. Then
+   rival's hand flips and the voice fires instantly, same as a 3. Silent,
+   it then resolves like a silent 3: RONDA ANUL·LADA, the pill reads
+   "Torna al puny…" until you drop the thumb, then "Llest — tira!". Then
    the retraction test that makes this safe: throw **3** (reveal), hold
    it a beat, and drop back to a fist — if the fist reads 1 on the way
    down, that 1 must NOT reveal (the commit is not burned; the pill
@@ -267,13 +269,13 @@ pnpm build && pnpm test && pnpm cross-check:conformance
 cd apps/play && pnpm test:integration && pnpm test:parity
 ```
 
-- Unit: 477 across the workspace (233 core, 96 recognition, 55
+- Unit: 483 across the workspace (239 core, 96 recognition, 55
   platform-web, 53 apps/play). Recognition includes the worker/module
   `countFingers` drift test — the worker Blob inlines its own copy of the
   rule, and this is what stops the two from diverging.
 - `cross-check:conformance`: 105 cases replayed against the untouched
   spikes/modules/*.mjs — zero discrepancies (THE SPIKE IS THE TRUTH).
-- Integration (`test/integration/run.mjs`): 52 checks driving the built
+- Integration (`test/integration/run.mjs`): 57 checks driving the built
   app headless with fake devices — shell, gesture-gated sensors, the
   character select, a full synced round via the __play seam, L'Espill,
   profiles, mode tècnic, entorn + DSP override restarts, error surfacing.
