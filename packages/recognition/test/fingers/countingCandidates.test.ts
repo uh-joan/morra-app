@@ -3,7 +3,7 @@
 // baseline row must be EXACTLY countFingers, and every candidate must be a
 // total function into 0..5.
 import { describe, expect, it } from "vitest";
-import { countFingers, type Landmark } from "../../src/fingers/counting.js";
+import { countFingers, countFingersSpike, type Landmark } from "../../src/fingers/counting.js";
 import { DEFAULT_CANDIDATES, RULE_SHIPPED, RULE_SPIKE_VERBATIM } from "../../src/fingers/countingCandidates.js";
 
 function makeRng(seed: number): () => number {
@@ -24,15 +24,12 @@ describe("counting candidates", () => {
       expect(RULE_SHIPPED.count(lm)).toBe(countFingers(lm));
     }
   });
-  it("RULE_SPIKE_VERBATIM differs from shipped ONLY where the gated thumbs-up rule fires", () => {
+  it("RULE_SPIKE_VERBATIM is countFingersSpike and differs from shipped only in the thumb (by at most 1)", () => {
     const rng = makeRng(0xbeef);
     for (let i = 0; i < 5000; i++) {
       const lm = randomHand(rng);
-      const a = RULE_SPIKE_VERBATIM.count(lm), b = RULE_SHIPPED.count(lm);
-      if (a !== b) {
-        expect(a).toBe(0); // spike read a fist…
-        expect(b).toBe(1); // …and only the thumbs-up rule can turn that into 1
-      }
+      expect(RULE_SPIKE_VERBATIM.count(lm)).toBe(countFingersSpike(lm));
+      expect(Math.abs(RULE_SPIKE_VERBATIM.count(lm) - RULE_SHIPPED.count(lm))).toBeLessThanOrEqual(1);
     }
   });
   it("every candidate returns an integer in 0..5 on random hands, and has a unique id", () => {

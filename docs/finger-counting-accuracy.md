@@ -1,9 +1,10 @@
 # Finger counting accuracy — probe, diagnosis, and the corpus plan (2026-08-16)
 
-**Status:** the shipped rule is measurably wrong on 3s and 4s. Nothing about
-the rule has been changed except closing one thumb route (below). The fix
-will be picked by `scripts/eval-counting.mjs` on a recorded landmark corpus,
-not by eye.
+**Status (evening of 2026-08-16): fixed on data.** The corpus was recorded,
+the evaluator picked the rule, and it ships: the thumb is judged by the
+angle at its MCP joint. On held frames truth 4 went **63% → 99%**; overall
+**93% → 98%**. Details in "The corpus, and what it said" below; the probe
+and diagnosis that led there follow unchanged.
 
 ## The probe
 
@@ -84,3 +85,72 @@ foreshortening and thumb-by-angle mis-fires on a lens-tucked thumb (so
 those are already known-bad shapes). The synthetic hands did **not**
 reproduce the probe's 4→3 failure, which is the point: only a real corpus
 can pick the rule.
+
+## The corpus, and what it said (same evening)
+
+Janis recorded 2,901 frames (one hand, 480×360, truths 1–5 — no 0) with
+the `?rec=1` recorder. Two things the raw evaluator run made obvious:
+
+1. **My "throw"-style protocol polluted the labels.** Every batch carried
+   the between-throw fists and the motion frames, labelled with the truth
+   — every rule scored ~57% with →0/→1 dominating every confusion. The
+   data is bimodal on hand *openness* (max tip-to-wrist / palm size:
+   fists ≈0.8–1.0, shown hands ≈2.0–2.5), so `--open` (rule-independent:
+   assumes only that a fist has every tip near the palm) drops the fists;
+   `--settled` drops the transitions. On **held, open frames (n=1,025)**
+   the shipped rule read 100/99/96/**63**/97% on truths 1–5.
+2. **The counting is thumb-first.** 1 = thumb only, 2 = thumb + index,
+   3 = thumb + index + middle, 5 = all — and **4 is the only number where
+   the thumb must read folded.** So the thumb rule matters on every
+   number, and 4 is exactly where the spike's lateral ratio breaks:
+   folded-across-the-palm 1.05–1.23 vs extended 1.13–1.23 — **overlap** —
+   which read a 4 as 5 on 36% of held frames.
+
+Feature scan on the open frames, truth 4 (thumb folded) vs 1/2/3/5 (thumb
+extended): the **angle at the thumb MCP** (CMC–MCP–IP) separates cleanly —
+folded p50 140°, p90 **156°**; extended p10 **≥170°**. So does the tip/IP
+wrist ratio (folded p90 1.17, extended p10 ≥1.19) but with far less margin.
+
+`node scripts/eval-counting.mjs <corpus> --open --settled`:
+
+| rule | overall | worst | t1 | t2 | t3 | t4 | t5 |
+|---|---|---|---|---|---|---|---|
+| **thumbMcp>160°** (ships) | **98%** | **96%** | 99 | 99 | 96 | **99** | 97 |
+| thumbMcp>155° / >165° | 98% | 96% | 100/98 | 99/97 | 96 | 96/99 | 97 |
+| shipped-before (lateral) | 93% | 63% | 100 | 99 | 96 | **63** | 97 |
+| spike verbatim | 93% | 63% | 100 | 99 | 96 | 63 | 97 |
+| ratio margin sweep | 93% | 63% | — | — | — | 63 | — |
+| curl-angle family | ≤86% | ≤56% | | | | | |
+
+The curl-angle candidates for the four fingers did **not** beat the spike's
+wrist-distance ratio — the ratio was never the problem for the fingers on
+this hand (t3 96%, t5 97% either way). The residual on 3 (96%) is 3→1
+transitions surviving `--settled`, not a rule error.
+
+### What ships
+
+- `countFingers`: four fingers unchanged (spike ratio ×1.05); **thumb
+  extended iff angle at thumb MCP > 160°** (`THUMB_MCP_STRAIGHT_DEG`).
+  Handles the thumbs-up 1 directly, so the r2 wrist-ratio rule and its
+  gate are gone. Both copies (module + worker Blob) updated; the drift
+  test covers the new poses.
+- `countFingersSpike`: the verbatim spike rule, kept for the evaluator
+  baseline and the `?count=spike` field fallback (`page_load` logs
+  `fingerCountRule`).
+- **Regression fixture** `packages/recognition/test/fixtures/
+  counting-corpus-2026-08-16.json`: 40 held/open frames per truth,
+  stride-subsampled. The suite asserts ≥95/95/90/95/93% (measured
+  99/99/96/99/97) and that the spike rule reads 4 below 75% — so the
+  number cannot regress silently, and the *why* is executable.
+
+### Caveats, honestly
+
+One hand, one camera, one session, one lighting. 160° sits in a 14° gap on
+this hand; a different thumb might sit closer. The fallback flag exists
+for exactly that. Next recording — a second person, ideally with the
+"hold, don't throw" protocol — should be appended to the fixture, not
+replace it.
+
+The recording protocol above should read **hold** each number for ~20 s
+and rotate the hand, not throw; `--open --settled` recovers a throw-style
+recording but wastes ~2/3 of the frames.

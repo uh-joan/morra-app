@@ -18,16 +18,18 @@ function extractWorkerCountFingers(): (lm: Landmark[]) => number {
     handModelUrl: "about:blank",
     numHands: 1,
   });
+  // Everything from `function dist(` through the end of `function
+  // countFingers(...) {...}` — dist, jointAngleDeg, countFingers — is one
+  // contiguous block in the worker source.
   const distStart = src.indexOf("function dist(");
   const cfStart = src.indexOf("function countFingers(");
   const cfEnd = src.indexOf("\n}\n", cfStart);
   expect(distStart).toBeGreaterThan(-1);
   expect(cfStart).toBeGreaterThan(distStart);
   expect(cfEnd).toBeGreaterThan(cfStart);
-  const distLine = src.slice(distStart, src.indexOf("\n", distStart));
-  const cfBody = src.slice(cfStart, cfEnd + 2);
+  const block = src.slice(distStart, cfEnd + 2);
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  return new Function(`${distLine}\n${cfBody}\nreturn countFingers;`)() as (lm: Landmark[]) => number;
+  return new Function(`${block}\nreturn countFingers;`)() as (lm: Landmark[]) => number;
 }
 
 // Deterministic LCG so a failure reproduces exactly.
@@ -56,39 +58,35 @@ describe("worker countFingers stays identical to the module's countFingers", () 
     expect(disagreements).toBe(0);
   });
 
-  it("agrees on the thumb edge poses that motivated the last rule change", () => {
-    const base = (): Landmark[] => Array.from({ length: 21 }, () => ({ x: 0, y: 0 }));
-    // thumbs-UP one: lateral rule false, wrist rule true
-    const up = base();
-    up[3] = { x: 0.15, y: 0.25 };
-    up[4] = { x: 0.18, y: 0.55 };
-    up[17] = { x: 0.5, y: 0.37 };
-    // tucked thumb: both rules false
-    const tucked = base();
-    tucked[3] = { x: 0.15, y: 0.25 };
-    tucked[4] = { x: 0.18, y: 0.27 };
-    tucked[17] = { x: 0.5, y: 0.37 };
-    // sit each pose right AT the two margins so a margin edit in one copy shows
-    const atLateral = base();
-    atLateral[17] = { x: 0.1, y: 0.5 };
-    atLateral[3] = { x: 0.1, y: 0.7 };
-    atLateral[4] = { x: 0.1, y: 0.7 + 0.2 * 0.05 + 1e-6 }; // dist=0.21+ε vs 0.2*1.05
-    const atWrist = base();
-    atWrist[17] = { x: 5, y: 5 }; // lateral rule far from firing either way
-    atWrist[3] = { x: 0, y: 0.2 };
-    atWrist[4] = { x: 0, y: 0.2 * 1.15 + 1e-6 };
-    // gate: four fingers up + thumb pulled toward the lens (dz) — the
-    // wrist rule must NOT fire because count !== 0
-    const gated = base();
-    for (const [tip, pip] of [[8, 6], [12, 10], [16, 14], [20, 18]]) { gated[pip] = { x: 0, y: 0.3 }; gated[tip] = { x: 0, y: 0.6 }; }
-    gated[3] = { x: 0.15, y: 0.25, z: 0 };
-    gated[4] = { x: 0.15, y: 0.25, z: -0.2 };
-    gated[17] = { x: 0.5, y: 0.37, z: -0.2 }; // lateral rule stays false; only the wrist rule is gated
-    for (const lm of [up, tucked, atLateral, atWrist, gated]) {
+  it("agrees on the thumb poses the rule was picked on (straight / folded / lens-pointed / near-threshold)", () => {
+    const base = (): Landmark[] => {
+      const lm: Landmark[] = Array.from({ length: 21 }, () => ({ x: 0, y: 0 }));
+      lm[9] = { x: 0, y: 0.35 };
+      lm[17] = { x: 0.1, y: 0.3 };
+      for (const [tip, pip] of [[8, 6], [12, 10], [16, 14], [20, 18]]) { lm[pip] = { x: 0, y: 0.3 }; lm[tip] = { x: 0, y: 0.31 }; }
+      lm[1] = { x: -0.05, y: 0.1 };
+      lm[2] = { x: -0.1, y: 0.2 };
+      return lm;
+    };
+    const straight = base();
+    straight[3] = { x: -0.15, y: 0.3 }; straight[4] = { x: -0.2, y: 0.4 };
+    const folded = base();
+    folded[3] = { x: -0.03, y: 0.27 }; folded[4] = { x: 0.04, y: 0.3 };
+    const lens = base();
+    lens[2] = { x: -0.1, y: 0.2, z: -0.1 }; lens[3] = { x: -0.15, y: 0.3, z: -0.2 }; lens[4] = { x: -0.2, y: 0.4, z: -0.3 };
+    const near = (deg: number): Landmark[] => {
+      const lm = base();
+      lm[1] = { x: 0, y: 0.1 }; lm[2] = { x: 0, y: 0.2 };
+      const r = ((180 - deg) * Math.PI) / 180;
+      lm[3] = { x: 0.1 * Math.sin(r), y: 0.2 + 0.1 * Math.cos(r) };
+      lm[4] = { x: 0.2 * Math.sin(r), y: 0.2 + 0.2 * Math.cos(r) };
+      return lm;
+    };
+    for (const lm of [straight, folded, lens, near(159), near(160), near(161)]) {
       expect(workerCount(lm)).toBe(countFingers(lm));
     }
-    expect(countFingers(up)).toBe(1);
-    expect(countFingers(tucked)).toBe(0);
-    expect(countFingers(gated)).toBe(4);
+    expect(countFingers(straight)).toBe(1);
+    expect(countFingers(folded)).toBe(0);
+    expect(countFingers(lens)).toBe(1);
   });
 });
