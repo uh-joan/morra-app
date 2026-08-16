@@ -81,6 +81,18 @@ describe("counting: countFingers — all 6 real-world settle states", () => {
     lm[17] = { x: 0.5, y: 0.37 };
     expect(countFingers(lm)).toBe(1);
   });
+  it("the thumbs-up wrist rule is gated on a fist: a 4 with the thumb tucked toward the lens stays 4, never 5", () => {
+    // Four fingers extended; thumb tip pulled toward the camera (dz) so its
+    // 3-D wrist distance clears 1.15x — the exact false-5 route the probe
+    // caught. Lateral rule false (tip/IP equidistant from pinky MCP).
+    const lm = makeLandmarks({ index: true, middle: true, ring: true, pinky: true });
+    lm[3] = { x: 0.15, y: 0.25, z: 0 };
+    lm[4] = { x: 0.15, y: 0.25, z: -0.2 }; // same x,y as IP; only depth differs
+    // pinky MCP at the same depth as the tip so the (also 3-D) lateral rule
+    // stays false and only the wrist rule is under test.
+    lm[17] = { x: 0.5, y: 0.37, z: -0.2 };
+    expect(countFingers(lm)).toBe(4);
+  });
   it("a folded thumb tucked over the fist still counts 0 under both rules", () => {
     const lm = makeLandmarks({});
     lm[3] = { x: 0.15, y: 0.25 }; // thumb IP

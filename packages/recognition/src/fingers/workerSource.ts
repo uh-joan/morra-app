@@ -58,7 +58,7 @@ export function buildFingerWorkerSource(urls: WorkerSourceUrls): string {
     "  }",
     "  const thumbTip = lm[4], thumbIp = lm[3], pinkyMcp = lm[17];",
     "  const thumbLateral = dist(thumbTip, pinkyMcp) > dist(thumbIp, pinkyMcp) * 1.05;",
-    "  const thumbUp = dist(thumbTip, wrist) > dist(thumbIp, wrist) * 1.15;",
+    "  const thumbUp = count === 0 && dist(thumbTip, wrist) > dist(thumbIp, wrist) * 1.15;",
     "  if (thumbLateral || thumbUp) count++;",
     "  return count;",
     "}",
