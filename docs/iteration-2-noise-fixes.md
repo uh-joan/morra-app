@@ -53,20 +53,25 @@ detector code, old config vs new:
 The residual 12.8% pinned onsets are what phase 3 handles in sorollós:
 demoted to hand-only (round void, no commit burned as "massa aviat").
 
-**Still to run on the Mac (can't run in the cloud sandbox):**
+**Parity: verified 18/18** (2026-08-16, cloud sandbox): the untouched spike
+was served its MediaPipe/vosk dependencies from the vendored copies via
+puppeteer request interception (test-rig shim only — the spike file stayed
+byte-identical, only the network answered differently). All scenarios green
+including both preWindow-pin-never-SYNCED checks — tranquil is confirmed
+spike-equivalent with phases 1–3 in the build.
+
+**Still worth one run on the Mac:**
 
 ```
 pnpm --filter @morra/play build
 pnpm test                      # core's 4 FP fixture diffs should NOT appear on the mac
 pnpm --filter @morra/play test:integration
-pnpm --filter @morra/play test:parity   # needs local Chrome + the spike's CDN access
+pnpm --filter @morra/play test:parity   # re-confirm on real Chrome/CDN
 node scripts/cross-check-conformance.mjs
 ```
 
-Parity expectation: green — tranquil is default, and with an empty
-localStorage the harness never leaves the spike-verbatim world; the
-preWindow-demotion parity scenario is unaffected (demotion happens
-app-side, only in sorollós).
+Expectation: the 4 core FP fixture diffs seen on linux-x64 should NOT
+appear on the mac (arm64-generated corpus); parity already verified above.
 
 ## What lands uncommitted (rides with the ux-pirates r2 working tree)
 
