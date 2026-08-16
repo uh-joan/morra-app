@@ -86,8 +86,11 @@ export class VadRingBuffer {
     });
   }
 
-  tune(mult: number): void {
-    this.node?.port.postMessage({ type: "tune", mult });
+  tune(mult: number, floorMin?: number): void {
+    // floorMin (optional): raises the live detector's minimum threshold in
+    // noisy venues (iteration-2 Entorn preset). Omitted -> worklet keeps
+    // its current floor (0.015 default = spike-verbatim).
+    this.node?.port.postMessage({ type: "tune", mult, ...(floorMin != null ? { floorMin } : {}) });
   }
 
   /** Tells the worklet a scheduled/known audio event's real ctx-time, so

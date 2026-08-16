@@ -24,6 +24,7 @@ import { installExport } from "./export.js";
 import { installTraining } from "./training.js";
 import { installModes } from "./modes.js";
 import { installSettings } from "./settings.js";
+import { installEntorn } from "./entorn.js";
 import { installProfiles } from "./profiles.js";
 
 installErrorHandling();
@@ -50,6 +51,7 @@ installExport();
 installTraining();
 installModes();
 installSettings();
+  installEntorn();
 installProfiles();
 
 installSeam();

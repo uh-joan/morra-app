@@ -12,6 +12,16 @@
 // no separate recording path.
 
 import { MicGraph } from "@morra/platform-web";
+import {
+  beginAmbientCalibration,
+  feedAmbientSample,
+  getEntorn,
+  getMeasuredAmbientFloor,
+  liveFloorMinFor,
+  micConstraintsFor,
+  setCalibratedHandler,
+  setEntornChangeHandler,
+} from "./entorn.js";
 import type { VadRingBuffer } from "@morra/recognition";
 import { clockMap, ctx, ensureAudioResumed } from "./audioClock.js";
 import { el } from "./dom.js";
@@ -46,9 +56,14 @@ export async function startMic(): Promise<void> {
     // Inside the button gesture (finding A) — the worklet needs a running
     // context, and the clock mapping must be live before onsets are stamped.
     await ensureAudioResumed();
-    ring = await mic.start(); // echoCancellation/noiseSuppression/autoGainControl all off (spike parity)
+    // Entorn preset picks the constraints: tranquil = spike-verbatim raw
+    // capture; sorollós = browser noiseSuppression/echoCancellation on
+    // (iteration-2 noisy-venue bundle, see entorn.ts).
+    ring = await mic.start(micConstraintsFor(getEntorn()));
+    beginAmbientCalibration(); // ~1.5s ambient sample off the live level stream
     ring.onLevel((_t, rms, threshold) => {
       latestMicLevel = { rms, threshold };
+      feedAmbientSample(rms);
     });
     ring.onOnset((t, _rms) => {
       const perfT = clockMap.toPerformanceTime(t);
@@ -70,8 +85,30 @@ export async function startMic(): Promise<void> {
 }
 
 export function pushVadTuning(): void {
-  ring?.tune(parseFloat(el.tuneVadMult.value));
+  // In sorollós the live-VAD floor rides the measured room ambience so the
+  // cosmetic shout/meter UX stops firing on crowd noise (the offline
+  // authoritative onset has its own per-window floor priming).
+  ring?.tune(
+    parseFloat(el.tuneVadMult.value),
+    liveFloorMinFor(getEntorn(), getMeasuredAmbientFloor())
+  );
 }
+
+/** Entorn switch mid-session: re-acquire the mic with the new preset's
+ * constraints. The ring is replaced wholesale — analysis reads micRing()
+ * live per throw, so the next window extracts from the new ring; worklet
+ * click-blanking state resets (acceptable: the next scheduled clip
+ * re-registers itself). No-op if the mic was never started. */
+async function restartMicForEntorn(): Promise<void> {
+  if (!ring) return;
+  mic.stop();
+  ring = null;
+  setChip(el.chipMic, "reiniciant…", "warn");
+  await startMic();
+}
+
+setEntornChangeHandler(() => void restartMicForEntorn());
+setCalibratedHandler(() => pushVadTuning());
 
 /** Called from the shared frame loop (spike frame() slice) — meters +
  * threshold mark + the VAD chip's firing/level readout. */

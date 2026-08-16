@@ -46,7 +46,7 @@ export const BUFFER_FLOOR_CAP = 0.15;       // adaptive noise floor cap, so a lo
 // spike-verbatim onset behavior (also overridable at runtime with
 // ?primefloor=0 for A/B testing in the field).
 export const ONSET_FLOOR_PRIME_MS: number =
-  new URLSearchParams(location.search).get("primefloor") === "0" ? 0 : 150;
+  typeof location !== "undefined" && new URLSearchParams(location.search).get("primefloor") === "0" ? 0 : 150;
 export const HAND_FRAME_HISTORY_MS = 3000;  // finger-count history ring retained for debugging/seam
 
 // Vosk word recognition. Same CDN + self-hosted-model pattern as the spike:

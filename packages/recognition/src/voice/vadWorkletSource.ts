@@ -30,10 +30,14 @@ export function buildVadWorkletSource(): string {
       this.clickTimes = [];         // recent/near-future scheduled click ctxTimes
       this.frameCount = 0;
       this.mult = 6;
+      this.floorMin = 0.015; // live-VAD floor; tunable for noisy venues (iteration-2)
       this.markers = []; // {ctxTime, writeIndex} at the start of each render quantum — writeIndex is the UNWRAPPED totalWritten count
       this.maxMarkers = Math.ceil(this.ringSize / 64) + 16;
       this.port.onmessage = (e) => {
-        if (e.data.type === "tune") this.mult = e.data.mult;
+        if (e.data.type === "tune") {
+          this.mult = e.data.mult;
+          if (typeof e.data.floorMin === "number" && e.data.floorMin > 0) this.floorMin = e.data.floorMin;
+        }
         else if (e.data.type === "extract") this.handleExtract(e.data);
         else if (e.data.type === "click") {
           this.clickTimes.push(e.data.ctxTime);
@@ -92,7 +96,7 @@ export function buildVadWorkletSource(): string {
         }
         const rms = Math.sqrt(sumSq / ch.length);
         if (!this.above) this.noiseFloor = this.noiseFloor * 0.995 + rms * 0.005;
-        const threshold = Math.max(this.noiseFloor * this.mult, 0.015);
+        const threshold = Math.max(this.noiseFloor * this.mult, this.floorMin);
         const wasAbove = this.above;
         this.above = rms > threshold;
         const blockStartTime = currentTime;
