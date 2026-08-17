@@ -304,7 +304,7 @@ cd apps/play && pnpm test:integration && pnpm test:parity
   rule, and this is what stops the two from diverging.
 - `cross-check:conformance`: 105 cases replayed against the untouched
   spikes/modules/*.mjs — zero discrepancies (THE SPIKE IS THE TRUTH).
-- Integration (`test/integration/run.mjs`): 78 checks driving the built
+- Integration (`test/integration/run.mjs`): 79 checks driving the built
   app headless with fake devices — shell, gesture-gated sensors, the
   character select, a full synced round via the __play seam, L'Espill,
   profiles, mode tècnic, entorn + DSP override restarts, error surfacing.

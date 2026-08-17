@@ -789,6 +789,7 @@ body[data-mode="partida"][data-screen="fight"] .score-strip { display: flex; }
 .player-side[data-pill="armed"] .verdict-banner { opacity: .55; }
 .vb-seal { font-size: 12px; color: var(--dim); margin-top: 5px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .vb-seal[hidden] { display: none; }
-/* the bottom round card is history now — tècnic only */
-#roundResultCard.tecnic-only { display: none; }
-body.tecnic #roundResultCard.tecnic-only { display: block; }
+/* the bottom round card is history now — tècnic only. Keyed on the id:
+   the renders rewrite its className ("verdict-card hit" etc.) wholesale. */
+#roundResultCard { display: none; }
+body.tecnic #roundResultCard { display: block; }

@@ -108,6 +108,8 @@ r.check("verdict banner shows the round's headline over the player card", await 
   return !b.hidden && /TU GUANYES|RIVAL GUANYA|PARATA/.test(document.getElementById("verdictBannerHead").textContent) &&
     document.getElementById("verdictBannerReason").textContent.length > 5 && !!b.closest(".player-side");
 }));
+r.check("bottom round card stays hidden after a resolved round (renders rewrite its className)", await page.evaluate(() =>
+  getComputedStyle(document.getElementById("roundResultCard")).display === "none" && !document.body.classList.contains("tecnic")));
 r.check("player card carries the pill state as data-pill (not-armed right after a resolved throw)", await page.evaluate(() =>
   ["armed", "not-armed", "analyzing"].includes(document.querySelector(".player-side").dataset.pill) &&
   document.getElementById("readyPill").closest(".video-wrap") != null));
