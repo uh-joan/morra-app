@@ -329,3 +329,22 @@ same-weight tan boxes in the fight screen's side column, no hierarchy, no
   "Obre L'Espill". The top-bar mode button now says "Entrenament" (the
   mirror is no longer a mode).
 Same renderer, same ids — the numbers did not move. Verified headless.
+
+## 9. The shadow rival (Entrenament) — built
+
+"L'ombra d'El Rei": in Entrenament, before every throw El Rei's bet is
+frozen (the argmax of `predictPlayerFV2` on the cross-match history —
+exactly what L4 would aim at); after the throw the strip says whether it
+saw you coming ("Aquest 3 — l'esperava (26%)." / "Aquest 2 — no l'ha vist
+venir (apostava al 4)."), and the last 20 make the meter ("t'hauria
+endevinat 5 de 12", red = read, green = not). Under 8 rows it says it
+doesn't know you yet. Every bet is logged (`shadow_read`: predicted,
+actual, hit, p, rows). The Neuringer loop, verbatim: the mirror is the
+feedback. Nothing reaches the rival in Partida — same pure read, same
+history, only shown.
+
+Found on the way: `recordTrainingThrow` had no once-per-throw guard (the
+game round has `gameHandled`); a throw finalized twice fed the model twice.
+Guarded (`trainingRecorded`).
+
+Next: missions behind "Practica-ho".

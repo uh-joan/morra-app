@@ -91,6 +91,13 @@ export const TRAINING_PANEL_TEXT = {
   coachEvidence: (hits: number, n: number) => `${hits} de ${n} vegades`,
   liveExploit: (pct: number) => `El Rei et llegeix el ${pct}% — 20% és una moneda.`,
   liveExploitNone: "El Rei encara no té prou tirs per llegir-te.",
+  // the shadow rival (Entrenament): El Rei's silent read of each throw, told afterwards
+  shadowCount: (hits: number, n: number) => `${hits} de ${n}`,
+  shadowCountEmpty: "—",
+  shadowIntro: "Tira: abans de cada tir, El Rei aposta en silenci. Després et diu si t'ha vist venir.",
+  shadowHit: (f: number, pct: number) => `Aquest ${f} — l'esperava (${pct}%).`,
+  shadowMiss: (f: number, predicted: number) => `Aquest ${f} — no l'ha vist venir (apostava al ${predicted}).`,
+  shadowTooEarly: (f: number) => `Aquest ${f} — encara no et coneix prou per apostar.`,
   // trends strip — last 30 vs the 30 before
   trendTitle: (n: number) => `Últims ${n} tirs vs els ${n} d'abans`,
   trendTooEarly: "Els canvis es veuran quan hi hagi 60 tirs.",
