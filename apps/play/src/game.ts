@@ -34,7 +34,7 @@ import { logEvent, LOG_SESSION_ID } from "./telemetry.js";
 import { reportError } from "./status.js";
 import { setGameHooks, type ThrowEvent } from "./analysis.js";
 import { markThrowResolvedForReadyPill, renderReadyPill, resetReadyPillForNewGame } from "./readyPill.js";
-import { setLastRoundAudioEndCtxTime } from "./rivalAudioLog.js";
+import { setLastRoundAudioEndCtxTime, rivalClipTailGuardS } from "./rivalAudioLog.js";
 import { playRivalCall, preloadRivalVoiceClips } from "./rivalVoice.js";
 import { loadPlayerModel, savePlayerModel } from "./profile.js";
 import { voskLoaded } from "./vosk.js";
@@ -176,7 +176,7 @@ function revealRivalPhase1(throwEvent: ThrowEvent): void {
   const clipPlayback = playRivalCall(move.call, startAtCtxTime);
   // Phase C.4: floor for the NEXT throw's window clamp (see clampFloorCtxTime
   // in onSyncHandOnset — never used against THIS throw's own window).
-  setLastRoundAudioEndCtxTime(clipPlayback ? clipPlayback.endCtxTime : ctx.currentTime);
+  setLastRoundAudioEndCtxTime(clipPlayback ? clipPlayback.endCtxTime + rivalClipTailGuardS(ctx) : ctx.currentTime); // + what the mic still hears after the scheduled end
   if (throwEvent.debugRec) {
     throwEvent.debugRec.rivalReveal = {
       commitmentHash: move.hashHex,
@@ -308,7 +308,7 @@ function resolveGameRound(
     // the clip, and set the C.4 clamp floor for this move.
     renderRivalReveal(move, verified);
     const clipPlayback = playRivalCall(move.call);
-    setLastRoundAudioEndCtxTime(clipPlayback ? clipPlayback.endCtxTime : ctx.currentTime);
+    setLastRoundAudioEndCtxTime(clipPlayback ? clipPlayback.endCtxTime + rivalClipTailGuardS(ctx) : ctx.currentTime); // + what the mic still hears after the scheduled end
   }
   renderScoreboard(gameScore.player, gameScore.ai);
   markThrowResolvedForReadyPill(playerFingers);

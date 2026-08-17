@@ -110,6 +110,19 @@ export function classifyHandSettleForSyncFrom(
   voiceOnsetPerfTime: number | null,
   preOnsetFingerCount: number | null
 ): HandSettleClassification {
+  // A low count coming DOWN from a held >=2 pose is the hand returning to
+  // the fist — a retraction — whatever the audio window says. The spike
+  // read "low count WITH voice" as a throw of 1 because it had no way to
+  // know where the hand came from; with the pre-onset count it does. jani's
+  // 12-min L4 session (2026-08-17): 92 of 250 onsets were retractions, and
+  // 66 of them carried a (spurious, clip-tail) voice onset → classified
+  // voice-early, shown as "incomplete", and — the real damage — recorded
+  // into the player model as throws of 1, which taught the L4 rival to aim
+  // at 1 half the time (10% hit rate). Unknown pre-onset keeps the spike
+  // answer (parity's reset scenarios).
+  if (fingerCount != null && fingerCount <= 1 && preOnsetFingerCount != null && preOnsetFingerCount >= 2) {
+    return { isReset: true, effectiveFingerCount: fingerCount };
+  }
   const base = classifyHandSettleForSync(fingerCount, voiceOnsetPerfTime);
   if (base.isReset && fingerCount === 1 && shouldRevealPhase1From(fingerCount, preOnsetFingerCount)) {
     return { isReset: false, effectiveFingerCount: 1 };
