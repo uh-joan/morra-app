@@ -230,6 +230,22 @@ await page.click("#btnModeEntrenament");
 r.check("training panel visible", (await page.$eval("#trainingPanel", (n) => n.style.display)) === "block");
 r.check("heatmap renders 25 cells", (await page.$$eval("#bigramHeatmap .hm-cell", (n) => n.length)) === 25);
 r.check("sample count rendered", /tir/.test(await page.$eval("#trainingSampleCount", (n) => n.textContent)));
+// "El que veu El Rei" (2026-08-17): the read, shown. With one round it says
+// so; with a seeded 12-round history it names a digit (or a flat read),
+// lists 5+5 belief bars, drivers in words, and the self-watch line.
+r.check("the read says it is too early with one round", /Encara no et llegeix/.test(await page.$eval("#readHeadline", (n) => n.textContent)));
+const readShown = await page.evaluate(() => {
+  const H = (pf, pc, af, ac, w) => ({ playerFingers: pf, playerCall: pc, aiFingers: af, aiCall: ac, aiGuessPlayerFingers: 1, aiLevel: "L4", verdictWinner: w, syncOutcome: "synced", source: "partida" });
+  const hist = [];
+  for (let i = 0; i < 12; i++) hist.push(H(1 + (i % 3), 1 + (i % 3) + 2, 1 + (i % 5), 1 + (i % 5) + 3, "parata"));
+  window.__play.renderTrainingPanel(hist, "session");
+  return {
+    headline: document.getElementById("readHeadline").textContent,
+    fBars: document.querySelectorAll("#readFBelief li").length, gBars: document.querySelectorAll("#readGBelief li").length,
+    drivers: document.getElementById("readDrivers").textContent, self: document.getElementById("readSelfWatch").textContent,
+  };
+});
+r.check("the read names what El Rei sees", /apostaria que tiraràs [1-5] \(\d+%\)|cap costum clar/.test(readShown.headline) && readShown.fBars === 5 && readShown.gBars === 5 && /%/.test(readShown.drivers) && readShown.self.length > 0, JSON.stringify(readShown));
 
 // Calibratge (per profile + camera). The fake camera has no hand, so the
 // guided steps can't run end-to-end here; what CAN be checked: the section,

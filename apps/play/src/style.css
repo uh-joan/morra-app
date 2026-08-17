@@ -531,6 +531,11 @@ body.match-lost .end-headline { color: #6e2b30; }
 .training-hist-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .training-hist-col { flex: 1; min-width: 90px; }
 .training-hist-title { font-size: 10px; color: #6b5636; margin-bottom: 3px; }
+.training-read-headline { font-family: var(--serif); font-size: 13.5px; margin: 0 0 8px; color: #3a2c14; }
+.training-read-headline strong { color: #8a2f1e; font-size: 16px; }
+.training-hist-list li.read-top { font-weight: 700; color: #8a2f1e; }
+.training-hist-list li.read-top .hist-bar-fill { background: #8a2f1e; }
+.training-read-note { font-size: 11px; color: #6b5636; margin: 6px 0 0; }
 .training-hist-list { list-style: none; margin: 0; padding: 0; font-size: 11px; font-variant-numeric: tabular-nums; }
 .training-hist-list li { display: flex; justify-content: space-between; gap: 6px; padding: 1px 0; }
 .training-hist-list .hist-bar-wrap { flex: 1; height: 6px; background: rgba(58,44,20,.15); border-radius: 3px; overflow: hidden; margin: 0 6px; align-self: center; }

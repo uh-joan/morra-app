@@ -4,8 +4,8 @@
 // contexts read what they claim; anti-aim puts mass where q is smallest.
 import { describe, expect, it } from "vitest";
 import {
-  antiAim, bmaBelief, blendO1Marginal, contextPredict, decideMoveV2, F_PREDICTORS, F_EXTRAS, G_PREDICTORS,
-  jointGPredict, playerHitRate, predictPlayerFV2, sharpen, temperatureFromEdge, toRows, UNIFORM, V2_TUNING,
+  antiAim, bmaBelief, blendO1Marginal, contextPredict, decideMoveV2, F_PREDICTORS, F_EXTRAS, G_PREDICTORS, G_EXTRAS_L2,
+  jointGPredict, NINO, playerHitRate, predictPlayerFV2, sharpen, temperatureFromEdge, toRows, UNIFORM, V2_TUNING,
 } from "../src/ai2.js";
 import type { HistoryEntry } from "../src/types.js";
 
@@ -17,9 +17,9 @@ const sum = (d: Record<number, number>) => V.reduce((s, v) => s + d[v], 0);
 describe("ai2: rows and contexts", () => {
   it("toRows extracts f, g = call − f (1..5 only), the rival's fingers, the verdict", () => {
     const rows = toRows([H(3, 7, 2, 5, "player"), H(5, 12, 1, 3, "ai"), H(2, 4, 4, 9, "parata")]);
-    expect(rows[0]).toEqual({ f: 3, g: 4, af: 2, w: "player" });
+    expect(rows[0]).toEqual({ f: 3, g: 4, af: 2, ag: null, w: "player" });
     expect(rows[1]!.g).toBeNull(); // 12 − 5 = 7: an impossible call → no guess
-    expect(rows[2]).toEqual({ f: 2, g: 2, af: 4, w: "parata" });
+    expect(rows[2]).toEqual({ f: 2, g: 2, af: 4, ag: null, w: "parata" });
   });
   it("order1 conditions on the previous f; prevOutcome on the previous verdict — win-shift shows up", () => {
     // after every round the player WON they changed fingers; after parata they repeated
@@ -97,10 +97,11 @@ describe("ai2: BMA, temperature, floor, anti-aim", () => {
 
 describe("ai2: decideMoveV2 / predictPlayerFV2", () => {
   const hist = [H(3, 7, 2, 5, "player"), H(5, 8, 3, 6, "parata"), H(3, 6, 2, 5, "ai"), H(5, 9, 3, 6, "player"), H(2, 4, 1, 3, "parata"), H(3, 8, 4, 8, "parata"), H(5, 8, 5, 10, "ai")];
-  it("L1/L2 delegate to the spike policy (v2 trace null)", () => {
+  it("L2 delegates to the spike policy (v2 trace null); L1 is Nino, also trace-less", () => {
     const m2 = decideMoveV2("L2", seq(0.05, 0.5, 0.95), hist);
     expect(m2.level).toBe("L2"); expect(m2.v2).toBeNull(); expect(m2.call).toBe(m2.fingers + m2.guessPlayerFingers);
-    expect(decideMoveV2("L1", seq(0.05, 0.5, 0.95), hist).v2).toBeNull();
+    const m1 = decideMoveV2("L1", seq(0.05, 0.5, 0.95), hist);
+    expect(m1.level).toBe("L1"); expect(m1.v2).toBeNull(); expect(m1.call).toBe(m1.fingers + m1.guessPlayerFingers);
   });
   it("L3/L4 return a well-formed move with the v2 trace; call = fingers + guess", () => {
     for (const L of ["L3", "L4"] as const) {
@@ -122,5 +123,52 @@ describe("ai2: decideMoveV2 / predictPlayerFV2", () => {
     expect(predictPlayerFV2("L4", []).dist).toEqual(UNIFORM);
     expect(predictPlayerFV2("L3", []).dist).toEqual(UNIFORM);
     expect(predictPlayerFV2("L2", hist).dist).toEqual(UNIFORM);
+  });
+});
+
+describe("ai2: Nino, the human template (L1)", () => {
+  const mulberry = (a: number) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  it("carries the measured tells, amplified: repeats ~15%, chases the player's last fingers ~40%, doubles a 2 half the time, prefers 3 and 5", () => {
+    const rng = mulberry(11); const hist: HistoryEntry[] = [];
+    let rep = 0, chase = 0, n = 0, f2 = 0, g2 = 0; const fc: Record<number, number> = {};
+    for (let i = 0; i < 3000; i++) {
+      const mv = decideMoveV2("L1", { next: rng }, hist);
+      const pf = 1 + Math.floor(rng() * 5), pg = 1 + Math.floor(rng() * 5);
+      const last = hist[hist.length - 1];
+      if (last) { n++; rep += mv.fingers === last.aiFingers ? 1 : 0; chase += mv.guessPlayerFingers === last.playerFingers ? 1 : 0; }
+      if (mv.fingers === 2) { f2++; g2 += mv.guessPlayerFingers === 2 ? 1 : 0; }
+      fc[mv.fingers] = (fc[mv.fingers] ?? 0) + 1;
+      const w = mv.guessPlayerFingers === pf && pg !== mv.fingers ? "ai" : pg === mv.fingers && mv.guessPlayerFingers !== pf ? "player" : "parata";
+      hist.push({ ...H(pf, pf + pg, mv.fingers, mv.call, w), aiGuessPlayerFingers: mv.guessPlayerFingers });
+    }
+    expect(rep / n).toBeGreaterThan(0.11); expect(rep / n).toBeLessThan(0.2);
+    expect(chase / n).toBeGreaterThan(0.33); expect(chase / n).toBeLessThan(0.47);
+    expect(g2 / f2).toBeGreaterThan(0.4);
+    expect((fc[3]! + fc[5]!) / 3000).toBeGreaterThan(0.5); expect(fc[1]! / 3000).toBeLessThan(0.13);
+    expect(NINO.repeatAfterScoring).toBeLessThan(NINO.repeatBase); // T1: win-shift
+  });
+  it("is a pure function of (random, history)", () => {
+    const hist = [H(3, 5, 2, 5, "player"), H(4, 7, 5, 8, "ai")];
+    expect(decideMoveV2("L1", seq(0.3, 0.6, 0.1), hist)).toEqual(decideMoveV2("L1", seq(0.3, 0.6, 0.1), hist));
+  });
+});
+
+describe("ai2: level-2 layer (Iocaine) — only when being read", () => {
+  it("G_EXTRAS_L2 predict where the rival usually is / anything but where it just was", () => {
+    const rows = toRows([H(3, 5, 4, 6, "parata"), H(2, 4, 4, 7, "parata"), H(5, 7, 1, 3, "parata")]);
+    const myFreq = G_EXTRAS_L2[0]!.fn(rows, rows.length)!; expect(myFreq[4]).toBeGreaterThan(myFreq[2]);
+    const notLast = G_EXTRAS_L2[1]!.fn(rows, rows.length)!; expect(notLast[1]).toBeLessThan(notLast[3]);
+    expect(G_EXTRAS_L2[1]!.fn(rows, 0)).toBeNull();
+  });
+  it("L4 carries the l2 weights only once the self-watch trips", () => {
+    // 12 rows in which the player never hits our fingers → not being read → no l2 weights
+    const quiet = Array.from({ length: 12 }, (_, i) => ({ ...H(1 + (i % 5), 1 + (i % 5) + 1 + ((i + 2) % 5), 1 + ((i + 1) % 5), 3, "parata"), aiGuessPlayerFingers: 1 }));
+    const a = decideMoveV2("L4", seq(0.5), quiet);
+    expect(Object.keys(a.v2!.weights).some((k) => k.startsWith("g:l2:"))).toBe(false);
+    // 12 rows in which the player hits our fingers every time → read → l2 weights present
+    const read = Array.from({ length: 12 }, (_, i) => ({ ...H(1 + (i % 5), 1 + (i % 5) + 1 + ((i + 1) % 5), 1 + ((i + 1) % 5), 3, "player"), aiGuessPlayerFingers: 1 }));
+    const b = decideMoveV2("L4", seq(0.5), read);
+    expect(b.v2!.playerHitRate).toBeGreaterThan(V2_TUNING.selfWatchThreshold);
+    expect(Object.keys(b.v2!.weights).some((k) => k.startsWith("g:l2:"))).toBe(true);
   });
 });
