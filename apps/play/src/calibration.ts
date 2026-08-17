@@ -30,7 +30,7 @@ import { cameraDeviceKey, currentFraming, handTrackingActive, lastFingerCount, s
 import { currentHandState, peakVelocityBetween, velocityHistory } from "./velocity.js";
 import { micReady, micRmsBetween, pushVadTuning } from "./mic.js";
 import { getActiveProfileId } from "./profile.js";
-import { APP_DEFAULTS, fitAll, quantile, round2, type CalibrationValues, MIN_THROWS } from "./calibration/fit.js";
+import { APP_DEFAULTS, FIT_VERSION, fitAll, quantile, round2, type CalibrationValues, MIN_THROWS } from "./calibration/fit.js";
 import { loadBlob, recordFor, saveBlob, withoutRecord, withRecord, type CalibrationRecord } from "./calibration/store.js";
 import type { FramingState } from "./framing.js";
 import { judgeCalibrationThrow, VERDICT_COPY } from "./calibration/judge.js";
@@ -62,10 +62,28 @@ function applyValues(v: CalibrationValues, source: string): void {
  * or the app defaults if there is none. Called on profile switch and when
  * the camera reports its device key. */
 export function applyCalibrationForActiveProfile(): CalibrationRecord | null {
-  const rec = recordFor(loadBlob(getActiveProfileId()), cameraDeviceKey);
+  const pid = getActiveProfileId();
+  let rec = recordFor(loadBlob(pid), cameraDeviceKey);
+  if (rec) rec = refitIfStale(pid, rec);
   applyValues(rec ? rec.values : APP_DEFAULTS, rec ? "stored" : "defaults");
   reflectStatus(rec);
   return rec;
+}
+
+/** A record fitted by an older rule is re-fit from its saved samples and
+ * re-saved — the math got better, the player doesn't redo the session. */
+export function refitIfStale(pid: string, rec: CalibrationRecord): CalibrationRecord {
+  if ((rec.fitVersion ?? 1) === FIT_VERSION) return rec;
+  const s = rec.samples;
+  const { values } = fitAll(
+    APP_DEFAULTS,
+    s.jitterP95 != null ? { jitterP95: s.jitterP95, throwPeaks: s.throwPeaks } : null,
+    s.ambientFloor != null ? { ambientFloor: s.ambientFloor, shoutPeaks: s.shoutPeaks } : null
+  );
+  const next: CalibrationRecord = { ...rec, values, fitVersion: FIT_VERSION };
+  saveBlob(pid, withRecord(loadBlob(pid), cameraDeviceKey, next));
+  logEvent("calibration_refit", { profileId: pid, deviceKey: cameraDeviceKey, from: rec.fitVersion ?? 1, to: FIT_VERSION, before: rec.values, values });
+  return next;
 }
 
 // ------------------------------------------------------------------ flow
@@ -298,6 +316,7 @@ function save(): void {
   if (!S?.fitted) return;
   const rec: CalibrationRecord = {
     values: S.fitted.values,
+    fitVersion: FIT_VERSION,
     measuredAt: new Date().toISOString(),
     samples: { jitterP95: S.jitterP95, throwPeaks: S.throwPeaks, ambientFloor: S.ambientFloor, shoutPeaks: S.shoutPeaks, prompts: S.prompts },
   };

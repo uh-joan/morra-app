@@ -192,7 +192,7 @@ r.check("close stops calibration, ghost hand off", await page.evaluate(() =>
   document.body.dataset.calibrating === undefined && !window.__play.calibration.active));
 const before = await page.evaluate(() => window.__play.calibration.currentValues());
 await page.evaluate(() => window.__play.calibration.save({
-  values: { highV: 0.62, lowV: 0.21, vadMult: 4.5 }, measuredAt: new Date().toISOString(),
+  values: { highV: 0.62, lowV: 0.21, vadMult: 4.5 }, fitVersion: 2, measuredAt: new Date().toISOString(),
   samples: { jitterP95: 0.1, throwPeaks: [1, 1, 1, 1], ambientFloor: 0.01, shoutPeaks: [0.2, 0.2, 0.2], prompts: [] },
 }));
 r.check("saved fit is applied INTO the live sliders", await page.evaluate(() =>
@@ -203,6 +203,25 @@ r.check("persisted per profile+device", await page.evaluate(() => {
   const blob = JSON.parse(localStorage.getItem(key) || "null");
   return !!blob && !!blob.byDevice[window.__play.calibration.deviceKey] && blob.byDevice[window.__play.calibration.deviceKey].values.highV === 0.62;
 }));
+// A record fitted by an older rule is re-fit from its saved samples on apply
+// (fit v1 → v2 here, using jani's real session): the values must change and
+// the record must be re-stamped, without redoing the session.
+await page.evaluate(() => {
+  const key = "morra-calibration-v1:" + window.__play.activeProfileId;
+  const blob = JSON.parse(localStorage.getItem(key));
+  blob.byDevice[window.__play.calibration.deviceKey] = {
+    values: { highV: 0.81, lowV: 0.24, vadMult: 12 }, measuredAt: new Date().toISOString(), // v1 (no fitVersion)
+    samples: { jitterP95: 0.1115, throwPeaks: [1.168, 0.576, 1.797, 2.483, 4.501], ambientFloor: 0.00005, shoutPeaks: [0.407, 0.663, 0.404, 0.495, 0.420], prompts: [] },
+  };
+  localStorage.setItem(key, JSON.stringify(blob));
+  window.__play.calibration.applyForActiveProfile();
+});
+r.check("stale (v1) record is re-fit from its samples on apply: HIGH_V under the thumb-1, vadMult off the cap", await page.evaluate(() => {
+  const hv = parseFloat(document.getElementById("tuneHighV").value), vm = parseFloat(document.getElementById("tuneVadMult").value);
+  const key = "morra-calibration-v1:" + window.__play.activeProfileId;
+  const rec = JSON.parse(localStorage.getItem(key)).byDevice[window.__play.calibration.deviceKey];
+  return hv < 0.576 * 0.8 && hv > 0.3 && vm < 12 && vm > 4 && rec.fitVersion === 2;
+}), await page.evaluate(() => document.getElementById("tuneHighV").value + "/" + document.getElementById("tuneVadMult").value));
 await page.click("#calibReset");
 r.check("Restableix returns the sliders to the app defaults and clears the record", await page.evaluate(() =>
   document.getElementById("tuneHighV").value === "0.5" && document.getElementById("tuneVadMult").value === "6" && /Sense calibrar/.test(document.getElementById("calibStatus").textContent)));
@@ -216,7 +235,7 @@ const defaultThrows = await page.evaluate(() => window.__play.playerModel.throws
 r.check("default profile carries this session's history", defaultThrows >= 1, `throws=${defaultThrows}`);
 // give the default profile a calibration fit, to prove it does NOT leak into a new profile
 await page.evaluate(() => window.__play.calibration.save({
-  values: { highV: 0.71, lowV: 0.2, vadMult: 3.5 }, measuredAt: new Date().toISOString(),
+  values: { highV: 0.71, lowV: 0.2, vadMult: 3.5 }, fitVersion: 2, measuredAt: new Date().toISOString(),
   samples: { jitterP95: 0.1, throwPeaks: [1, 1, 1, 1], ambientFloor: 0.01, shoutPeaks: [0.2, 0.2, 0.2], prompts: [] },
 }));
 promptText = "Bea";

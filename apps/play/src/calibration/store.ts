@@ -16,6 +16,9 @@ export const CALIBRATION_STORAGE_PREFIX = "morra-calibration-v1:";
 
 export interface CalibrationRecord {
   values: CalibrationValues;
+  /** fit.ts FIT_VERSION the values were computed with; older records are
+   * re-fit from their samples on apply (missing = version 1) */
+  fitVersion?: number;
   measuredAt: string; // ISO
   samples: {
     jitterP95: number | null;

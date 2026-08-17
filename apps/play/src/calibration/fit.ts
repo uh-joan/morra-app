@@ -26,6 +26,17 @@ export interface VoiceSamples {
   shoutPeaks: readonly number[];
 }
 
+/** The live VAD's hard floor (vadWorkletSource / DEFAULT_ONLINE_ONSET_CONFIG):
+ * threshold = max(noiseFloor × vadMult, floorMin). In a quiet room the
+ * measured ambient floor sits far below this and the multiplier is judged
+ * against the floor that will actually be in force. */
+export const LIVE_VAD_FLOOR_MIN = 0.015;
+
+/** Bump when a fit rule changes: stored records carry the version and are
+ * re-fit from their saved samples on next apply, so a player never has to
+ * redo the session because the math got better. */
+export const FIT_VERSION = 2;
+
 export interface CalibrationValues {
   highV: number;
   lowV: number;
@@ -54,22 +65,25 @@ export const quantile = (xs: readonly number[], q: number): number => {
 };
 
 /**
- * HIGH_V: high enough that resting jitter never crosses it (2× the jitter
- * p95), low enough that a normal throw of THIS player always does (~45% of
- * the median throw peak — a slow thumb-1 moves ~1/5 of the centroid a 3
- * does, so the median must leave headroom below it). The max() picks
- * whichever protects more; the clamp keeps it in the validated range.
- * LOW_V: the settle threshold — just above jitter, and well under HIGH_V so
- * the FSM can actually settle. Returns null with too few throws.
+ * HIGH_V must sit UNDER the weakest prompted throw with margin — the prompts
+ * include the 1 and 2 on purpose, and on the first real session (jani,
+ * 2026-08-17) the thumb-1 peaked at 0.58 while the 5 peaked at 4.5; a
+ * median-based rule put HIGH_V at 0.81 and would have made the thumb-1
+ * unregisterable, i.e. worse than the default. So: 70% of the MINIMUM peak
+ * (30% headroom for a slower repeat of the same throw), capped by 45% of
+ * the median (never let one freak fast throw drag it up), and never below
+ * 2× the resting jitter p95 (phantom onsets are costlier now: a phantom at
+ * a fist reveals then voids). Clamped to the validated range.
+ * LOW_V: the settle threshold — just above jitter, and ≤ 60% of HIGH_V so
+ * the FSM can settle; settle-ability outranks the ratio, so HIGH_V rises
+ * if needed. Returns null with too few throws.
  */
 export function fitVelocity(s: VelocitySamples): Pick<CalibrationValues, "highV" | "lowV"> | null {
   const peaks = s.throwPeaks.filter((p) => Number.isFinite(p) && p > 0);
   if (peaks.length < MIN_THROWS || !Number.isFinite(s.jitterP95)) return null;
+  const weakest = Math.min(...peaks);
   const med = median(peaks);
-  let highV = clamp(Math.max(2 * s.jitterP95, 0.45 * med), HIGH_V_RANGE);
-  // LOW_V must sit above the resting jitter or a throw can never SETTLE (the
-  // FSM waits for v < LOW_V for settleMs) — that outranks the ratio to
-  // HIGH_V, so on a very jittery hand HIGH_V rises to keep LOW_V ≤ 0.6·HIGH_V.
+  let highV = clamp(Math.max(2 * s.jitterP95, Math.min(0.7 * weakest, 0.45 * med)), HIGH_V_RANGE);
   let lowV = clamp(Math.max(1.5 * s.jitterP95, 0.3 * highV), LOW_V_RANGE);
   highV = clamp(Math.max(highV, lowV / 0.6), HIGH_V_RANGE);
   lowV = Math.min(lowV, 0.6 * highV); // only binds when HIGH_V hit its ceiling
@@ -77,15 +91,20 @@ export function fitVelocity(s: VelocitySamples): Pick<CalibrationValues, "highV"
 }
 
 /**
- * vadMult: the live-VAD threshold is noiseFloor × vadMult. With the shout /
- * floor ratio r, sqrt(r) puts the threshold at the geometric middle of the
- * two — a 36× shout gives the spike's 6, a quiet 10× shout gives ~3.2, a
- * 100× shout ~10. Uses the median shout so one weak call doesn't drag it.
+ * vadMult: the live-VAD threshold is max(noiseFloor × vadMult, floorMin).
+ * With the shout / effective-floor ratio r, sqrt(r) puts the threshold at
+ * the geometric middle of the two — a 36× shout gives the spike's 6, a quiet
+ * 10× shout ~3.2, a 100× shout 10. Median shout so one weak call doesn't
+ * drag it.
  */
 export function fitVoice(s: VoiceSamples): Pick<CalibrationValues, "vadMult"> | null {
   const shouts = s.shoutPeaks.filter((p) => Number.isFinite(p) && p > 0);
-  if (shouts.length < MIN_SHOUTS || !(s.ambientFloor > 0)) return null;
-  const ratio = median(shouts) / s.ambientFloor;
+  if (shouts.length < MIN_SHOUTS || !(s.ambientFloor >= 0)) return null;
+  // judge against the floor that will be in force: a near-silent room
+  // (jani's read 0.00005) is still floored at LIVE_VAD_FLOOR_MIN by the
+  // worklet, so the raw ratio (~8000×) is meaningless there
+  const floor = Math.max(s.ambientFloor, LIVE_VAD_FLOOR_MIN);
+  const ratio = median(shouts) / floor;
   if (!Number.isFinite(ratio) || ratio <= 1) return null;
   return { vadMult: clamp(Math.sqrt(ratio), VAD_MULT_RANGE) };
 }
