@@ -121,7 +121,10 @@ body.vs-on #vsSplash { display: flex; }
 .bar-modes { display: flex; gap: 8px; align-items: center; }
 .bar-modes button { font-family: var(--serif); font-weight: 700; }
 .bar-modes button.primary { background: var(--gold); border-color: var(--gold); color: #2a1c04; }
-.bar-profile { display: flex; gap: 6px; align-items: center; }
+.bar-profile { display: flex; gap: 6px; align-items: center; position: relative; }
+.profile-menu { position: absolute; top: calc(100% + 6px); right: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--ink-2); border: 1px solid rgba(147,160,184,.35); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.5); z-index: 30; min-width: 190px; }
+.profile-menu[hidden] { display: none; }
+.profile-menu button { text-align: left; }
 .bar-profile select { max-width: 140px; }
 
 /* ----------------------------------------------------------- title */
@@ -875,6 +878,8 @@ body.tecnic #roundResultCard { display: block; }
 .espill-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(58,44,20,.2); flex-wrap: wrap; }
 /* Entrenament live strip in the fight screen */
 .training-live { gap: 6px; }
+.training-live .calib-section { margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(58,44,20,.25); }
+.training-live .calib-blurb { font-size: 11.5px; margin: 0 0 6px; color: #6b5636; }
 .live-tell { font-family: var(--serif); font-size: 15px; margin: 0; color: #2a1c04; }
 .live-exploit { font-size: 12px; color: #6b5636; margin: 0; }
 .coach-more[hidden] { display: none; }

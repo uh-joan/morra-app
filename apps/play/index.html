@@ -27,6 +27,11 @@
     <select id="selProfile"></select>
     <button id="btnNewProfile" title="Nou tripulant">+</button>
     <button id="btnDeleteProfile" class="danger" title="Esborra el tripulant">✕</button>
+    <button id="btnProfileMenu" class="ghost" title="Perfil: exporta / reinicia" aria-haspopup="true" aria-expanded="false">⚙</button>
+    <div id="profileMenu" class="profile-menu" hidden>
+      <button id="btnExportProfile">Exporta perfil (JSON)</button>
+      <button id="btnResetProfile" class="danger">Reinicia perfil</button>
+    </div>
   </div>
 </header>
 
@@ -152,6 +157,15 @@
         <div class="row">
           <button id="btnOpenEspill" class="btn-parchment">🪞 Obre L'Espill</button>
         </div>
+        <div class="training-section calib-section">
+          <h3>Calibratge — que et llegeixi bé</h3>
+          <p class="calib-blurb">Cinc tirades guiades i el joc s'ajusta a la teva mà, el teu crit i aquesta càmera. Per a aquest perfil; les regles no canvien.</p>
+          <div class="row">
+            <button id="btnCalibrate" class="primary">Calibra ara</button>
+            <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
+          </div>
+          <div id="calibStatus" class="calib-status"></div>
+        </div>
       </div>
 
     <!-- Round / verdict column -->
@@ -241,7 +255,6 @@
       <button data-tab="rei" class="on">El que veu El Rei</button>
       <button data-tab="numeros">Els teus números</button>
       <button data-tab="sequencia">Seqüència</button>
-      <button data-tab="perfil">Perfil i calibratge</button>
     </nav>
 
     <div class="espill-panes" id="espillPanes" data-tab="rei">
@@ -293,21 +306,6 @@
         <div class="training-section">
           <h3>Després de tirar X, tires Y</h3>
           <div id="bigramHeatmap" class="training-heatmap"></div>
-        </div>
-      </div>
-      <div class="espill-pane" data-tab="perfil">
-        <div class="training-section calib-section">
-          <h3>Calibratge — que et llegeixi bé</h3>
-          <p class="calib-blurb">Cinc tirades guiades i el joc s'ajusta a la teva mà, el teu crit i aquesta càmera. Per a aquest perfil; les regles no canvien.</p>
-          <div class="row">
-            <button id="btnCalibrate" class="primary">Calibra ara</button>
-            <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
-          </div>
-          <div id="calibStatus" class="calib-status"></div>
-        </div>
-        <div class="row training-actions">
-          <button id="btnExportProfile">Exporta perfil (JSON)</button>
-          <button id="btnResetProfile" class="danger">Reinicia perfil</button>
         </div>
       </div>
     </div>

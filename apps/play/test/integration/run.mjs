@@ -277,15 +277,17 @@ r.check("the read names what El Rei sees", /apostaria que tiraràs [1-5] \(\d+%\
 // the panel open/close, the seam-driven apply/save into the live sliders,
 // and that the fit persists per profile and per device.
 r.check("calibratge section in L'Espill, uncalibrated status", /Sense calibrar|per defecte/.test(await page.$eval("#calibStatus", (n) => n.textContent)));
-// L'Espill v2 (2026-08-17): calibratge lives in the "Perfil i calibratge" tab of the L'Espill screen
-r.check("calibratge section sits in L'Espill's 'Perfil i calibratge' tab", await page.evaluate(() => {
-  const sec = document.querySelector("#screenEspill .espill-pane[data-tab='perfil'] .calib-section");
-  return !!sec && !!sec.querySelector("#btnCalibrate");
+// L'Espill v2 (2026-08-17): calibratge lives in the Entrenament strip, next to the camera it calibrates; export/reset under ⚙ by the Tripulant selector
+r.check("calibratge section sits in the Entrenament strip", await page.evaluate(() => {
+  const sec = document.querySelector("#trainingPanel .calib-section");
+  return !!sec && !!sec.querySelector("#btnCalibrate") && getComputedStyle(sec).display !== "none";
 }));
-// the calibratge controls live on the L'Espill screen now — go there (perfil tab), then back to the fight after
-await page.click("#btnOpenEspill");
-await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
-await page.click('#espillTabs button[data-tab="perfil"]');
+r.check("profile menu (⚙) opens with export and reset", await page.evaluate(() => {
+  document.getElementById("btnProfileMenu").click();
+  const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
+  document.body.click();
+  return open && document.getElementById("profileMenu").hidden;
+}));
 await page.click("#btnCalibrate");
 r.check("calibratge opens on 'Enquadra' with the ghost hand on", await page.evaluate(() =>
   document.body.dataset.calibrating === "on" && document.body.dataset.calib === "frame" && window.__play.calibration.active));
@@ -343,7 +345,6 @@ await page.click("#calibReset");
 r.check("Restableix returns the sliders to the app defaults and clears the record", await page.evaluate(() =>
   document.getElementById("tuneHighV").value === "0.5" && document.getElementById("tuneVadMult").value === "6" && /Sense calibrar/.test(document.getElementById("calibStatus").textContent)));
 r.check("(sliders were at defaults before too)", before.highV === 0.5 && before.vadMult === 6, JSON.stringify(before));
-await page.evaluate(() => { document.body.dataset.screen = "fight"; });
 
 // Profiles: default = legacy key; create/switch/delete isolate histories
 r.check("boots with the default profile only", await page.evaluate(() =>

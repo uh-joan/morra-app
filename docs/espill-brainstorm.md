@@ -72,8 +72,9 @@ same-weight tan boxes in the fight screen's side column, no hierarchy, no
   the next six, each with price · evidence · counter-move).
 - **One slim trend line** (last 30 vs the 30 before) under the card.
 - **Tabs** for the detail: El que veu El Rei · Els teus números (tiles,
-  histograms) · Seqüència (heatmap) · Perfil i calibratge (calibratge,
-  export/reset).
+  histograms) · Seqüència (heatmap). Calibratge is NOT here — it fits the
+  sensors, so it lives in the Entrenament strip next to the camera it
+  calibrates; export/reset live under ⚙ next to the Tripulant selector.
 - **Entrenament** keeps a compact **live strip** in the fight screen: the
   #1 tell as one line, "El Rei et llegeix el 34% — 20% és una moneda",
   "Obre L'Espill". The top-bar mode button now says "Entrenament" (the

@@ -87,6 +87,8 @@ function buildEl() {
     readSelfWatch: g("readSelfWatch"),
     bigramHeatmap: g("bigramHeatmap"),
     btnExportProfile: g("btnExportProfile") as HTMLButtonElement,
+    btnProfileMenu: g("btnProfileMenu") as HTMLButtonElement,
+    profileMenu: g("profileMenu"),
     btnResetProfile: g("btnResetProfile") as HTMLButtonElement,
     // game panel
     heroPrompt: g("heroPrompt"),
