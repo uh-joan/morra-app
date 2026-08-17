@@ -5,13 +5,18 @@
 // shout was only measured, never required. Both wrong: a prompt is
 // satisfied by a real throw WITH a shout, and nothing else.
 
+import { LIVE_VAD_FLOOR_MIN } from "./fit.js";
+
 export type ThrowVerdict =
   | { accept: true; voice: "onset" | "loud" }
   | { accept: false; reason: "reset" | "no-fingers" | "no-voice" };
 
 /** A shout must clear the room floor by this much when the offline onset
- * detector didn't fire (e.g. sorollós demoted it) — 4× is well above the
- * live-VAD's own default multiplier territory. */
+ * detector didn't fire (e.g. sorollós demoted it). The floor is the
+ * EFFECTIVE one — max(measured, LIVE_VAD_FLOOR_MIN): jani's second and
+ * third sessions (2026-08-17) accepted silent throws at 0.0005 RMS because
+ * that was "4×" a near-silent room floor of 0.0001. So: at least 4 × 0.015
+ * = 0.06 RMS, ever. */
 export const SHOUT_OVER_FLOOR = 4;
 
 export function judgeCalibrationThrow(input: {
@@ -24,8 +29,9 @@ export function judgeCalibrationThrow(input: {
   if (input.outcome === "reset") return { accept: false, reason: "reset" };
   if (input.fingerCount == null || input.fingerCount < 1) return { accept: false, reason: "no-fingers" };
   if (input.voiceOnsetPerfTime != null) return { accept: true, voice: "onset" };
-  if (input.shoutPeak != null && input.ambientFloor != null && input.ambientFloor > 0 && input.shoutPeak > SHOUT_OVER_FLOOR * input.ambientFloor) {
-    return { accept: true, voice: "loud" };
+  if (input.shoutPeak != null && input.ambientFloor != null && input.ambientFloor >= 0) {
+    const floor = Math.max(input.ambientFloor, LIVE_VAD_FLOOR_MIN);
+    if (input.shoutPeak > SHOUT_OVER_FLOOR * floor) return { accept: true, voice: "loud" };
   }
   return { accept: false, reason: "no-voice" };
 }

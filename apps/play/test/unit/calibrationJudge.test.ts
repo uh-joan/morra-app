@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { judgeCalibrationThrow, SHOUT_OVER_FLOOR, VERDICT_COPY } from "../../src/calibration/judge.js";
+import { LIVE_VAD_FLOOR_MIN } from "../../src/calibration/fit.js";
 
 // The first field run advanced on ANY onset (returns to fist, phantoms) and
 // on silent throws. A prompt is satisfied by a real throw WITH a shout.
@@ -23,9 +24,16 @@ describe("calibration judge: what counts as the prompted throw", () => {
       expect(judgeCalibrationThrow({ ...base, outcome, voiceOnsetPerfTime: 100 })).toEqual({ accept: true, voice: "onset" });
     }
   });
-  it(`without an onset, a shout ${SHOUT_OVER_FLOOR}× over the room floor still counts (e.g. sorollós demoted the onset)`, () => {
-    expect(judgeCalibrationThrow({ ...base, shoutPeak: 0.01 * SHOUT_OVER_FLOOR * 1.01 })).toEqual({ accept: true, voice: "loud" });
-    expect(judgeCalibrationThrow({ ...base, shoutPeak: 0.01 * SHOUT_OVER_FLOOR * 0.99 })).toEqual({ accept: false, reason: "no-voice" });
+  it(`without an onset, a shout ${SHOUT_OVER_FLOOR}× over the EFFECTIVE floor still counts (e.g. sorollós demoted the onset)`, () => {
+    // audible room: floor 0.02 → needs > 0.08
+    expect(judgeCalibrationThrow({ ...base, ambientFloor: 0.02, shoutPeak: 0.02 * SHOUT_OVER_FLOOR * 1.01 })).toEqual({ accept: true, voice: "loud" });
+    expect(judgeCalibrationThrow({ ...base, ambientFloor: 0.02, shoutPeak: 0.02 * SHOUT_OVER_FLOOR * 0.99 })).toEqual({ accept: false, reason: "no-voice" });
+  });
+  it("jani's near-silent room: 0.0005 RMS is silence, not a shout — the floor is at least 0.015 (sessions 2/3 accepted these)", () => {
+    expect(judgeCalibrationThrow({ ...base, ambientFloor: 0.0001, shoutPeak: 0.0005 })).toEqual({ accept: false, reason: "no-voice" });
+    expect(judgeCalibrationThrow({ ...base, ambientFloor: 0.0001, shoutPeak: 0.025 })).toEqual({ accept: false, reason: "no-voice" }); // under 4×0.015
+    expect(judgeCalibrationThrow({ ...base, ambientFloor: 0.0001, shoutPeak: 0.31 })).toEqual({ accept: true, voice: "loud" });
+    expect(SHOUT_OVER_FLOOR * LIVE_VAD_FLOOR_MIN).toBeCloseTo(0.06, 9);
   });
   it("no room floor yet → loudness can't be judged → needs the onset", () => {
     expect(judgeCalibrationThrow({ ...base, ambientFloor: null, shoutPeak: 0.9 })).toEqual({ accept: false, reason: "no-voice" });
