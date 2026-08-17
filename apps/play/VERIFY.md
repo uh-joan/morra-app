@@ -271,6 +271,20 @@ timing, that's a bug in the pass, not a new rule.
    follow the profile (a new profile is uncalibrated); switch camera →
    likewise per device. Prompted throws must NOT appear in L'Espill's
    sample count.
+9d. **r3 — state where the eyes are.** The **score strip** sits on top
+   between the nameplates: your coins fill left→right, the rival's
+   right→left, big numerals in the middle; at 9 the side at match point
+   pulses gold. The **player card's frame is the pill**: green = "Llest —
+   tira!", blue = "Llegint la tirada…", orange = "Torna al puny…" — the
+   pill itself rides on the video, bottom-center, same color. After each
+   throw the **verdict banner** lands over the video: TU GUANYES / RIVAL
+   GUANYA / PARATA / RONDA ANUL·LADA / INCOMPLETA in big type with the
+   one-line why (3 + 4 = 7 · has dit «set»; cap crit sentit; has cridat
+   tard (+620 ms)…), plus the seal (segell ✓ · a2f9c1e3) as a quiet third
+   line on resolved rounds. It dims once you're back to a fist and
+   disappears the instant your next throw starts — it can never cover the
+   reveal. The old bottom round card is mode-tècnic only now (T) — the
+   game screen fits at 100% without scrolling.
 10. **Canvia de rival** (top bar) → back to the select with the score
     reset; **Morra** wordmark → title. Switching screens never burns a
     commitment.
@@ -290,7 +304,7 @@ cd apps/play && pnpm test:integration && pnpm test:parity
   rule, and this is what stops the two from diverging.
 - `cross-check:conformance`: 105 cases replayed against the untouched
   spikes/modules/*.mjs — zero discrepancies (THE SPIKE IS THE TRUTH).
-- Integration (`test/integration/run.mjs`): 72 checks driving the built
+- Integration (`test/integration/run.mjs`): 79 checks driving the built
   app headless with fake devices — shell, gesture-gated sensors, the
   character select, a full synced round via the __play seam, L'Espill,
   profiles, mode tècnic, entorn + DSP override restarts, error surfacing.

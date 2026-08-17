@@ -8,6 +8,7 @@
 
 /* ---------------------------------------------------------- tokens */
 :root {
+  --topbar-h: 55px; /* the sticky top bar; select/fight screens size against it */
   color-scheme: dark;
   --ink: #0d1220;
   --ink-2: #161d2c;
@@ -89,7 +90,12 @@ button.ghost:hover { color: var(--text); }
 .btn-parchment:hover { border-color: var(--gold); }
 
 /* ------------------------------------------------- screen machinery */
+/* The title screen owns the whole viewport; select/fight sit UNDER the
+   sticky top bar, so their min-height must leave room for it — otherwise
+   the page is always exactly one top-bar taller than the window and
+   scrolls 55px for nothing (Janis at 100%). */
 .screen { display: none; min-height: 100vh; }
+#screenSelect, #screenFight { min-height: calc(100vh - var(--topbar-h, 55px)); }
 body[data-screen="title"]  #screenTitle  { display: flex; }
 body[data-screen="select"] #screenSelect { display: block; }
 body[data-screen="fight"]  #screenFight  { display: block; }
@@ -102,7 +108,7 @@ body.vs-on #vsSplash { display: flex; }
 
 /* --------------------------------------------------------- top bar */
 #topBar {
-  position: sticky; top: 0; z-index: 40;
+  position: sticky; top: 0; z-index: 40; height: var(--topbar-h); box-sizing: border-box;
   align-items: center; justify-content: space-between; gap: 12px;
   padding: 8px 16px;
   background: linear-gradient(180deg, rgba(13,18,32,.96), rgba(13,18,32,.82));
@@ -231,7 +237,7 @@ body.vs-on #vsSplash { display: flex; }
 .vs-stage { position: absolute; bottom: 9vh; left: 0; right: 0; text-align: center; font-family: var(--serif); font-size: 20px; color: var(--foam); opacity: .85; }
 
 /* ------------------------------------------------------ fight stage */
-#screenFight { position: relative; padding: 0 0 40px; }
+#screenFight { position: relative; padding: 0 0 12px; } /* was 40: the game screen must fit a 900px-tall window at 100% */
 body[data-stage="taverna"] #screenFight { background: radial-gradient(900px 480px at 18% 12%, rgba(255,184,79,.16), transparent 60%), linear-gradient(180deg, #2c1c0e 0%, #1c1108 55%, #120a05 100%); }
 body[data-stage="coberta"] #screenFight { background: linear-gradient(180deg, #79bfe4 0%, #4794c2 40%, #2b6f9e 58%, #17527a 100%); }
 body[data-stage="cala"]    #screenFight { background: linear-gradient(180deg, #241c44 0%, #3b2a5e 42%, #1b2247 70%, #10162e 100%); }
@@ -302,7 +308,7 @@ video#camPreview { width: 100%; display: block; background: #000; transform: sca
 .big-number-wrap { display: flex; flex-direction: column; align-items: center; }
 .big-duo { display: flex; align-items: flex-end; gap: 26px; justify-content: center; flex-wrap: wrap; }
 .big-item { display: flex; flex-direction: column; align-items: center; }
-.big-number { font-family: var(--serif); font-size: 118px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: var(--dim); text-shadow: 0 4px 18px rgba(0,0,0,.55); }
+.big-number { font-family: var(--serif); font-size: 104px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: var(--dim); text-shadow: 0 4px 18px rgba(0,0,0,.55); } /* 118 → 104: fits 1440x900 at 100% (measured) */
 .big-number.live { color: var(--foam); }
 .big-number.err { color: var(--bad); font-size: 42px; line-height: 1.2; text-align: center; }
 .big-word { font-family: var(--serif); font-size: 56px; font-weight: 900; line-height: 1.1; color: var(--dim); text-shadow: 0 4px 18px rgba(0,0,0,.55); }
@@ -421,10 +427,6 @@ body.tecnic .rival-commit-status { font-size: 11px; }
 body.tecnic #aiLevelRow { display: flex; }
 body.tecnic #aiLevelDescription { display: block; }
 
-.treasure { display: flex; flex-direction: column; gap: 5px; align-items: center; padding: 8px 18px; border-radius: 12px; background: rgba(6,9,18,.45); border: 2px solid var(--wood-2); }
-.treasure-row { display: flex; align-items: center; gap: 10px; }
-.treasure-label { font-family: var(--serif); font-size: 13px; font-weight: 800; letter-spacing: .08em; color: var(--foam); width: 44px; text-align: right; }
-.treasure-label.rival { color: var(--stage-accent); }
 .coins { display: flex; gap: 5px; }
 .coin {
   width: 20px; height: 20px; border-radius: 50%;
@@ -731,3 +733,82 @@ body[data-calibrating="on"] .calib-panel { display: flex; flex-direction: column
 .calib-feedback { font-size: 13px; padding: 6px 10px; border-radius: 8px; min-height: 1.4em; }
 .calib-feedback.ok { background: rgba(47,107,58,.14); color: #2f6b3a; }
 .calib-feedback.no { background: rgba(176,58,46,.12); color: #8a2f25; }
+
+/* ------------------------------------------- r3: score strip on top */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.score-strip {
+  display: none; align-items: center; justify-content: center; gap: 14px;
+  margin: 0 auto 12px; padding: 8px 18px; max-width: 760px; position: relative;
+  background: rgba(6,9,18,.6); border: 2px solid var(--wood-2); border-radius: 999px;
+  backdrop-filter: blur(3px);
+}
+body[data-mode="partida"][data-screen="fight"] .score-strip { display: flex; }
+.ss-label { font-family: var(--serif); font-size: 14px; font-weight: 800; letter-spacing: .1em; }
+.ss-label.you { color: var(--foam); }
+.ss-label.rival { color: var(--stage-accent); }
+.ss-score { display: flex; align-items: baseline; gap: 10px; font-family: var(--serif); font-weight: 900; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--gold-2); text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.ss-dash { color: var(--dim); font-size: 22px; }
+.coins.rival { flex-direction: row-reverse; }
+.score-strip[data-matchpoint="you"] .ss-label.you,
+.score-strip[data-matchpoint="both"] .ss-label.you { color: var(--gold-2); text-shadow: 0 0 12px rgba(224,182,79,.8); animation: mp-pulse 1.4s ease-in-out infinite; }
+.score-strip[data-matchpoint="rival"] .ss-label.rival,
+.score-strip[data-matchpoint="both"] .ss-label.rival { color: var(--gold-2); text-shadow: 0 0 12px rgba(224,182,79,.8); animation: mp-pulse 1.4s ease-in-out infinite; }
+.score-strip[data-matchpoint]:not([data-matchpoint=""]) { border-color: var(--gold); box-shadow: 0 0 22px rgba(224,182,79,.35); }
+@keyframes mp-pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+
+/* ------------------------------------ r3: the frame IS the pill state */
+.player-side { transition: border-color .18s ease, box-shadow .18s ease; }
+.player-side[data-pill="armed"]     { border-color: var(--good);   box-shadow: 0 0 0 2px rgba(63,214,143,.35), 0 0 34px rgba(63,214,143,.35); }
+.player-side[data-pill="analyzing"] { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(95,185,255,.35), 0 0 34px rgba(95,185,255,.35); }
+.player-side[data-pill="not-armed"] { border-color: var(--warn);   box-shadow: 0 0 0 2px rgba(255,184,79,.35), 0 0 34px rgba(255,184,79,.3); }
+.player-side[data-pill="armed"] .video-wrap     { border-color: var(--good); }
+.player-side[data-pill="analyzing"] .video-wrap { border-color: var(--accent); }
+.player-side[data-pill="not-armed"] .video-wrap { border-color: var(--warn); }
+/* the pill rides on the video, bottom-center, same color language */
+.video-wrap .ready-pill {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 3;
+  font-size: 17px; padding: 6px 18px; backdrop-filter: blur(4px);
+  background: rgba(6,9,18,.7); text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+.video-wrap .ready-pill.armed     { background: rgba(20,60,40,.85); }
+.video-wrap .ready-pill.analyzing { background: rgba(20,45,75,.85); }
+.video-wrap .ready-pill.not-armed { background: rgba(75,50,15,.88); }
+
+/* ------------------------------------------- r3: the verdict banner */
+.verdict-banner {
+  position: absolute; left: 10px; right: 10px; top: 10px; z-index: 3;
+  padding: 10px 14px 12px; border-radius: 12px; text-align: center;
+  background: rgba(6,9,18,.82); border: 2px solid var(--wood-2); backdrop-filter: blur(4px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.5); transition: opacity .25s ease;
+  animation: vb-in .22s ease-out both;
+}
+.verdict-banner[hidden] { display: none; }
+@keyframes vb-in { from { transform: translateY(-8px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+.vb-head { font-family: var(--serif); font-size: 36px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; line-height: 1.05; }
+.vb-reason { font-size: 17px; margin-top: 4px; color: var(--parchment); line-height: 1.3; }
+.verdict-banner.hit        { border-color: var(--good);  } .verdict-banner.hit .vb-head        { color: var(--good); }
+.verdict-banner.miss       { border-color: var(--bad);   } .verdict-banner.miss .vb-head       { color: var(--bad); }
+.verdict-banner.parata     { border-color: var(--dim);   } .verdict-banner.parata .vb-head     { color: var(--parchment); }
+.verdict-banner.void       { border-color: var(--warn);  } .verdict-banner.void .vb-head       { color: var(--warn); font-size: 30px; }
+.verdict-banner.incomplete { border-color: var(--dim);   } .verdict-banner.incomplete .vb-head { color: var(--dim); font-size: 26px; }
+/* once you're back to a fist and armed, the verdict steps back */
+.player-side[data-pill="armed"] .verdict-banner { opacity: .55; }
+.vb-seal { font-size: 12px; color: var(--dim); margin-top: 5px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.vb-seal[hidden] { display: none; }
+/* the bottom round card is history now — tècnic only. Keyed on the id:
+   the renders rewrite its className ("verdict-card hit" etc.) wholesale. */
+#roundResultCard { display: none; }
+body.tecnic #roundResultCard { display: block; }
+
+/* Short viewports (≤ 840px tall — 1280x800 laptops, small windows): the
+   fight screen must still fit at 100%. Video a notch narrower, numerals a
+   notch smaller; nothing hidden. Measured: 1280x800 scroll 89px → 0. */
+@media (max-height: 840px) {
+  .hero-video { max-width: 360px; }
+  .big-number { font-size: 84px; }
+  .big-word { font-size: 46px; }
+  .score-strip { padding: 5px 14px; margin-bottom: 8px; }
+  .ss-score { font-size: 28px; }
+  .player-side { gap: 8px; padding-bottom: 12px; }
+  .rival-figure-frame { width: min(300px, 78vw); } /* the rival column was the tall one at 1280x800 */
+}

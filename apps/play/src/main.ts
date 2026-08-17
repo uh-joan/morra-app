@@ -17,7 +17,7 @@ import { pushVadTuning, setVoiceOnsetHandler, startMic, updateMicMeterUI } from 
 import { loadVoskModel } from "./vosk.js";
 import { setHandOnsetHandler } from "./velocity.js";
 import { drainPendingAnalysis, onSyncHandOnset, onSyncVoiceOnset } from "./analysis.js";
-import { renderReadyPill, updateReadyPillFromFrame } from "./readyPill.js";
+import { renderReadyPill, setPillRenderHook, updateReadyPillFromFrame } from "./readyPill.js";
 import { resetSyncVerdict } from "./render/syncVerdict.js";
 import { installSeam } from "./seam.js";
 import { installGame } from "./game.js";
@@ -68,6 +68,15 @@ resetSyncVerdict();
 // Installed last — it reads the level installGame restored.
 installTecnic();
 installScreens();
+// r3: the whole player card takes the ready pill's color — green armed
+// (throw), blue analyzing (reading), orange not-armed (back to the fist).
+// The pill's own state is the single source; this is one attribute + CSS.
+{
+  const side = document.querySelector<HTMLElement>(".player-side");
+  setPillRenderHook((state) => {
+    if (side) side.dataset.pill = state;
+  });
+}
 installLandmarkRecorder(); // ?rec=1 only — the finger-count corpus recorder
 installCalibration(); // L'Espill → Calibratge (per profile + camera)
 
