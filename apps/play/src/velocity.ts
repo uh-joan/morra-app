@@ -19,6 +19,32 @@ import { el } from "./dom.js";
 
 let state: VelocityMachineState = INITIAL_VELOCITY_STATE;
 
+/** Per-frame centroid velocity, last VELOCITY_HISTORY_MS — read by the
+ * calibration flow (peak between motion start and settle; resting jitter).
+ * Same {t, v} the FSM stepped on. */
+export const VELOCITY_HISTORY_MS = 4000;
+export const velocityHistory: { t: number; v: number }[] = [];
+export function peakVelocityBetween(fromT: number, toT: number): number | null {
+  let peak: number | null = null;
+  for (let i = velocityHistory.length - 1; i >= 0; i--) {
+    const f = velocityHistory[i]!;
+    if (f.t > toT) continue;
+    if (f.t < fromT) break;
+    if (peak == null || f.v > peak) peak = f.v;
+  }
+  return peak;
+}
+export function velocitiesBetween(fromT: number, toT: number): number[] {
+  const out: number[] = [];
+  for (let i = velocityHistory.length - 1; i >= 0; i--) {
+    const f = velocityHistory[i]!;
+    if (f.t > toT) continue;
+    if (f.t < fromT) break;
+    out.push(f.v);
+  }
+  return out;
+}
+
 export type HandOnsetHandler = (
   settlePerfTime: number,
   motionStartPerfTime: number | null,
@@ -56,6 +82,9 @@ export function processHandVelocity(t: number, v: number, lastKnownFingerCount: 
     lowV: parseFloat(el.tuneLowV.value),
     settleMs: parseFloat(el.tuneSettleMs.value),
   };
+  velocityHistory.push({ t, v });
+  const cutoff = t - VELOCITY_HISTORY_MS;
+  while (velocityHistory.length && velocityHistory[0]!.t < cutoff) velocityHistory.shift();
   const result = stepVelocityStateMachine(state, t, v, config);
   state = result.state;
   if (result.onset) {

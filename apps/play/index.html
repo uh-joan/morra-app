@@ -83,6 +83,7 @@
             <canvas id="handOverlay" class="hand-overlay"></canvas>
           </div>
           <span id="handIndicator" class="hand-indicator"><span class="dot"></span><span id="handIndicatorText">cap mà</span></span>
+          <div id="framingHint" class="framing-hint" hidden></div>
         </div>
         <div class="big-number-wrap">
           <div class="big-duo">
@@ -125,6 +126,15 @@
       <!-- L'Espill (Entrenament) -->
       <div class="training-panel" id="trainingPanel" style="display:none;">
         <div class="training-head">🪞 L'Espill — el teu joc, al mirall</div>
+        <div class="training-section calib-section">
+          <h3>Calibratge — que et llegeixi bé</h3>
+          <p class="calib-blurb">Cinc tirades guiades i el joc s'ajusta a la teva mà, el teu crit i aquesta càmera. Per a aquest perfil; les regles no canvien.</p>
+          <div class="row">
+            <button id="btnCalibrate" class="primary">Calibra ara</button>
+            <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
+          </div>
+          <div id="calibStatus" class="calib-status"></div>
+        </div>
         <div class="training-tiles" id="trainingTiles">
           <div class="training-tile"><div class="training-tile-value" id="tileExploitability">—</div><div class="training-tile-label">Explotabilitat</div></div>
           <div class="training-tile"><div class="training-tile-value" id="tileRandomness">—</div><div class="training-tile-label">Aleatorietat</div></div>
@@ -248,6 +258,24 @@
     <p id="obHint" class="ob-hint" hidden>El navegador et deu estar demanant permís per la càmera o el micròfon — busca la finestreta vora la barra d'adreces.</p>
     <div id="voskStatus" class="status" style="display:none;"></div>
     <button id="obBack" class="ghost ob-back">← Torna al port</button>
+  </div>
+</div>
+
+<!-- ================= CALIBRATGE (L'Espill) ================= -->
+<div id="calibOverlay" class="calib-panel" aria-live="polite">
+  <div class="calib-head">
+    <span class="calib-kicker">Calibratge</span>
+    <button id="calibClose" class="ghost calib-close" title="Tanca">✕</button>
+  </div>
+  <h3 id="calibTitle"></h3>
+  <p id="calibBody"></p>
+  <div id="calibPrompt" class="calib-prompt" hidden></div>
+  <div id="calibFeedback" class="calib-feedback" hidden></div>
+  <div id="calibDots" class="calib-dots"></div>
+  <div id="calibResult" class="calib-result" hidden></div>
+  <div class="row calib-actions">
+    <button id="calibSave" class="btn-gold" hidden>Desa per a aquest perfil</button>
+    <button id="calibDiscard" class="ghost" hidden>Descarta i torna als valors per defecte</button>
   </div>
 </div>
 

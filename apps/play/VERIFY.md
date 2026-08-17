@@ -256,6 +256,21 @@ timing, that's a bug in the pass, not a new rule.
    `mode tècnic → Export debug log` → each `throw_onset` now carries
    `preOnsetFingerCount` (≤1 = came from a fist → reveal; ≥2 = came
    down from a held pose → no reveal; null = unknown → spike behavior).
+9c. **Calibratge** (L'Espill → "Calibra ara"; docs/calibration.md). A
+   parchment panel appears on the right; a **ghost hand** is drawn on
+   your video. Step 1: put your open hand inside it — dashed → solid
+   gold when you're in the zone, and the hint under the video ("Acosta
+   la mà", "Centra la mà"…) disappears. Step 2: fist, still — advances
+   on its own once ~2 s of stillness are in (moving or leaving the zone
+   restarts it). Step 3: five prompts, "tira un 3 i crida fort", 1, 4,
+   2, 5 — each advances on your settled throw; the dots go green. Step 4:
+   the result card, old → new for HIGH_V / LOW_V / crit with a one-line
+   why each, and "Lectura dels dits N/5". **Desa** → the tècnic sliders
+   now hold the new values and L'Espill says "Calibrat <date>";
+   **Restableix** → back to 0.5 / 0.25 / 6. Switch profile → the sliders
+   follow the profile (a new profile is uncalibrated); switch camera →
+   likewise per device. Prompted throws must NOT appear in L'Espill's
+   sample count.
 10. **Canvia de rival** (top bar) → back to the select with the score
     reset; **Morra** wordmark → title. Switching screens never burns a
     commitment.
@@ -269,13 +284,13 @@ pnpm build && pnpm test && pnpm cross-check:conformance
 cd apps/play && pnpm test:integration && pnpm test:parity
 ```
 
-- Unit: 483 across the workspace (239 core, 96 recognition, 55
-  platform-web, 53 apps/play). Recognition includes the worker/module
+- Unit: 486 across the workspace (239 core, 96 recognition, 55
+  platform-web, 96 apps/play). Recognition includes the worker/module
   `countFingers` drift test — the worker Blob inlines its own copy of the
   rule, and this is what stops the two from diverging.
 - `cross-check:conformance`: 105 cases replayed against the untouched
   spikes/modules/*.mjs — zero discrepancies (THE SPIKE IS THE TRUTH).
-- Integration (`test/integration/run.mjs`): 57 checks driving the built
+- Integration (`test/integration/run.mjs`): 72 checks driving the built
   app headless with fake devices — shell, gesture-gated sensors, the
   character select, a full synced round via the __play seam, L'Espill,
   profiles, mode tècnic, entorn + DSP override restarts, error surfacing.

@@ -29,6 +29,7 @@ import {
 import { CryptoRandomSource } from "@morra/platform-web";
 import { GAME_WIN_SCORE, RIVAL_VOICE_DEFER, RIVAL_VOICE_DEFER_EPS_MS, SYNC_POST_MS } from "./config.js";
 import { el } from "./dom.js";
+import { isCalibrating } from "./calibration.js";
 import { ctx } from "./audioClock.js";
 import { logEvent, LOG_SESSION_ID } from "./telemetry.js";
 import { reportError } from "./status.js";
@@ -471,7 +472,8 @@ export function installGame(): void {
     onThrowFinalized(t) {
       maybeResolveGameRound(t); // no-ops in Entrenament
       // Phase H: Entrenament's own hook — a reset is still never a throw.
-      if (sessionMode === "entrenament" && t.outcome !== "reset") recordTrainingThrow(t);
+      // Calibration prompts ("tira un 3") are not choices — never the model's.
+      if (sessionMode === "entrenament" && t.outcome !== "reset" && !isCalibrating()) recordTrainingThrow(t);
     },
     onWordApplied(t) {
       maybeResolveGameRound(t);

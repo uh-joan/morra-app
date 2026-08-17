@@ -24,6 +24,8 @@ import { currentHandState, processHandVelocity, setPreOnsetCountProvider } from 
 import { preOnsetFingerCount } from "./game/preOnset.js";
 import { renderBigNumber, renderBigNumberError, renderBigNumberNoHand } from "./render/bigNumber.js";
 import { recordFrame } from "./landmarkRecorder.js";
+import { computeFraming, drawFramingGuide, FRAMING_COPY, type FramingState, NO_HAND } from "./framing.js";
+import { deviceKeyFrom } from "./calibration/store.js";
 
 interface HandLandmarkerLike {
   detectForVideo(video: HTMLVideoElement, timestampMs: number): { landmarks?: Landmark[][] };
@@ -34,6 +36,47 @@ let handDelegateActive: "GPU" | "CPU" | null = null;
 export let handTrackingActive = false;
 
 let lastKnownFingerCount: number | null = null;
+
+/** Camera device fingerprint (calibration is per profile+device). Set on
+ * startCamera from the live track's settings; "unknown" before that. */
+export let cameraDeviceKey = "unknown";
+let onDeviceKey: (key: string) => void = () => {};
+export function setDeviceKeyHandler(h: (key: string) => void): void {
+  onDeviceKey = h;
+  if (cameraDeviceKey !== "unknown") h(cameraDeviceKey);
+}
+
+// Framing guide (ghost hand): computed every detected-hand frame; drawn on
+// the overlay only while some flow asked for it (calibration, onboarding).
+let framingGuideOn = false;
+let lastFraming: FramingState = NO_HAND;
+let framingHintEl: HTMLElement | null | undefined;
+let onFraming: (s: FramingState) => void = () => {};
+export function setFramingGuide(on: boolean): void {
+  framingGuideOn = on;
+  if (framingHintEl === undefined) framingHintEl = document.getElementById("framingHint");
+  if (framingHintEl && !on) framingHintEl.hidden = true;
+}
+export function setFramingHandler(h: (s: FramingState) => void): void {
+  onFraming = h;
+}
+export function currentFraming(): FramingState {
+  return lastFraming;
+}
+function updateFraming(lm: Landmark[] | null): void {
+  const next = computeFraming(lm);
+  const changed = next.hint !== lastFraming.hint || next.inZone !== lastFraming.inZone;
+  lastFraming = next;
+  if (framingGuideOn) {
+    if (framingHintEl === undefined) framingHintEl = document.getElementById("framingHint");
+    if (framingHintEl && changed) {
+      framingHintEl.textContent = FRAMING_COPY[next.hint];
+      framingHintEl.hidden = next.inZone;
+      framingHintEl.classList.toggle("in-zone", next.inZone);
+    }
+  }
+  if (changed) onFraming(next);
+}
 let camFrameTimes: number[] = []; // rolling perf timestamps, for the fps readout
 export const handFrameHistory: { t: number; count: number }[] = []; // {t, count} per detected-hand frame
 
@@ -100,6 +143,8 @@ export async function startCamera(): Promise<void> {
     await el.camPreview.play();
     const track = stream.getVideoTracks()[0];
     const settings: MediaTrackSettings = track?.getSettings ? track.getSettings() : {};
+    cameraDeviceKey = deviceKeyFrom(settings);
+    onDeviceKey(cameraDeviceKey);
     el.handOverlay.width = el.camPreview.videoWidth || settings.width || 480;
     el.handOverlay.height = el.camPreview.videoHeight || settings.height || 360;
     overlayCtx = el.handOverlay.getContext("2d");
@@ -144,6 +189,7 @@ function drawHandOverlay(lm: Landmark[] | null, settled: boolean): void {
   const w = el.handOverlay.width;
   const h = el.handOverlay.height;
   overlayCtx.clearRect(0, 0, w, h);
+  if (framingGuideOn) drawFramingGuide(overlayCtx, w, h, lastFraming);
   if (!lm) return;
   overlayCtx.lineWidth = 2;
   overlayCtx.strokeStyle = settled ? "#2ea043" : "#d29922";
@@ -185,6 +231,7 @@ function onVideoFrame(now: number, metadata: VideoFrameCallbackMetadata): void {
   if (result && result.landmarks && result.landmarks.length) {
     const lm = result.landmarks[0]!;
     setHandDetected(true);
+    updateFraming(lm);
     drawHandOverlay(lm, currentHandState() !== "spiking");
     const count = FINGER_COUNT_RULE === "spike" ? countFingersSpike(lm) : countFingers(lm);
     renderBigNumber(count);
@@ -203,6 +250,7 @@ function onVideoFrame(now: number, metadata: VideoFrameCallbackMetadata): void {
     onFrameCount(count);
   } else {
     setHandDetected(false);
+    updateFraming(null);
     drawHandOverlay(null, false);
     renderBigNumberNoHand();
     lastHandPos = null;

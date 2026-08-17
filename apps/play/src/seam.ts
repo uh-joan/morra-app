@@ -17,9 +17,10 @@ import {
   syncThrows,
 } from "./analysis.js";
 import { currentHandState } from "./velocity.js";
-import { handFrameHistory, handTrackingActive, lastFingerCount } from "./camera.js";
+import { currentFraming, handFrameHistory, handTrackingActive, lastFingerCount } from "./camera.js";
 import { micReady, micRing } from "./mic.js";
 import { voskLoaded } from "./vosk.js";
+import { __calibration } from "./calibration.js";
 import { debugLog, debugOrphanOnsets, eventBusLog, LOG_SESSION_ID } from "./telemetry.js";
 import { clockMap, ctx } from "./audioClock.js";
 import {
@@ -127,6 +128,11 @@ export function installSeam(): void {
     },
     get handFrameHistory() {
       return handFrameHistory;
+    },
+    // calibration + framing (per profile+device sensor fits)
+    calibration: __calibration,
+    get framing() {
+      return currentFraming();
     },
     // ready pill
     updateReadyPillFromFrame,
