@@ -321,7 +321,18 @@
         </div>
         <div class="meter-bar"><div id="micMeterFill" class="meter-fill"></div></div>
         <div class="kv">
-          <div class="k">Hand: HIGH velocity</div><div class="v"><input id="tuneHighV" type="number" step="0.1" value="0.9"></div>
+          <!-- HIGH velocity: app default lowered 0.9 -> 0.5 (2026-08-17) so a
+               slow throw, and a thumb-1 in particular, clears the onset spike.
+               A thumb flick moves only 1 of the 5 centroid tips, so it needs
+               ~4-5x the speed of a 3/4 to reach the old 0.9 — most missed
+               slow throws are this. The @morra/recognition DEFAULT_VELOCITY_CONFIG
+               stays spike-verbatim 0.9 (conformance/parity baseline); this is
+               the live app slider only, reversible in Ajustos. Tradeoff: a
+               resting hand's jitter is likelier to cross 0.5 and fire a phantom
+               onset — and with the throw-of-one reveal, a phantom at a fist
+               (count 1) now reveals then voids. Raise it back toward 0.9 if
+               phantom throws appear. -->
+          <div class="k">Hand: HIGH velocity</div><div class="v"><input id="tuneHighV" type="number" step="0.1" value="0.5"></div>
           <div class="k">Hand: LOW velocity</div><div class="v"><input id="tuneLowV" type="number" step="0.05" value="0.25"></div>
           <div class="k">Hand: settle ms</div><div class="v"><input id="tuneSettleMs" type="number" step="10" value="50"></div>
         </div>
