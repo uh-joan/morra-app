@@ -26,13 +26,14 @@
 import { el } from "./dom.js";
 import { logEvent } from "./telemetry.js";
 import { addThrowObserver, type ThrowEvent } from "./analysis.js";
-import { cameraDeviceKey, currentFraming, handTrackingActive, setDeviceKeyHandler, setFramingGuide, setFramingHandler } from "./camera.js";
-import { currentHandState, peakVelocityBetween, velocitiesBetween } from "./velocity.js";
+import { cameraDeviceKey, currentFraming, handTrackingActive, lastFingerCount, setDeviceKeyHandler, setFramingGuide, setFramingHandler } from "./camera.js";
+import { currentHandState, peakVelocityBetween, velocityHistory } from "./velocity.js";
 import { micReady, micRmsBetween, pushVadTuning } from "./mic.js";
 import { getActiveProfileId } from "./profile.js";
 import { APP_DEFAULTS, fitAll, quantile, round2, type CalibrationValues, MIN_THROWS } from "./calibration/fit.js";
 import { loadBlob, recordFor, saveBlob, withoutRecord, withRecord, type CalibrationRecord } from "./calibration/store.js";
 import type { FramingState } from "./framing.js";
+import { judgeCalibrationThrow, VERDICT_COPY } from "./calibration/judge.js";
 
 // ------------------------------------------------------------ apply/persist
 
@@ -76,6 +77,9 @@ const FRAME_STABLE_FRAMES = 20;
 
 interface Session {
   step: Step;
+  /** timestamp of the last CAMERA frame we counted — the step machine runs
+   * on rAF (~60/s) but frames arrive at ~30/s; steps count frames, not ticks */
+  lastFrameT: number | null;
   frameStable: number;
   quiet: number[];
   quietStartT: number | null;
@@ -101,6 +105,7 @@ function ui() {
     prompt: g("calibPrompt"),
     dots: g("calibDots"),
     result: g("calibResult"),
+    feedback: g("calibFeedback"),
     save: g("calibSave") as HTMLButtonElement | null,
     discard: g("calibDiscard") as HTMLButtonElement | null,
     reset: g("calibReset") as HTMLButtonElement | null,
@@ -140,6 +145,7 @@ function setStep(step: Step): void {
   if (u.body) u.body.textContent = copy[step][1];
   if (u.prompt) u.prompt.hidden = step !== "throws";
   if (u.result) u.result.hidden = step !== "result";
+  if (u.feedback) { u.feedback.hidden = step !== "throws"; if (step === "throws") { u.feedback.textContent = ""; u.feedback.className = "calib-feedback"; } }
   if (u.save) u.save.hidden = step !== "result";
   if (u.discard) u.discard.hidden = step !== "result";
   renderDots();
@@ -167,27 +173,35 @@ function renderPrompt(): void {
   prompt.innerHTML = `Des del puny, <b>tira un ${n}</b> i <b>crida fort</b> qualsevol número.<br><small>(${word} — la veritat és el que et demanem, no el que reconeguem)</small>`;
 }
 
-/** rAF-driven step machine — reads live sensor state, no timers. */
+/** rAF-driven step machine — reads live sensor state, no timers. Every
+ * branch first waits for a NEW camera frame (velocityHistory's last entry
+ * changed), so "N frames" means camera frames. */
 function tick(): void {
   if (!S) return;
   rafId = requestAnimationFrame(tick);
-  const now = performance.now();
+  const last = velocityHistory[velocityHistory.length - 1];
   const fr = currentFraming();
+  const newFrame = !!last && last.t !== S.lastFrameT;
+  if (!newFrame && fr.hint !== "no-hand") return; // nothing new to judge
+  if (last) S.lastFrameT = last.t;
+  const now = performance.now();
+
   if (S.step === "frame") {
     S.frameStable = fr.inZone ? S.frameStable + 1 : 0;
     if (S.frameStable >= FRAME_STABLE_FRAMES) setStep("quiet");
     return;
   }
   if (S.step === "quiet") {
-    if (!fr.inZone || currentHandState() !== "idle") {
+    const fist = (lastFingerCount() ?? 5) <= 1;
+    if (!fr.inZone || currentHandState() !== "idle" || !fist || !last) {
+      if (S.quiet.length) quietProgress(0, !fist ? "Tanca el puny." : !fr.inZone ? "Torna a la silueta." : "Quiet…");
       S.quiet = [];
       S.quietStartT = null;
       return;
     }
     if (S.quietStartT == null) S.quietStartT = now;
-    // one sample per frame: the latest velocity reading
-    const vs = velocitiesBetween(now - 40, now);
-    if (vs.length) S.quiet.push(vs[0]!);
+    S.quiet.push(last.v);
+    quietProgress(S.quiet.length / QUIET_FRAMES, "Quiet… així.");
     if (S.quiet.length >= QUIET_FRAMES) {
       S.jitterP95 = quantile(S.quiet, 0.95);
       const rms = micRmsBetween(S.quietStartT, now);
@@ -199,9 +213,24 @@ function tick(): void {
   }
 }
 
+function quietProgress(frac: number, note: string): void {
+  const { body } = ui();
+  if (!body || !S || S.step !== "quiet") return;
+  const bar = "█".repeat(Math.round(frac * 12)).padEnd(12, "░");
+  body.textContent = `Tanca el puny i queda't quiet dins la silueta. ${bar} ${note}`;
+}
+
 function onThrowStart(t: ThrowEvent): void {
   if (!S || S.step !== "throws" || S.awaitingThrow) return;
   S.awaitingThrow = t;
+}
+
+function setFeedback(text: string, kind: "ok" | "no"): void {
+  const { feedback } = ui();
+  if (!feedback) return;
+  feedback.textContent = text;
+  feedback.className = "calib-feedback " + kind;
+  feedback.hidden = false;
 }
 
 function onThrowFinalized(t: ThrowEvent): void {
@@ -215,10 +244,25 @@ function onThrowFinalized(t: ThrowEvent): void {
   // well after settle (the capture window is SYNC_POST_MS after the anchor)
   const rms = micRmsBetween(from - 300, to + 800);
   const shout = rms.length ? Math.max(...rms) : null;
+  const verdict = judgeCalibrationThrow({
+    outcome: t.outcome,
+    fingerCount: t.handFingerCount,
+    voiceOnsetPerfTime: t.voiceOnsetPerfTime,
+    shoutPeak: shout,
+    ambientFloor: S.ambientFloor,
+  });
+  logEvent("calibration_throw", { prompt: truth, count: t.handFingerCount, peak, shout, outcome: t.outcome, verdict });
+  if (!verdict.accept) {
+    // Not the prompted throw — keep waiting on the SAME prompt. The return
+    // to fist after an accepted throw is a reset and is EXPECTED: ignore it
+    // silently; only a silent or fingerless throw gets told why.
+    if (verdict.reason !== "reset") setFeedback(VERDICT_COPY[verdict.reason], "no");
+    return;
+  }
   if (peak != null) S.throwPeaks.push(peak);
   if (shout != null) S.shoutPeaks.push(shout);
   S.prompts.push({ truth, count: t.handFingerCount });
-  logEvent("calibration_throw", { prompt: truth, count: t.handFingerCount, peak, shout, outcome: t.outcome });
+  setFeedback(VERDICT_COPY.accepted(truth, t.handFingerCount), "ok");
   S.promptIdx++;
   renderDots();
   if (S.promptIdx >= PROMPTS.length) finish();
@@ -281,7 +325,7 @@ export function start(): void {
     if (status) status.textContent = "Engega la càmera i el micròfon abans de calibrar.";
     return;
   }
-  S = { step: "idle", frameStable: 0, quiet: [], quietStartT: null, promptIdx: 0, throwPeaks: [], shoutPeaks: [], prompts: [], jitterP95: null, ambientFloor: null, awaitingThrow: null, fitted: null };
+  S = { step: "idle", lastFrameT: null, frameStable: 0, quiet: [], quietStartT: null, promptIdx: 0, throwPeaks: [], shoutPeaks: [], prompts: [], jitterP95: null, ambientFloor: null, awaitingThrow: null, fitted: null };
   calibrating = true;
   document.body.dataset.calibrating = "on";
   setFramingGuide(true);

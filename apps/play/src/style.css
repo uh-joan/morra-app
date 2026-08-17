@@ -728,3 +728,6 @@ body[data-calibrating="on"] .calib-panel { display: flex; flex-direction: column
 .calib-actions { margin-top: 4px; }
 .calib-panel .btn-gold { font-size: 14px; padding: 8px 14px; }
 @media (max-width: 900px) { .calib-panel { right: 12px; left: 12px; width: auto; top: auto; bottom: 12px; } }
+.calib-feedback { font-size: 13px; padding: 6px 10px; border-radius: 8px; min-height: 1.4em; }
+.calib-feedback.ok { background: rgba(47,107,58,.14); color: #2f6b3a; }
+.calib-feedback.no { background: rgba(176,58,46,.12); color: #8a2f25; }
