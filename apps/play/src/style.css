@@ -8,6 +8,7 @@
 
 /* ---------------------------------------------------------- tokens */
 :root {
+  --topbar-h: 55px; /* the sticky top bar; select/fight screens size against it */
   color-scheme: dark;
   --ink: #0d1220;
   --ink-2: #161d2c;
@@ -89,7 +90,12 @@ button.ghost:hover { color: var(--text); }
 .btn-parchment:hover { border-color: var(--gold); }
 
 /* ------------------------------------------------- screen machinery */
+/* The title screen owns the whole viewport; select/fight sit UNDER the
+   sticky top bar, so their min-height must leave room for it — otherwise
+   the page is always exactly one top-bar taller than the window and
+   scrolls 55px for nothing (Janis at 100%). */
 .screen { display: none; min-height: 100vh; }
+#screenSelect, #screenFight { min-height: calc(100vh - var(--topbar-h, 55px)); }
 body[data-screen="title"]  #screenTitle  { display: flex; }
 body[data-screen="select"] #screenSelect { display: block; }
 body[data-screen="fight"]  #screenFight  { display: block; }
@@ -102,7 +108,7 @@ body.vs-on #vsSplash { display: flex; }
 
 /* --------------------------------------------------------- top bar */
 #topBar {
-  position: sticky; top: 0; z-index: 40;
+  position: sticky; top: 0; z-index: 40; height: var(--topbar-h); box-sizing: border-box;
   align-items: center; justify-content: space-between; gap: 12px;
   padding: 8px 16px;
   background: linear-gradient(180deg, rgba(13,18,32,.96), rgba(13,18,32,.82));
@@ -231,7 +237,7 @@ body.vs-on #vsSplash { display: flex; }
 .vs-stage { position: absolute; bottom: 9vh; left: 0; right: 0; text-align: center; font-family: var(--serif); font-size: 20px; color: var(--foam); opacity: .85; }
 
 /* ------------------------------------------------------ fight stage */
-#screenFight { position: relative; padding: 0 0 40px; }
+#screenFight { position: relative; padding: 0 0 12px; } /* was 40: the game screen must fit a 900px-tall window at 100% */
 body[data-stage="taverna"] #screenFight { background: radial-gradient(900px 480px at 18% 12%, rgba(255,184,79,.16), transparent 60%), linear-gradient(180deg, #2c1c0e 0%, #1c1108 55%, #120a05 100%); }
 body[data-stage="coberta"] #screenFight { background: linear-gradient(180deg, #79bfe4 0%, #4794c2 40%, #2b6f9e 58%, #17527a 100%); }
 body[data-stage="cala"]    #screenFight { background: linear-gradient(180deg, #241c44 0%, #3b2a5e 42%, #1b2247 70%, #10162e 100%); }
@@ -302,7 +308,7 @@ video#camPreview { width: 100%; display: block; background: #000; transform: sca
 .big-number-wrap { display: flex; flex-direction: column; align-items: center; }
 .big-duo { display: flex; align-items: flex-end; gap: 26px; justify-content: center; flex-wrap: wrap; }
 .big-item { display: flex; flex-direction: column; align-items: center; }
-.big-number { font-family: var(--serif); font-size: 118px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: var(--dim); text-shadow: 0 4px 18px rgba(0,0,0,.55); }
+.big-number { font-family: var(--serif); font-size: 104px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: var(--dim); text-shadow: 0 4px 18px rgba(0,0,0,.55); } /* 118 → 104: fits 1440x900 at 100% (measured) */
 .big-number.live { color: var(--foam); }
 .big-number.err { color: var(--bad); font-size: 42px; line-height: 1.2; text-align: center; }
 .big-word { font-family: var(--serif); font-size: 56px; font-weight: 900; line-height: 1.1; color: var(--dim); text-shadow: 0 4px 18px rgba(0,0,0,.55); }
@@ -793,3 +799,16 @@ body[data-mode="partida"][data-screen="fight"] .score-strip { display: flex; }
    the renders rewrite its className ("verdict-card hit" etc.) wholesale. */
 #roundResultCard { display: none; }
 body.tecnic #roundResultCard { display: block; }
+
+/* Short viewports (≤ 840px tall — 1280x800 laptops, small windows): the
+   fight screen must still fit at 100%. Video a notch narrower, numerals a
+   notch smaller; nothing hidden. Measured: 1280x800 scroll 89px → 0. */
+@media (max-height: 840px) {
+  .hero-video { max-width: 360px; }
+  .big-number { font-size: 84px; }
+  .big-word { font-size: 46px; }
+  .score-strip { padding: 5px 14px; margin-bottom: 8px; }
+  .ss-score { font-size: 28px; }
+  .player-side { gap: 8px; padding-bottom: 12px; }
+  .rival-figure-frame { width: min(300px, 78vw); } /* the rival column was the tall one at 1280x800 */
+}
