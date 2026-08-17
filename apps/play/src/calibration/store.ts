@@ -14,22 +14,59 @@ import type { CalibrationValues } from "./fit.js";
 
 export const CALIBRATION_STORAGE_PREFIX = "morra-calibration-v1:";
 
+export interface SessionSamples {
+  jitterP95: number | null;
+  throwPeaks: number[];
+  ambientFloor: number | null;
+  shoutPeaks: number[];
+  /** prompted truth vs what the count read, per ACCEPTED attempt (a
+   * misread is repeated up to MAX_ATTEMPTS, then flagged hard) —
+   * accuracy feedback + a mini corpus + the "hard numbers" signal */
+  prompts: { truth: number; count: number | null; attempt?: number; hard?: boolean }[];
+  measuredAt?: string;
+}
+
+/** Fits use the LAST N sessions pooled: the weakest-throw estimate is far
+ * more stable over 25 throws than 5 (jani's thumb-1 peaked 0.54 / 0.58 /
+ * 0.73 across three sessions → HIGH_V bounced 0.38–0.51 session to
+ * session), and a slightly slower throw tomorrow still clears it. */
+export const POOL_SESSIONS = 5;
+
 export interface CalibrationRecord {
   values: CalibrationValues;
   /** fit.ts FIT_VERSION the values were computed with; older records are
    * re-fit from their samples on apply (missing = version 1) */
   fitVersion?: number;
   measuredAt: string; // ISO
-  samples: {
-    jitterP95: number | null;
-    throwPeaks: number[];
-    ambientFloor: number | null;
-    shoutPeaks: number[];
-    /** prompted truth vs what the count read, per ACCEPTED attempt (a
-     * misread is repeated up to MAX_ATTEMPTS, then flagged hard) —
-     * accuracy feedback + a mini corpus + the "hard numbers" signal */
-    prompts: { truth: number; count: number | null; attempt?: number; hard?: boolean }[];
+  /** this session's samples */
+  samples: SessionSamples;
+  /** the last POOL_SESSIONS sessions (this one included, last) — what the
+   * values were actually fitted on. Missing on old records = [samples]. */
+  history?: SessionSamples[];
+}
+
+/** The union the fits run on: all throw/shout peaks of the pooled sessions,
+ * the LARGEST resting jitter seen (the floor must hold on a bad day), the
+ * latest room floor. */
+export function pooledSamples(rec: Pick<CalibrationRecord, "samples" | "history">): SessionSamples & { sessions: number } {
+  const hist = rec.history && rec.history.length ? rec.history : [rec.samples];
+  const throwPeaks = hist.flatMap((h) => h.throwPeaks);
+  const shoutPeaks = hist.flatMap((h) => h.shoutPeaks);
+  const jitters = hist.map((h) => h.jitterP95).filter((j): j is number => j != null && Number.isFinite(j));
+  const last = hist[hist.length - 1]!;
+  return {
+    jitterP95: jitters.length ? Math.max(...jitters) : null,
+    throwPeaks,
+    shoutPeaks,
+    ambientFloor: last.ambientFloor,
+    prompts: hist.flatMap((h) => h.prompts),
+    sessions: hist.length,
   };
+}
+
+export function appendSession(prev: CalibrationRecord | null, session: SessionSamples): SessionSamples[] {
+  const hist = prev ? (prev.history && prev.history.length ? prev.history : [prev.samples]) : [];
+  return [...hist, session].slice(-POOL_SESSIONS);
 }
 
 export interface CalibrationBlob {

@@ -32,7 +32,7 @@ import { micReady, micRmsBetween, pushVadTuning } from "./mic.js";
 import { getEntorn, setEntorn, SUGGEST_AMBIENT_THRESHOLD, type Entorn } from "./entorn.js";
 import { getActiveProfileId } from "./profile.js";
 import { APP_DEFAULTS, FIT_VERSION, fitAll, quantile, round2, type CalibrationValues, MIN_THROWS } from "./calibration/fit.js";
-import { loadBlob, recordFor, saveBlob, withoutRecord, withRecord, type CalibrationRecord } from "./calibration/store.js";
+import { appendSession, loadBlob, pooledSamples, recordFor, saveBlob, withoutRecord, withRecord, type CalibrationRecord, type SessionSamples } from "./calibration/store.js";
 import type { FramingState } from "./framing.js";
 import { HARD_COPY, judgeCalibrationThrow, REPEAT_COPY, shouldRepeatPrompt, VERDICT_COPY } from "./calibration/judge.js";
 
@@ -75,7 +75,7 @@ export function applyCalibrationForActiveProfile(): CalibrationRecord | null {
  * re-saved — the math got better, the player doesn't redo the session. */
 export function refitIfStale(pid: string, rec: CalibrationRecord): CalibrationRecord {
   if ((rec.fitVersion ?? 1) === FIT_VERSION) return rec;
-  const s = rec.samples;
+  const s = pooledSamples(rec);
   const { values } = fitAll(
     APP_DEFAULTS,
     s.jitterP95 != null ? { jitterP95: s.jitterP95, throwPeaks: s.throwPeaks } : null,
@@ -115,6 +115,7 @@ interface Session {
   entornDecided: Entorn | null;
   awaitingThrow: ThrowEvent | null;
   fitted: { values: CalibrationValues; before: CalibrationValues; which: { velocity: boolean; voice: boolean } } | null;
+  pooledInfo: { throws: number; sessions: number; weakest: number; jitter: number | null } | null;
 }
 let S: Session | null = null;
 let rafId: number | null = null;
@@ -327,20 +328,31 @@ function onThrowFinalized(t: ThrowEvent): void {
   else renderPrompt();
 }
 
+function thisSession(): SessionSamples {
+  if (!S) throw new Error("no session");
+  return { jitterP95: S.jitterP95, throwPeaks: S.throwPeaks, ambientFloor: S.ambientFloor, shoutPeaks: S.shoutPeaks, prompts: S.prompts, measuredAt: new Date().toISOString() };
+}
+
 function finish(): void {
   if (!S) return;
   const before = currentValues();
+  // Fit on this session POOLED with the previous ones for this
+  // profile+device (store.ts POOL_SESSIONS) — a stable weakest-throw
+  // estimate, not this session's luck.
+  const prev = recordFor(loadBlob(getActiveProfileId()), cameraDeviceKey);
+  const pooled = pooledSamples({ samples: thisSession(), history: appendSession(prev, thisSession()) });
   const { values, fitted } = fitAll(
     before,
-    S.jitterP95 != null ? { jitterP95: S.jitterP95, throwPeaks: S.throwPeaks } : null,
-    S.ambientFloor != null ? { ambientFloor: S.ambientFloor, shoutPeaks: S.shoutPeaks } : null
+    pooled.jitterP95 != null ? { jitterP95: pooled.jitterP95, throwPeaks: pooled.throwPeaks } : null,
+    pooled.ambientFloor != null ? { ambientFloor: pooled.ambientFloor, shoutPeaks: pooled.shoutPeaks } : null
   );
   S.fitted = { values, before, which: fitted };
+  S.pooledInfo = { throws: pooled.throwPeaks.length, sessions: pooled.sessions, weakest: pooled.throwPeaks.length ? Math.min(...pooled.throwPeaks) : NaN, jitter: pooled.jitterP95 };
   const { result } = ui();
   if (result) {
     const line = (label: string, b: number, a: number, why: string, did: boolean) =>
       `<div class="calib-line${did ? "" : " muted"}"><span class="k">${label}</span><span class="v">${round2(b)} → <b>${round2(a)}</b></span><small>${did ? why : "no s'ha pogut ajustar (poques mostres)"}</small></div>`;
-    const med = S.throwPeaks.length ? quantile(S.throwPeaks, 0.5) : NaN;
+    const pi = S.pooledInfo;
     const done = S.prompts.filter((p) => p.attempt != null && (p.count === p.truth || p.hard));
     const readOk = done.filter((p) => p.count === p.truth).length;
     const hardOnes = done.filter((p) => p.hard).map((p) => p.truth);
@@ -349,7 +361,7 @@ function finish(): void {
       : "";
     result.innerHTML =
       entornLine +
-      line("Llindar de tirada (HIGH_V)", before.highV, values.highV, `la teva tirada mediana pica a ${round2(med)}; el repòs a ${round2(S.jitterP95 ?? NaN)}`, fitted.velocity) +
+      line("Llindar de tirada (HIGH_V)", before.highV, values.highV, `la teva tirada més fluixa pica a ${round2(pi?.weakest ?? NaN)} (${pi?.throws ?? 0} tirades, ${pi?.sessions ?? 1} sessi${(pi?.sessions ?? 1) === 1 ? "ó" : "ons"}); el repòs a ${round2(pi?.jitter ?? NaN)}`, fitted.velocity) +
       line("Llindar d'aturada (LOW_V)", before.lowV, values.lowV, `just per sobre del teu repòs`, fitted.velocity) +
       line("Sensibilitat del crit", before.vadMult, values.vadMult, `el teu crit ${round2((quantile(S.shoutPeaks, 0.5) || 0) / (S.ambientFloor || 1))}× per sobre del soroll de la sala`, fitted.voice) +
       `<div class="calib-line${hardOnes.length ? " muted" : ""}"><span class="k">Lectura dels dits</span><span class="v"><b>${readOk}/${done.length}</b></span><small>${S.prompts.map((p) => `${p.truth}→${p.count ?? "?"}${p.hard ? "⚠" : ""}`).join("  ")}${hardOnes.length ? ` · números difícils: ${hardOnes.join(", ")}` : ""}</small></div>`;
@@ -360,13 +372,16 @@ function finish(): void {
 
 function save(): void {
   if (!S?.fitted) return;
+  const pid = getActiveProfileId();
+  const prev = recordFor(loadBlob(pid), cameraDeviceKey);
+  const session = thisSession();
   const rec: CalibrationRecord = {
     values: S.fitted.values,
     fitVersion: FIT_VERSION,
-    measuredAt: new Date().toISOString(),
-    samples: { jitterP95: S.jitterP95, throwPeaks: S.throwPeaks, ambientFloor: S.ambientFloor, shoutPeaks: S.shoutPeaks, prompts: S.prompts },
+    measuredAt: session.measuredAt!,
+    samples: session,
+    history: appendSession(prev, session),
   };
-  const pid = getActiveProfileId();
   saveBlob(pid, withRecord(loadBlob(pid), cameraDeviceKey, rec));
   applyValues(rec.values, "calibration");
   logEvent("calibration_saved", { profileId: pid, deviceKey: cameraDeviceKey, values: rec.values });
@@ -390,7 +405,7 @@ export function start(): void {
     if (status) status.textContent = "Engega la càmera i el micròfon abans de calibrar.";
     return;
   }
-  S = { step: "idle", lastFrameT: null, frameStable: 0, quiet: [], quietStartT: null, promptIdx: 0, attempt: 0, throwPeaks: [], shoutPeaks: [], prompts: [], jitterP95: null, ambientFloor: null, entornBefore: null, entornDecided: null, awaitingThrow: null, fitted: null };
+  S = { step: "idle", lastFrameT: null, frameStable: 0, quiet: [], quietStartT: null, promptIdx: 0, attempt: 0, throwPeaks: [], shoutPeaks: [], prompts: [], jitterP95: null, ambientFloor: null, entornBefore: null, entornDecided: null, awaitingThrow: null, fitted: null, pooledInfo: null };
   calibrating = true;
   document.body.dataset.calibrating = "on";
   setFramingGuide(true);
@@ -417,8 +432,8 @@ export function stop(): void {
 export function installCalibration(): void {
   const u = ui();
   u.btnOpen?.addEventListener("click", start);
-  u.close?.addEventListener("click", stop);
-  u.discard?.addEventListener("click", stop);
+  u.close?.addEventListener("click", stop); // ✕ mid-flow: abort, keep whatever was in force
+  u.discard?.addEventListener("click", resetToDefaults); // Descarta: throw this fit AND the stored one away → app defaults
   u.save?.addEventListener("click", save);
   u.reset?.addEventListener("click", resetToDefaults);
   setFramingHandler((s: FramingState) => logEvent("framing", { hint: s.hint, inZone: s.inZone, size: s.size, offCenter: s.offCenter }));
@@ -436,10 +451,13 @@ export const __calibration = {
   applyValues: (v: CalibrationValues) => applyValues(v, "seam"),
   applyForActiveProfile: applyCalibrationForActiveProfile,
   save: (rec: CalibrationRecord) => {
+    // same shape as the real save: this session appended to the pooled history
     const pid = getActiveProfileId();
-    saveBlob(pid, withRecord(loadBlob(pid), cameraDeviceKey, rec));
-    applyValues(rec.values, "seam-save");
-    reflectStatus(rec);
+    const prev = recordFor(loadBlob(pid), cameraDeviceKey);
+    const full: CalibrationRecord = { ...rec, history: rec.history ?? appendSession(prev, rec.samples) };
+    saveBlob(pid, withRecord(loadBlob(pid), cameraDeviceKey, full));
+    applyValues(full.values, "seam-save");
+    reflectStatus(full);
   },
   get deviceKey() {
     return cameraDeviceKey;

@@ -284,13 +284,13 @@ pnpm build && pnpm test && pnpm cross-check:conformance
 cd apps/play && pnpm test:integration && pnpm test:parity
 ```
 
-- Unit: 478 across the workspace (239 core, 96 recognition, 55
-  platform-web, 88 apps/play). Recognition includes the worker/module
+- Unit: 486 across the workspace (239 core, 96 recognition, 55
+  platform-web, 96 apps/play). Recognition includes the worker/module
   `countFingers` drift test — the worker Blob inlines its own copy of the
   rule, and this is what stops the two from diverging.
 - `cross-check:conformance`: 105 cases replayed against the untouched
   spikes/modules/*.mjs — zero discrepancies (THE SPIKE IS THE TRUTH).
-- Integration (`test/integration/run.mjs`): 69 checks driving the built
+- Integration (`test/integration/run.mjs`): 72 checks driving the built
   app headless with fake devices — shell, gesture-gated sensors, the
   character select, a full synced round via the __play seam, L'Espill,
   profiles, mode tècnic, entorn + DSP override restarts, error surfacing.

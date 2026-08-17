@@ -79,6 +79,16 @@ a faint in-play version are natural next homes.
 - Records carry `fitVersion`; a record fitted by an older rule is **re-fit
   from its saved samples on apply** and re-stamped — the player never redoes
   the session because the math improved.
+- **Sessions pool.** The fit runs on the last 5 sessions for this
+  profile+device: union of throw/shout peaks, the *largest* resting jitter
+  seen (the floor must hold on a bad day), the latest room floor. Jani's
+  thumb-1 peaked 0.58 / 0.54 / 0.73 across three sessions — per-session
+  HIGH_V bounced 0.40 / 0.38 / 0.51; pooled it's 0.39, under every thumb-1
+  he's thrown with ~28% headroom. The result card says how many throws and
+  sessions the number stands on.
+- **Descarta** on the result card deletes the stored fit for this
+  profile+device and returns the sliders to the app defaults (the ✕ mid-flow
+  only aborts). Calibratge sits at the top of L'Espill.
 
 ### Why v2 — the first real session (jani, 2026-08-17)
 

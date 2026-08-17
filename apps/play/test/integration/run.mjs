@@ -183,6 +183,10 @@ r.check("sample count rendered", /tir/.test(await page.$eval("#trainingSampleCou
 // the panel open/close, the seam-driven apply/save into the live sliders,
 // and that the fit persists per profile and per device.
 r.check("calibratge section in L'Espill, uncalibrated status", /Sense calibrar|per defecte/.test(await page.$eval("#calibStatus", (n) => n.textContent)));
+r.check("calibratge section sits at the TOP of L'Espill (right under the head)", await page.evaluate(() => {
+  const head = document.querySelector("#trainingPanel .training-head");
+  return !!head && head.nextElementSibling?.classList.contains("calib-section");
+}));
 await page.click("#btnCalibrate");
 r.check("calibratge opens on 'Enquadra' with the ghost hand on", await page.evaluate(() =>
   document.body.dataset.calibrating === "on" && document.body.dataset.calib === "frame" && window.__play.calibration.active));
@@ -198,6 +202,20 @@ await page.evaluate(() => window.__play.calibration.save({
 r.check("saved fit is applied INTO the live sliders", await page.evaluate(() =>
   document.getElementById("tuneHighV").value === "0.62" && document.getElementById("tuneLowV").value === "0.21" && document.getElementById("tuneVadMult").value === "4.5"));
 r.check("status shows calibrated", /Calibrat/.test(await page.$eval("#calibStatus", (n) => n.textContent)));
+r.check("saved record carries a session history (pooling)", await page.evaluate(() => {
+  const key = "morra-calibration-v1:" + window.__play.activeProfileId;
+  const rec = JSON.parse(localStorage.getItem(key)).byDevice[window.__play.calibration.deviceKey];
+  return Array.isArray(rec.history) && rec.history.length === 1;
+}));
+// Descarta (result-card button) = delete the stored fit and go back to defaults
+await page.evaluate(() => document.getElementById("calibDiscard").click());
+r.check("Descarta deletes the stored fit and returns the sliders to defaults", await page.evaluate(() =>
+  document.getElementById("tuneHighV").value === "0.5" && document.getElementById("tuneVadMult").value === "6" && /Sense calibrar/.test(document.getElementById("calibStatus").textContent)));
+// re-save so the following checks (persisted per profile+device, Restableix) still have a record
+await page.evaluate(() => window.__play.calibration.save({
+  values: { highV: 0.62, lowV: 0.21, vadMult: 4.5 }, fitVersion: 2, measuredAt: new Date().toISOString(),
+  samples: { jitterP95: 0.1, throwPeaks: [1, 1, 1, 1], ambientFloor: 0.01, shoutPeaks: [0.2, 0.2, 0.2], prompts: [] },
+}));
 r.check("persisted per profile+device", await page.evaluate(() => {
   const key = "morra-calibration-v1:" + window.__play.activeProfileId;
   const blob = JSON.parse(localStorage.getItem(key) || "null");
