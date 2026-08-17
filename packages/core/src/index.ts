@@ -14,3 +14,4 @@ export type { TelemetryEvent, TelemetrySink } from "./ports/telemetry-sink.js";
 export type { PlayerModelStore } from "./ports/player-model-store.js";
 export type { CharacterRenderer, CharacterRenderState } from "./ports/character-renderer.js";
 export * from "./ai2.js";
+export * from "./mirror2.js";
