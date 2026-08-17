@@ -10,7 +10,7 @@ import "./style.css";
 import { el } from "./dom.js";
 import { installErrorHandling, setChip } from "./status.js";
 import { installTelemetryFlushing, logEvent, LOG_SESSION_ID } from "./telemetry.js";
-import { FINGER_COUNT_RULE, PAGE_VERSION, RIVAL_VOICE_DEFER } from "./config.js";
+import { FINGER_COUNT_RULE, PAGE_VERSION, RIVAL_ENGINE, RIVAL_VOICE_DEFER } from "./config.js";
 import { installClockUpkeep } from "./audioClock.js";
 import { setFrameCountHandler, startCamera } from "./camera.js";
 import { pushVadTuning, setVoiceOnsetHandler, startMic, updateMicMeterUI } from "./mic.js";
@@ -101,4 +101,4 @@ setChip(el.chipVad, "—", "dim");
 setChip(el.chipVosk, "not loaded", "dim");
 setChip(el.chipClock, "unsampled", "dim");
 
-logEvent("page_load", { pageVersion: PAGE_VERSION, veudelayActive: RIVAL_VOICE_DEFER, fingerCountRule: FINGER_COUNT_RULE });
+logEvent("page_load", { pageVersion: PAGE_VERSION, veudelayActive: RIVAL_VOICE_DEFER, fingerCountRule: FINGER_COUNT_RULE, rivalEngine: RIVAL_ENGINE });

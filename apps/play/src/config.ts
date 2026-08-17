@@ -124,3 +124,10 @@ export const RIVAL_VOICE_DEFER_EPS_MS = 60;
 // A/B; page_load logs which one is active.
 export const FINGER_COUNT_RULE: "mcp" | "spike" =
   typeof location !== "undefined" && new URLSearchParams(location.search).get("count") === "spike" ? "spike" : "mcp";
+
+// Rival engine (2026-08-17, docs/rival-intelligence-research.md): v2 is the
+// measured policy (BMA over contexts + joint anti-aim + fixed cold τ);
+// ?rival=spike restores the spike's ai.ts ladder for a field A/B. page_load
+// and every game_commit log which one is in force.
+export const RIVAL_ENGINE: "v2" | "spike" =
+  typeof location !== "undefined" && new URLSearchParams(location.search).get("rival") === "spike" ? "spike" : "v2";

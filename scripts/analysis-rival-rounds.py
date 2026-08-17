@@ -192,3 +192,22 @@ replay("aim + anti-aim (g marginal), argmax", None, qmarg)
 replay("aim + anti-aim (joint f→g), argmax", None, joint_g_pred)
 replay("aim + anti-aim (joint), sample τ=0.5", None, joint_g_pred, tau=0.5)
 replay("aim + anti-aim (joint), sample τ=0.3", None, joint_g_pred, tau=0.3)
+
+# ---- why does BMA trail a fixed blend? compare on the same rows (target f, in-session, min 5)
+print("\n=== aim: BMA vs fixed blends (argmax hit, in-session, min_hist 5) ===")
+def eval_blend(mix):
+    hit=0; n=0
+    for sid,rs in sess:
+        rows=[]
+        for (ti,pf,pg,af,ag,w,_) in rs:
+            r={'f':pf,'g':pg,'af':af,'ag':ag,'w':w}
+            if len(rows)>=5:
+                d={v:0.0 for v in V}
+                for nm,wt in mix.items():
+                    p=PREDS[nm](rows,'f') or {v:.2 for v in V}
+                    for v in V: d[v]+=wt*p[v]
+                n+=1; hit+=(max(V,key=lambda v:d[v])==pf)
+            rows.append(r)
+    return 100*hit/n, n
+for mix in ({'order1':.5,'marginal':.5},{'order1':.5,'freq_hl20':.5},{'order1':1/3,'marginal':1/3,'prev_outcome':1/3},{'order1':.4,'marginal':.3,'prev_outcome':.3},{'marginal':1.0},{'order1':1.0}):
+    a,n=eval_blend(mix); print(f"  {str(mix):70s} {a:5.1f}%  (n={n})")

@@ -14,6 +14,8 @@
 import {
   DEFAULT_LEVEL,
   decideMove,
+  decideMoveV2,
+  type AiMoveV2,
   toHistoryArray,
   recordThrow,
   randomNonceHex,
@@ -27,7 +29,7 @@ import {
   type PlayerModel,
 } from "@morra/core";
 import { CryptoRandomSource } from "@morra/platform-web";
-import { GAME_WIN_SCORE, RIVAL_VOICE_DEFER, RIVAL_VOICE_DEFER_EPS_MS, SYNC_POST_MS } from "./config.js";
+import { GAME_WIN_SCORE, RIVAL_ENGINE, RIVAL_VOICE_DEFER, RIVAL_VOICE_DEFER_EPS_MS, SYNC_POST_MS } from "./config.js";
 import { el } from "./dom.js";
 import { isCalibrating } from "./calibration.js";
 import { ctx } from "./audioClock.js";
@@ -114,12 +116,24 @@ export function setCurrentAiLevel(level: string): void {
   renderRivalAvatar(level);
 }
 
+/** The v2 engine's trace, split by what may be disclosed WHEN: the "read"
+ * side (belief about the player, how cold it aims) at commit; the "hide"
+ * side (where it thought the player would look, how it hid) only at reveal
+ * — before that it describes the sealed move. */
+function v2TraceOf(move: AiMove, side: "read" | "hide"): Record<string, unknown> | null {
+  const t = (move as Partial<AiMoveV2>).v2;
+  if (!t) return null;
+  return side === "read"
+    ? { fEdge: t.fEdge, fTau: t.fTau, playerHitRate: t.playerHitRate }
+    : { gBelief: t.gBelief, gEdge: t.gEdge, fingersTau: t.fingersTau, playerHitRate: t.playerHitRate };
+}
+
 export function commitAiMove(): void {
   // Phase G: L1-L3 read the CURRENT MATCH's history only; L4 reads the
   // cross-match history persisted in playerModel. The policy itself stays
   // agnostic — that choice is made here, at the call site.
   const history = currentAiLevel === "L4" ? toHistoryArray(playerModel) : matchHistory;
-  const move = decideMove(currentAiLevel, random, history, null);
+  const move = RIVAL_ENGINE === "spike" ? decideMove(currentAiLevel, random, history, null) : decideMoveV2(currentAiLevel, random, history);
   const nonce = randomNonceHex(random);
   let hashHex: string;
   try {
@@ -140,6 +154,11 @@ export function commitAiMove(): void {
     predictedPlayerFDist: move.predictedPlayerFDist,
     lambda: move.lambda,
     predictorWeights: move.predictorWeights,
+    engine: RIVAL_ENGINE,
+    // v2: the READ side only (what it believes about the player + how cold
+    // it plays it). The anti-aim trace says where its fingers concentrate —
+    // that's the sealed move's business and is logged at reveal, not here.
+    v2: v2TraceOf(move, "read"),
   });
 }
 
@@ -147,8 +166,15 @@ export function commitAiMove(): void {
 // revealing it the instant a real throw is detected leaks nothing and can't
 // be reacted to — this kills the perceived lag between throwing and seeing
 // the rival's hand. A revealed move is single-use regardless of outcome:
-// the moment it's shown, a fresh commitment is minted for whatever throw
-// comes next (kept unrendered until then).
+// the moment it's shown it is BURNED (currentAiMove cleared — the round
+// keeps its own reference in throwEvent.revealedAiMove). The next
+// commitment is minted once this round has been RECORDED (resolved or
+// void), so the policy's history includes the round just played. Until
+// 2026-08-17 it was minted right here, before the throw was even
+// recognized: every read ran one round stale — the row the read leans on
+// hardest (last fingers, last total, last outcome) was always missing —
+// and L4 aimed at 10% in the field where the same engine, one row later,
+// reads 30% (docs/rival-intelligence-research.md §8).
 function revealRivalPhase1(throwEvent: ThrowEvent): void {
   const move = currentAiMove;
   if (!move) return;
@@ -195,10 +221,19 @@ function revealRivalPhase1(throwEvent: ThrowEvent): void {
     verified,
     latencyMs: performance.now() - t0,
   });
-  // Burn it: mint the next commitment now, in the background — this one can
-  // never be offered again. Not rendered yet, so the just-revealed hand/word
-  // stays on screen until the next throw's onset.
-  if (!gameOver) commitAiMove();
+  // Burn it: this one can never be offered again. The next commitment is
+  // minted by ensureNextCommitment() once the round is recorded; the
+  // just-revealed hand/word stays on screen until the next throw's onset.
+  currentAiMove = null;
+}
+
+/** Mint the next commitment if none is sealed — called once a revealed
+ * round has been recorded (resolved or void), and, as a fallback, at the
+ * onset of a throw that arrives before the previous round resolved. */
+function ensureNextCommitment(reason: "recorded" | "onset"): void {
+  if (gameOver || !playVsOpponent() || currentAiMove) return;
+  if (reason === "onset") logEvent("commit_minted_at_onset", {}); // previous round still unresolved — this read is one round stale
+  commitAiMove();
 }
 
 // Phase G: every throw with a known playerFingers feeds the shared
@@ -222,6 +257,7 @@ function recordMatchHistoryEntry(
     throwIndex: throwEvent.throwIndex,
     sessionId: LOG_SESSION_ID,
     atIso: new Date().toISOString(),
+    source: "partida",
     playerFingers,
     playerCall: playerCallNumber,
     playerWord: throwEvent.word || null,
@@ -254,6 +290,7 @@ function recordTrainingThrow(throwEvent: ThrowEvent): void {
     throwIndex: throwEvent.throwIndex,
     sessionId: LOG_SESSION_ID,
     atIso: new Date().toISOString(),
+    source: "entrenament",
     playerFingers,
     playerCall: wordToNumber(throwEvent.word),
     playerWord: throwEvent.word || null,
@@ -347,17 +384,22 @@ function resolveGameRound(
     verdictWinner: verdict.winner,
     scoreAfter: { player: gameScore.player, ai: gameScore.ai },
     revealedEarly: alreadyRevealed,
+    // v2 anti-aim trace, disclosed with the move it belonged to: where the
+    // rival thought the player would look, and how it hid
+    v2: v2TraceOf(move, "hide"),
   });
   // Phase G: feed the ladder BEFORE minting the next commitment, so that
-  // next decision already sees this round.
+  // next decision already sees this round. (Phase E's early mint at
+  // phase-1 had silently broken this — see revealRivalPhase1.)
   recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, move, verdict.winner);
+  if (!alreadyRevealed) currentAiMove = null; // legacy path: the move just used is spent
 
   if (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE) {
     gameOver = true;
     showGameEndBanner(gameScore.player >= GAME_WIN_SCORE ? "player" : "ai", gameScore.player, gameScore.ai);
     renderPostMatchCard(matchHistory);
-  } else if (!alreadyRevealed) {
-    commitAiMove(); // legacy fallback only — phase-1 already minted otherwise
+  } else {
+    ensureNextCommitment("recorded");
   }
 }
 
@@ -404,6 +446,7 @@ export function maybeResolveGameRound(throwEvent: ThrowEvent): void {
       });
       // Phase G: the throw itself is still real signal, even though void.
       if (playerFingers != null) recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, revealed, null);
+      ensureNextCommitment("recorded"); // the revealed move was burned at phase-1
     } else {
       renderGameIncomplete(
         playerFingers,
@@ -421,7 +464,11 @@ export function maybeResolveGameRound(throwEvent: ThrowEvent): void {
           syncOutcome: throwEvent.outcome,
         };
       // AI's commitment stays exactly as-is — same hash, next throw retries.
-      if (playerFingers != null) recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, null, null);
+      // Data hygiene (2026-08-17): an INCOMPLETE — never revealed, never
+      // judged — does NOT feed the model. This is the path the retraction
+      // phantoms came through and taught L4 to aim at 1 (see
+      // packages/core playermodel.ts, prunePhantomThrows). Resolved rounds
+      // and revealed voids still do — those were real throws.
     }
     markThrowResolvedForReadyPill(playerFingers);
     return;
@@ -457,6 +504,9 @@ export function installGame(): void {
       // reveal on screen — not the auto-recommit that follows it.
       if (!playVsOpponent() || gameOver) return;
       renderGameRoundAnalyzing();
+      // A throw arriving before the previous round resolved (recognition
+      // still in flight): mint now rather than have nothing to reveal.
+      ensureNextCommitment("onset");
       // Phase E.1: a settle at fingerCount>=2 is confident enough to be a
       // real throw — reveal the sealed move immediately. A settle at 1
       // reveals too IF the hand came from a resting fist (pre-onset count

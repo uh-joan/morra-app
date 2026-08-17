@@ -93,6 +93,33 @@ r.check(
   (await page.$$eval("#rivalHandSvg .finger.extended", (n) => n.length)) === round.aiFingers
 );
 r.check("scoreboard updated or parata", /Tu [01] — [01] Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
+// 2026-08-17: the next commitment is minted AFTER the round is recorded (the
+// policy's history includes the round just played), and a sealed move exists
+// again for the next throw. Before: minted at phase-1 — every read one round stale.
+const mintOrder = await page.evaluate(() => {
+  const log = window.__play.eventBusLog;
+  const iReveal = log.map((e) => e.type).lastIndexOf("game_reveal");
+  const iAim = log.map((e) => e.type).lastIndexOf("ai_aim_result");
+  const iCommit = log.map((e) => e.type).lastIndexOf("game_commit");
+  return { iReveal, iAim, iCommit, sealed: !!window.__play.currentAiMove, hasOnsetMint: log.some((e) => e.type === "commit_minted_at_onset") };
+});
+r.check("next commitment minted after the round was recorded", mintOrder.iCommit > mintOrder.iAim && mintOrder.iAim > mintOrder.iReveal && mintOrder.sealed, JSON.stringify(mintOrder));
+r.check("no onset-time mint was needed", !mintOrder.hasOnsetMint);
+// Rival engine v2 (2026-08-17): switch to L4, force a fresh commitment via
+// the level change, and check the commit event carries the READ trace only
+// (no anti-aim distribution before reveal), and that ?rival is v2.
+const v2commit = await page.evaluate(() => {
+  const sel = document.getElementById("selAiLevel"); sel.value = "L4"; sel.dispatchEvent(new Event("change"));
+  // a level change applies from the NEXT commitment (never a sealed one) — mint it
+  const before = window.__play.eventBusLog.length;
+  window.__play.commitAiMove();
+  const evs = window.__play.eventBusLog.slice(before).filter((e) => e.type === "game_commit");
+  const last = evs[evs.length - 1];
+  const load = window.__play.eventBusLog.find((e) => e.type === "page_load");
+  return { engine: last?.engine, hasRead: !!last?.v2 && "fTau" in last.v2, leaksHide: !!last?.v2 && "gBelief" in last.v2, antiAim: "antiAimDist" in (last ?? {}), pageEngine: load?.rivalEngine, level: last?.level };
+});
+r.check("L4 commit uses the v2 engine and logs the read-side trace only", v2commit.engine === "v2" && v2commit.pageEngine === "v2" && v2commit.level === "L4" && v2commit.hasRead && !v2commit.leaksHide && !v2commit.antiAim, JSON.stringify(v2commit));
+await page.evaluate(() => { const sel = document.getElementById("selAiLevel"); sel.value = "L2"; sel.dispatchEvent(new Event("change")); });
 // r3: the score lives on TOP (strip with big numerals + coins), the verdict
 // is a BANNER over the player card, and the player card carries the pill's
 // state as color.
@@ -157,8 +184,14 @@ const oneRule = await page.evaluate(async () => {
     // tail) voice onset was classified voice-early and recorded as a throw
     fromHeld3WithVoice: await fire(1, 3, -400),
     fromHeld4WithVoice: await fire(0, 4, 50),
+    // data hygiene: an INCOMPLETE (unknown pre-onset 1 WITH voice → not
+    // revealed, not judged) must not enter the player model
+    modelBefore: P.playerModel.throws.length,
+    incomplete: await fire(1, undefined, -100),
+    modelAfter: P.playerModel.throws.length,
   };
 });
+r.check("an incomplete (never revealed) does NOT feed the player model", oneRule.modelAfter === oneRule.modelBefore && oneRule.incomplete.outcome !== "reset", `${oneRule.modelBefore}→${oneRule.modelAfter} (${oneRule.incomplete.outcome})`);
 r.check("a 1 coming down from a held 3 WITH a voice onset is still a reset (was voice-early)", oneRule.fromHeld3WithVoice.outcome === "reset", oneRule.fromHeld3WithVoice.outcome);
 r.check("a 0 coming down from a held 4 WITH a voice onset is still a reset", oneRule.fromHeld4WithVoice.outcome === "reset", oneRule.fromHeld4WithVoice.outcome);
 r.check("neither retraction resolved anything (lastThrownFingerCount unchanged)", oneRule.fromHeld3WithVoice.lastThrown === oneRule.fromFist1.lastThrown && oneRule.fromHeld4WithVoice.lastThrown === oneRule.fromFist1.lastThrown);
@@ -355,6 +388,23 @@ r.check("recorder strip absent without ?rec=1", (await page.$$eval(".rec-strip",
 const page2 = await browser.newPage();
 await page2.goto(`http://127.0.0.1:${srv.address().port}/?rec=1`, { waitUntil: "networkidle0" });
 r.check("recorder strip mounts under ?rec=1", (await page2.$$eval(".rec-strip", (n) => n.length)) === 1);
+// Data hygiene on load: a stored model carrying retraction phantoms is pruned
+// once and saved back (default profile key = the spike's legacy key).
+await page2.evaluate(() => {
+  const mk = (o) => ({ playerFingers: null, playerCall: null, aiFingers: null, aiCall: null, verdictWinner: null, ...o });
+  localStorage.setItem("morra-s03-playermodel-v1", JSON.stringify({ version: 1, throws: [
+    mk({ playerFingers: 3, aiFingers: 2, aiCall: 5, verdictWinner: "player" }),
+    mk({ playerFingers: 1, syncOutcome: "voice-early" }),
+    mk({ playerFingers: 1, syncOutcome: "voice-early" }),
+    mk({ playerFingers: 0, syncOutcome: "hand-only" }),
+    mk({ playerFingers: 1, syncOutcome: "synced" }),
+  ] }));
+});
+await page2.reload({ waitUntil: "networkidle0" });
+r.check("phantoms are pruned from a stored model on load (3 of 5), saved back", await page2.evaluate(() => {
+  const m = window.__play.playerModel; const stored = JSON.parse(localStorage.getItem("morra-s03-playermodel-v1"));
+  return m.throws.length === 2 && stored.throws.length === 2 && m.throws.map((t) => t.playerFingers).join() === "3,1";
+}));
 r.check("recorder starts idle with no frames", await page2.evaluate(() => window.__rec && window.__rec.frames.length === 0));
 await page2.evaluate(() => { window.__rec.label(4); window.__rec.start(); });
 r.check("recorder R/label/start reflect in the status line", /REC.*truth=4/.test(await page2.$eval("#recStatus", (n) => n.textContent)));

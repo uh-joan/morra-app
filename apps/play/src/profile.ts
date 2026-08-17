@@ -8,7 +8,8 @@
 // pure functions; this file only does the IO and key resolution.
 
 import { LocalStoragePlayerModelStore } from "@morra/platform-web";
-import type { PlayerModel } from "@morra/core";
+import { prunePhantomThrows, type PlayerModel } from "@morra/core";
+import { logEvent } from "./telemetry.js";
 import {
   createProfile,
   deleteProfile,
@@ -53,7 +54,17 @@ function activeKey(): string {
 // --- player model IO (key always resolved through the ACTIVE profile) ---
 
 export function loadPlayerModel(): PlayerModel {
-  return store.load(activeKey());
+  const raw = store.load(activeKey());
+  // Data hygiene: purge the retraction phantoms older builds recorded
+  // (fingers <= 1, never revealed, not synced — see core playermodel.ts).
+  // Saved back once so the next load is clean; the count is logged so the
+  // field can see how much poison each profile carried.
+  const { model, removed } = prunePhantomThrows(raw);
+  if (removed > 0) {
+    store.save(model, activeKey());
+    logEvent("player_model_pruned", { profileId: registry.activeId, removed, kept: model.throws.length });
+  }
+  return model;
 }
 
 export function savePlayerModel(model: PlayerModel): boolean {

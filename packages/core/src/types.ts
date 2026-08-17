@@ -31,6 +31,10 @@ export interface HistoryEntry {
   verdictWinner: VerdictWinner | null;
   syncOutcome?: string | null;
   syncDeltaMs?: number | null;
+  /** where the entry came from (added 2026-08-17; older entries lack it):
+   * "partida" = a round the game judged (resolved or revealed-and-void),
+   * "entrenament" = an L'Espill throw. Lets a purge be exact. */
+  source?: "partida" | "entrenament";
 }
 
 /** A probability distribution over fingers/guesses 1-5 — every entry must
