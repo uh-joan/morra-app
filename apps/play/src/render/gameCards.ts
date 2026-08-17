@@ -24,14 +24,16 @@ import { GAME_END_TEXT, AI_COMMIT_STATUS, SYNC_OUTCOME_VOID_REASON, SCOREBOARD_T
 // and on a fresh round (renderGameRoundPending); CSS dims it once the pill
 // re-arms. Presentation only: it reads the same values the card does.
 type BannerKind = "hit" | "miss" | "parata" | "void" | "incomplete";
-function banner(kind: BannerKind, head: string, reason: string): void {
+function banner(kind: BannerKind, head: string, reason: string, seal = ""): void {
   const b = document.getElementById("verdictBanner");
   const h = document.getElementById("verdictBannerHead");
   const r = document.getElementById("verdictBannerReason");
+  const sl = document.getElementById("verdictBannerSeal");
   if (!b || !h || !r) return;
   b.className = "verdict-banner " + kind;
   h.textContent = head;
   r.textContent = reason;
+  if (sl) { sl.textContent = seal; sl.hidden = !seal; }
   b.hidden = false;
 }
 export function hideVerdictBanner(): void {
@@ -106,9 +108,11 @@ export function renderGameReveal(
   el.roundResultDetail.textContent =
     `tu: ${playerFingers} dits + "${playerWord}"(${playerCallNumber}) · rival: ${move.fingers} dits + ${aiWord}(${move.call}) · total ${verdict.total}` +
     (verified ? ` · ${ROUND_CARD_TEXT.sealOk}` : ` · ${ROUND_CARD_TEXT.sealFailed}`);
-  if (verdict.winner === "player") banner("hit", "TU GUANYES!", VERDICT_BANNER.win(playerFingers, move.fingers, verdict.total, playerWord));
-  else if (verdict.winner === "ai") banner("miss", "RIVAL GUANYA", VERDICT_BANNER.loss(playerFingers, move.fingers, verdict.total, aiWord));
-  else banner("parata", "PARATA", VERDICT_BANNER.parata(playerFingers, move.fingers, verdict.total, playerWord, aiWord));
+  // the trust mark rides along, quiet: the seal + the fingerprint it matched
+  const seal = (verified ? ROUND_CARD_TEXT.sealOk : ROUND_CARD_TEXT.sealFailed) + " · " + move.hashHex.slice(0, 8);
+  if (verdict.winner === "player") banner("hit", "TU GUANYES!", VERDICT_BANNER.win(playerFingers, move.fingers, verdict.total, playerWord), seal);
+  else if (verdict.winner === "ai") banner("miss", "RIVAL GUANYA", VERDICT_BANNER.loss(playerFingers, move.fingers, verdict.total, aiWord), seal);
+  else banner("parata", "PARATA", VERDICT_BANNER.parata(playerFingers, move.fingers, verdict.total, playerWord, aiWord), seal);
 }
 
 export function renderScoreboard(player: number, ai: number): void {

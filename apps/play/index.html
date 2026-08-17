@@ -101,6 +101,7 @@
             <div id="verdictBanner" class="verdict-banner" hidden>
               <div id="verdictBannerHead" class="vb-head"></div>
               <div id="verdictBannerReason" class="vb-reason"></div>
+              <div id="verdictBannerSeal" class="vb-seal"></div>
             </div>
           </div>
           <span id="handIndicator" class="hand-indicator"><span class="dot"></span><span id="handIndicatorText">cap mà</span></span>
@@ -206,7 +207,10 @@
           <select id="selAiLevel"></select>
         </div>
         <div id="aiLevelDescription" class="hero-prompt"></div>
-        <div id="roundResultCard" class="verdict-card idle">
+        <!-- r3: superseded on the game screen by the verdict banner (which
+             now carries the seal too); kept as the row of history and for the
+             harnesses/telemetry — visible in mode tècnic only -->
+        <div id="roundResultCard" class="verdict-card idle tecnic-only">
           <div class="verdict-result" id="roundResultText">–</div>
           <div class="verdict-detail" id="roundResultDetail">Tira i canta el teu número!</div>
         </div>

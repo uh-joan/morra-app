@@ -787,3 +787,8 @@ body[data-mode="partida"][data-screen="fight"] .score-strip { display: flex; }
 .verdict-banner.incomplete { border-color: var(--dim);   } .verdict-banner.incomplete .vb-head { color: var(--dim); font-size: 26px; }
 /* once you're back to a fist and armed, the verdict steps back */
 .player-side[data-pill="armed"] .verdict-banner { opacity: .55; }
+.vb-seal { font-size: 12px; color: var(--dim); margin-top: 5px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.vb-seal[hidden] { display: none; }
+/* the bottom round card is history now — tècnic only */
+#roundResultCard.tecnic-only { display: none; }
+body.tecnic #roundResultCard.tecnic-only { display: block; }

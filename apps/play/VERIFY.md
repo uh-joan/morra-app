@@ -280,8 +280,11 @@ timing, that's a bug in the pass, not a new rule.
    throw the **verdict banner** lands over the video: TU GUANYES / RIVAL
    GUANYA / PARATA / RONDA ANUL·LADA / INCOMPLETA in big type with the
    one-line why (3 + 4 = 7 · has dit «set»; cap crit sentit; has cridat
-   tard (+620 ms)…). It dims once you're back to a fist and disappears
-   the instant your next throw starts — it can never cover the reveal.
+   tard (+620 ms)…), plus the seal (segell ✓ · a2f9c1e3) as a quiet third
+   line on resolved rounds. It dims once you're back to a fist and
+   disappears the instant your next throw starts — it can never cover the
+   reveal. The old bottom round card is mode-tècnic only now (T) — the
+   game screen fits at 100% without scrolling.
 10. **Canvia de rival** (top bar) → back to the select with the score
     reset; **Morra** wordmark → title. Switching screens never burns a
     commitment.
