@@ -58,9 +58,13 @@ export const V2_TUNING = {
   l3TauMin: 0.7,
   // anti-aim: fingers ∝ exp(−q(f)/antiT), then the uniform floor. Small T =
   // decisive (a 5-point gap in q is e^(0.05/T) ×). invert()+τ was too flat
-  // to bite: normalized 1−q turns q=.30 vs .15 into .175 vs .21.
-  antiT: 0.04,
-  antiTSelfWatch: 0.12, // when the player is reading our fingers, hide less predictably
+  // to bite: normalized 1−q turns q=.30 vs .15 into .175 vs .21. 0.04
+  // was the static optimum, but a static replay can't adapt: live
+  // (2026-08-17, 96 rounds) it piled the fingers onto 1 and 5 (28/31%) and
+  // the player's hit rate climbed 14→28% across the session. 0.08 halves
+  // the concentration for ~0.3 pt of static player-hit.
+  antiT: 0.08,
+  antiTSelfWatch: 0.25, // when the player is reading our fingers, hide near-uniformly
   // aim temperature: null = calibrated from the edge (edgeMode); a number
   // pins it. The design doc's L4 τ was 0.6, L3 1.0.
   tauFixedL3: 0.5 as number | null,

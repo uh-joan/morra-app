@@ -93,6 +93,18 @@ r.check(
   (await page.$$eval("#rivalHandSvg .finger.extended", (n) => n.length)) === round.aiFingers
 );
 r.check("scoreboard updated or parata", /Tu [01] — [01] Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
+// 2026-08-17: the next commitment is minted AFTER the round is recorded (the
+// policy's history includes the round just played), and a sealed move exists
+// again for the next throw. Before: minted at phase-1 — every read one round stale.
+const mintOrder = await page.evaluate(() => {
+  const log = window.__play.eventBusLog;
+  const iReveal = log.map((e) => e.type).lastIndexOf("game_reveal");
+  const iAim = log.map((e) => e.type).lastIndexOf("ai_aim_result");
+  const iCommit = log.map((e) => e.type).lastIndexOf("game_commit");
+  return { iReveal, iAim, iCommit, sealed: !!window.__play.currentAiMove, hasOnsetMint: log.some((e) => e.type === "commit_minted_at_onset") };
+});
+r.check("next commitment minted after the round was recorded", mintOrder.iCommit > mintOrder.iAim && mintOrder.iAim > mintOrder.iReveal && mintOrder.sealed, JSON.stringify(mintOrder));
+r.check("no onset-time mint was needed", !mintOrder.hasOnsetMint);
 // Rival engine v2 (2026-08-17): switch to L4, force a fresh commitment via
 // the level change, and check the commit event carries the READ trace only
 // (no anti-aim distribution before reveal), and that ?rival is v2.

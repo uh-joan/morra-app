@@ -166,8 +166,15 @@ export function commitAiMove(): void {
 // revealing it the instant a real throw is detected leaks nothing and can't
 // be reacted to — this kills the perceived lag between throwing and seeing
 // the rival's hand. A revealed move is single-use regardless of outcome:
-// the moment it's shown, a fresh commitment is minted for whatever throw
-// comes next (kept unrendered until then).
+// the moment it's shown it is BURNED (currentAiMove cleared — the round
+// keeps its own reference in throwEvent.revealedAiMove). The next
+// commitment is minted once this round has been RECORDED (resolved or
+// void), so the policy's history includes the round just played. Until
+// 2026-08-17 it was minted right here, before the throw was even
+// recognized: every read ran one round stale — the row the read leans on
+// hardest (last fingers, last total, last outcome) was always missing —
+// and L4 aimed at 10% in the field where the same engine, one row later,
+// reads 30% (docs/rival-intelligence-research.md §8).
 function revealRivalPhase1(throwEvent: ThrowEvent): void {
   const move = currentAiMove;
   if (!move) return;
@@ -214,10 +221,19 @@ function revealRivalPhase1(throwEvent: ThrowEvent): void {
     verified,
     latencyMs: performance.now() - t0,
   });
-  // Burn it: mint the next commitment now, in the background — this one can
-  // never be offered again. Not rendered yet, so the just-revealed hand/word
-  // stays on screen until the next throw's onset.
-  if (!gameOver) commitAiMove();
+  // Burn it: this one can never be offered again. The next commitment is
+  // minted by ensureNextCommitment() once the round is recorded; the
+  // just-revealed hand/word stays on screen until the next throw's onset.
+  currentAiMove = null;
+}
+
+/** Mint the next commitment if none is sealed — called once a revealed
+ * round has been recorded (resolved or void), and, as a fallback, at the
+ * onset of a throw that arrives before the previous round resolved. */
+function ensureNextCommitment(reason: "recorded" | "onset"): void {
+  if (gameOver || !playVsOpponent() || currentAiMove) return;
+  if (reason === "onset") logEvent("commit_minted_at_onset", {}); // previous round still unresolved — this read is one round stale
+  commitAiMove();
 }
 
 // Phase G: every throw with a known playerFingers feeds the shared
@@ -373,15 +389,17 @@ function resolveGameRound(
     v2: v2TraceOf(move, "hide"),
   });
   // Phase G: feed the ladder BEFORE minting the next commitment, so that
-  // next decision already sees this round.
+  // next decision already sees this round. (Phase E's early mint at
+  // phase-1 had silently broken this — see revealRivalPhase1.)
   recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, move, verdict.winner);
+  if (!alreadyRevealed) currentAiMove = null; // legacy path: the move just used is spent
 
   if (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE) {
     gameOver = true;
     showGameEndBanner(gameScore.player >= GAME_WIN_SCORE ? "player" : "ai", gameScore.player, gameScore.ai);
     renderPostMatchCard(matchHistory);
-  } else if (!alreadyRevealed) {
-    commitAiMove(); // legacy fallback only — phase-1 already minted otherwise
+  } else {
+    ensureNextCommitment("recorded");
   }
 }
 
@@ -428,6 +446,7 @@ export function maybeResolveGameRound(throwEvent: ThrowEvent): void {
       });
       // Phase G: the throw itself is still real signal, even though void.
       if (playerFingers != null) recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, revealed, null);
+      ensureNextCommitment("recorded"); // the revealed move was burned at phase-1
     } else {
       renderGameIncomplete(
         playerFingers,
@@ -485,6 +504,9 @@ export function installGame(): void {
       // reveal on screen — not the auto-recommit that follows it.
       if (!playVsOpponent() || gameOver) return;
       renderGameRoundAnalyzing();
+      // A throw arriving before the previous round resolved (recognition
+      // still in flight): mint now rather than have nothing to reveal.
+      ensureNextCommitment("onset");
       // Phase E.1: a settle at fingerCount>=2 is confident enough to be a
       // real throw — reveal the sealed move immediately. A settle at 1
       // reveals too IF the hand came from a resting fist (pre-onset count

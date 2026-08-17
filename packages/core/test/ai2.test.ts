@@ -85,8 +85,8 @@ describe("ai2: BMA, temperature, floor, anti-aim", () => {
     expect(a[5]).toBeGreaterThan(a[4]); expect(a[4]).toBeGreaterThan(a[1]);
     for (const v of V) expect(a[v]).toBeGreaterThanOrEqual(V2_TUNING.floor * 0.2 - 1e-12);
     expect(sum(a)).toBeCloseTo(1, 9);
-    // decisive: a 20-point gap in q is a big ratio at antiT=0.04 (e^5)
-    expect(a[5] / a[1]).toBeGreaterThan(20);
+    // decisive: a 20-point gap in q is a big ratio at antiT=0.08 (e^2.5 ≈ 12, before the floor)
+    expect(a[5] / a[1]).toBeGreaterThan(6);
   });
   it("playerHitRate reads how often the player's guess hit our fingers, null under 8 rows", () => {
     expect(playerHitRate(toRows([H(3, 5, 2, 5, "player")]))).toBeNull();
