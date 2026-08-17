@@ -245,6 +245,20 @@ const readShown = await page.evaluate(() => {
     drivers: document.getElementById("readDrivers").textContent, self: document.getElementById("readSelfWatch").textContent,
   };
 });
+// L'Espill v2 (2026-08-17): ranked tells carry price/evidence/counter-move; the trends strip says "too early" under 60 rows and shows four tiles on a seeded 70-row history
+const v2panel = await page.evaluate(() => {
+  const H = (pf, pc, af, ac, w) => ({ playerFingers: pf, playerCall: pc, aiFingers: af, aiCall: ac, aiGuessPlayerFingers: 1, aiLevel: "L4", verdictWinner: w, syncOutcome: "synced", source: "partida" });
+  const short = []; for (let i = 0; i < 12; i++) short.push(H(1 + (i % 3), 1 + (i % 3) + 2, 1 + (i % 5), 1 + (i % 5) + 3, "parata"));
+  window.__play.renderTrainingPanel(short, "session");
+  const tooEarly = document.getElementById("trendStrip").textContent;
+  const long = []; for (let i = 0; i < 70; i++) { const f = i % 2 ? 4 : 2; long.push(H(f, f + 2, 1 + (i % 5), 1 + (i % 5) + 3, "parata")); }
+  window.__play.renderTrainingPanel(long, "session");
+  const first = document.querySelector("#tellsList li");
+  return { tooEarly, tiles: document.querySelectorAll("#trendStrip .trend").length, hasMain: !!first?.querySelector(".tell-main"), hasCounter: /El Rei: /.test(first?.querySelector(".tell-counter")?.textContent ?? ""), hasEvidence: /\d+ de \d+/.test(first?.querySelector(".tell-meta")?.textContent ?? ""), priced: !!first?.querySelector(".tell-price") };
+});
+r.check("trends strip says too early under 60 rows", /60 tirs/.test(v2panel.tooEarly));
+r.check("trends strip shows four tiles on 70 rows", v2panel.tiles === 4, JSON.stringify(v2panel));
+r.check("ranked tells carry sentence, evidence, price and the rival's counter-move", v2panel.hasMain && v2panel.hasCounter && v2panel.hasEvidence && v2panel.priced, JSON.stringify(v2panel));
 r.check("the read names what El Rei sees", /apostaria que tiraràs [1-5] \(\d+%\)|cap costum clar/.test(readShown.headline) && readShown.fBars === 5 && readShown.gBars === 5 && /%/.test(readShown.drivers) && readShown.self.length > 0, JSON.stringify(readShown));
 
 // Calibratge (per profile + camera). The fake camera has no hand, so the

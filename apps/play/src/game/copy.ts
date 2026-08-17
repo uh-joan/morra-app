@@ -78,6 +78,14 @@ export const TRAINING_PANEL_TEXT = {
   resetConfirm: "Esborrar tot el teu perfil (totes les sessions)? Això no es pot desfer.",
   scopeSession: "Aquesta sessió",
   scopeAllTime: "Tot el temps",
+  // ranked tells (tells2): price, evidence, the rival's counter-move
+  tellPrice: (pts: number) => `${pts >= 0 ? "+" : ""}${pts.toFixed(1).replace(".", ",")} punts/100`,
+  tellEvidence: (hits: number, n: number) => `${hits} de ${n}`,
+  tellCounterPrefix: "El Rei: ",
+  // trends strip — last 30 vs the 30 before
+  trendTitle: (n: number) => `Últims ${n} tirs vs els ${n} d'abans`,
+  trendTooEarly: "Els canvis es veuran quan hi hagi 60 tirs.",
+  trendLabels: { predictability: "Previsibilitat", entropy: "Aleatorietat", reader: "Lectura", chase: "Persecució" } as Record<string, string>,
   // "El que veu El Rei" — the read, shown
   readHeading: "El que veu El Rei",
   readTooEarly: (n: number) => `Encara no et llegeix — ${n} tir${n === 1 ? "" : "s"}. En calen uns quants més.`,

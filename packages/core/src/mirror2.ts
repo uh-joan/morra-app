@@ -10,7 +10,7 @@
 // from ai2's toRows so the mirror and the rival see the same data the same
 // way. Every table carries its sample count; consumers hide thin evidence.
 import {
-  antiAim, bmaBelief, contextPredict, F_EXTRAS, F_PREDICTORS, G_PREDICTORS, jointGPredict, playerHitRate,
+  antiAim, bmaBelief, contextPredict, F_EXTRAS, F_PREDICTORS, G_PREDICTORS, jointGPredict, playerHitRate, predictPlayerFV2,
   toRows, V2_TUNING, type ContextPredictor, type ExtraPredictor, type Row,
 } from "./ai2.js";
 import type { FingerDistribution, HistoryEntry } from "./types.js";
@@ -354,6 +354,23 @@ export function computeTiming(history: readonly HistoryEntry[]): TimingStats {
   for (const v of V) { intervalByF[v] = { n: iv[v]?.length ?? 0, meanS: mean(iv[v]) }; syncDeltaByF[v] = { n: sd[v]?.length ?? 0, meanMs: mean(sd[v]) }; }
   const missByWord: Record<string, Rate> = {}; for (const w in mw) missByWord[w] = rate(mw[w]![0], mw[w]![1]);
   return { n: history.length, intervalByF, syncDeltaByF, missByWord, outcomes };
+}
+
+// ------------------------------------------------------------ exploitability, v2
+/** El Rei's real read, sequentially: predict row i from rows < i with
+ * predictPlayerFV2 (L4), score the argmax. The v2 twin of mirror.ts's
+ * computeExploitability (which replays the spike's L4). 20% = a coin.
+ * Bounded to the last `cap` rows. */
+export function computeExploitabilityV2(history: readonly HistoryEntry[], cap = 300): Rate {
+  const rows = history.slice(-cap);
+  let n = 0, hits = 0;
+  for (let i = 5; i < rows.length; i++) {
+    const f = rows[i]!.playerFingers; if (f == null || f < 1 || f > 5) continue;
+    const d = predictPlayerFV2("L4", rows.slice(0, i)).dist;
+    let best: Fv = 1; for (const v of V) if (d[v] > d[best]) best = v;
+    n++; if (best === f) hits++;
+  }
+  return rate(hits, n);
 }
 
 // ------------------------------------------------------------ predictability by family

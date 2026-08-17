@@ -64,6 +64,7 @@ function buildEl() {
     gHistogram: g("gHistogram"),
     topCallsList: g("topCallsList"),
     tellsList: g("tellsList"),
+    trendStrip: g("trendStrip"),
     readHeadline: g("readHeadline"),
     readFBelief: g("readFBelief"),
     readDrivers: g("readDrivers"),

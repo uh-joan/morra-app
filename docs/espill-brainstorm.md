@@ -27,3 +27,30 @@ five contexts, which is itself the sentence L'Espill should say.
 
 Next: L'Espill v2 layout (ranked tells with evidence + counter-move), then
 the shadow-rival meter.
+
+## 7. Status — step 2–3 built: the ranked tells and the layout
+
+`packages/core/src/tells2.ts`: `computeTells2(history, ranking?)` turns the
+mirror2 statistics into named tells — order-1, order-2, steps, staircase,
+leave-high/low, dwell, owed digits, bounce, the weld, the chase, stubborn
+re-guess, win-shift/win-stay, tilt, avoid-what-it-called, mirroring, the
+reader gap, the timing tell — each with the sentence, the evidence (k of n),
+the rival's counter-move (a clause after "El Rei: "), and the exploit value
+of the family it feeds. Prices only when the whole read is worth ≥ 2
+pts/100 (a standalone family can look valuable by small-sample luck on a
+player El Rei cannot read); non-positive prices are not shown. Ranked
+priced-first, then by evidence strength. `summarizeTrend(history, 30)`
+scores El Rei's FULL read inside the last 30 rows vs the 30 before (a cold
+read on 30 rows is noise), plus H1, reader hit and chase per window.
+`computeExploitabilityV2` — the read's sequential argmax hit — feeds the
+Explotabilitat tile (was the spike's read: 17% where v2 reads 34%).
+
+L'Espill: "Els teus defectes — ordenats pel que li valen al rival" (top 6:
+sentence, price, k of n, counter-move), the trends strip under the scope
+row (Previsibilitat, Aleatorietat, Lectura, Persecució; green when moving
+the right way), the read section unchanged. The ranking is memoized per
+scope and refreshed every 5 rows so per-throw rerenders in Entrenament
+stay cheap. On the 120-round session: read 30% in the last 30 vs 50% in
+the 30 before.
+
+Next: the shadow-rival meter in Entrenament, then missions.
