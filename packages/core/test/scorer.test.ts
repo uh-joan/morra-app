@@ -105,10 +105,17 @@ describe("scorer: classifyHandSettleForSyncFrom (a silent throw of ONE is a thro
     expect(classifyHandSettleForSyncFrom(0, null, 0).isReset).toBe(true);
     expect(classifyHandSettleForSyncFrom(0, null, 4).isReset).toBe(true);
   });
-  it("with voice present nothing changes: low counts read as 1, never reset (spike)", () => {
-    for (const pre of [null, 0, 1, 4]) {
+  it("with voice present, a low count from a fist or unknown keeps the spike answer (a throw of 1)", () => {
+    for (const pre of [null, 0, 1]) {
       expect(classifyHandSettleForSyncFrom(1, 100, pre)).toEqual(classifyHandSettleForSync(1, 100));
       expect(classifyHandSettleForSyncFrom(0, 100, pre)).toEqual(classifyHandSettleForSync(0, 100));
+    }
+  });
+  it("a low count coming DOWN from a held >=2 pose is a retraction even WITH voice (the clip-tail voice-early bug)", () => {
+    for (const pre of [2, 3, 4, 5]) {
+      expect(classifyHandSettleForSyncFrom(1, 100, pre)).toEqual({ isReset: true, effectiveFingerCount: 1 });
+      expect(classifyHandSettleForSyncFrom(0, 100, pre)).toEqual({ isReset: true, effectiveFingerCount: 0 });
+      expect(classifyHandSettleForSyncFrom(1, null, pre).isReset).toBe(true);
     }
   });
   it("counts >=2 are untouched", () => {

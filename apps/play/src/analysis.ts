@@ -40,14 +40,14 @@ import {
   VOSK_SAMPLE_RATE,
 } from "./config.js";
 import { el } from "./dom.js";
-import { clockMap } from "./audioClock.js";
+import { clockMap, ctx } from "./audioClock.js";
 import { handTrackingActive } from "./camera.js";
 import { micReady, micRing } from "./mic.js";
 import { demotePreWindowOnset, getEntorn } from "./entorn.js";
 import { voskLoaded, voskRecognizer } from "./vosk.js";
 import { logEvent, pushDebugLog } from "./telemetry.js";
 import { reportError } from "./status.js";
-import { lastRoundAudioEndCtxTime, rivalClipPlaybacks } from "./rivalAudioLog.js";
+import { lastRoundAudioEndCtxTime, rivalClipExclusions } from "./rivalAudioLog.js";
 import { renderBigWordPendingFor, renderBigWordResultFor } from "./render/bigWord.js";
 import {
   isCurrentVerdictThrow,
@@ -334,7 +334,7 @@ function triggerSyncAudioAnalysis(handPerfTime: number, throwEvent: ThrowEvent, 
         extraction.sampleRate,
         extraction.windowStartCtxTime,
         extraction.windowEndCtxTime,
-        rivalClipPlaybacks
+        rivalClipExclusions(ctx) // scheduled clips + the tail the mic still hears
       );
       const analysisSamples = blanked.samples;
       rec.blankedMs = blanked.blankedMs;

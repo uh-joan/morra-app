@@ -110,13 +110,14 @@ r.check(
 // change (handHasResetSince) — the seam's onset does that on its own.
 const oneRule = await page.evaluate(async () => {
   const P = window.__play;
-  const fire = async (fingers, preOnset) => {
+  const fire = async (fingers, preOnset, voiceOffsetMs = null) => {
     const now = performance.now();
     P.onSyncHandOnset(now - 50, now - 150, fingers, preOnset);
     const t = P.syncThrows[P.syncThrows.length - 1];
     await new Promise((r2) => setTimeout(r2, 60));
     const revealed = !!t.rivalRevealed;
-    P.finalizeSyncThrow(t, t.debugRec, null, false); // silent: no voice onset
+    // silent unless a voice offset (ms from the anchor) is given
+    P.finalizeSyncThrow(t, t.debugRec, voiceOffsetMs == null ? null : t.handOnsetPerfTime + voiceOffsetMs, false);
     await new Promise((r2) => setTimeout(r2, 60));
     const card = document.getElementById("roundResultText")?.textContent ?? "";
     // A RESOLVED throw records its count as lastThrownFingerCount and puts
@@ -132,8 +133,15 @@ const oneRule = await page.evaluate(async () => {
     fromHeld3: await fire(1, 3),
     unknown: await fire(1, undefined),
     zeroFromFist: await fire(0, 0),
+    // the 2026-08-17 session bug: a retraction whose window carried a (clip-
+    // tail) voice onset was classified voice-early and recorded as a throw
+    fromHeld3WithVoice: await fire(1, 3, -400),
+    fromHeld4WithVoice: await fire(0, 4, 50),
   };
 });
+r.check("a 1 coming down from a held 3 WITH a voice onset is still a reset (was voice-early)", oneRule.fromHeld3WithVoice.outcome === "reset", oneRule.fromHeld3WithVoice.outcome);
+r.check("a 0 coming down from a held 4 WITH a voice onset is still a reset", oneRule.fromHeld4WithVoice.outcome === "reset", oneRule.fromHeld4WithVoice.outcome);
+r.check("neither retraction resolved anything (lastThrownFingerCount unchanged)", oneRule.fromHeld3WithVoice.lastThrown === oneRule.fromFist1.lastThrown && oneRule.fromHeld4WithVoice.lastThrown === oneRule.fromFist1.lastThrown);
 r.check("throw of ONE from a fist (pre-onset 0) reveals", oneRule.fromFist0.revealed);
 r.check("throw of ONE from a fist that reads 1 reveals", oneRule.fromFist1.revealed);
 r.check("a 1 coming down from a held 3 is a retraction — no reveal", !oneRule.fromHeld3.revealed);

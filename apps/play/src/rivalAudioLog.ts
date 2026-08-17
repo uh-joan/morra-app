@@ -20,6 +20,30 @@ export interface ClipPlayback {
 export const rivalClipPlaybacks: ClipPlayback[] = [];
 const RIVAL_CLIP_LOG_CAP = 500;
 
+// The clip's [start,end] above are SCHEDULED audio-clock times. The mic hears
+// the clip later — by the output latency, plus the clip's own decay and the
+// room's — so a window clamped to end exactly at endCtxTime opens ON the
+// clip's tail, still above the onset floor: a preWindow-pinned "voice" that
+// is the rival's, not the player's. jani's 12-min L4 session (2026-08-17):
+// 66 retractions + 9 thumb-1s came out voice-early this way — every one
+// clampedToPrevRound with no real audio in the window (peak RMS 0.03–0.12).
+// The guard is applied wherever the scheduled end is used as a boundary:
+// the next-throw clamp floor (game.ts) and the blanking exclusions
+// (analysis.ts). Output latency comes from the AudioContext when the
+// browser exposes it; the decay margin is a fixed allowance for the clip's
+// fade + room, to be tightened once a log carries the measured tail.
+export const RIVAL_CLIP_DECAY_GUARD_MS = 200;
+export function rivalClipTailGuardS(ctx: { outputLatency?: number; baseLatency?: number }): number {
+  const out = typeof ctx.outputLatency === "number" ? ctx.outputLatency : typeof ctx.baseLatency === "number" ? ctx.baseLatency : 0;
+  return out + RIVAL_CLIP_DECAY_GUARD_MS / 1000;
+}
+/** rivalClipPlaybacks with each end pushed out by the tail guard — what the
+ * mic actually hears; the shape blanking consumes. */
+export function rivalClipExclusions(ctx: { outputLatency?: number; baseLatency?: number }): { startCtxTime: number; endCtxTime: number }[] {
+  const g = rivalClipTailGuardS(ctx);
+  return rivalClipPlaybacks.map((p) => ({ startCtxTime: p.startCtxTime, endCtxTime: p.endCtxTime + g }));
+}
+
 let lastRoundAudioEnd: number | null = null;
 
 export function lastRoundAudioEndCtxTime(): number | null {

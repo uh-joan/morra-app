@@ -38,7 +38,11 @@ let latestMicLevel = { rms: 0, threshold: 0 };
 // clipped audio that vosk can't read — while 0.2–0.5 recognized 100%. The
 // meter said "loud enough" but never "too loud"; this makes saturation
 // visible the moment it happens instead of failing silently per-throw.
-const CLIP_RMS = 0.75;
+// 0.75 → 0.5 (2026-08-17): jani's 12-min session — shouts under 0.5 peak
+// were recognized 97% (58/60), 0.5–0.7 only 57%, over 0.7 71%; the loud
+// ones were his "tot"s (two plosives — the word most damaged by overdrive).
+// The warning fired at 0.75 and so never told him; at 0.5 it does.
+const CLIP_RMS = 0.5;
 let clipHotUntilPerf = -Infinity;
 let clipWarnEl: HTMLElement | null | undefined;
 let lastVoiceOnsetAtPerf = -Infinity;
