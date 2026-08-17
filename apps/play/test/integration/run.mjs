@@ -157,8 +157,14 @@ const oneRule = await page.evaluate(async () => {
     // tail) voice onset was classified voice-early and recorded as a throw
     fromHeld3WithVoice: await fire(1, 3, -400),
     fromHeld4WithVoice: await fire(0, 4, 50),
+    // data hygiene: an INCOMPLETE (unknown pre-onset 1 WITH voice → not
+    // revealed, not judged) must not enter the player model
+    modelBefore: P.playerModel.throws.length,
+    incomplete: await fire(1, undefined, -100),
+    modelAfter: P.playerModel.throws.length,
   };
 });
+r.check("an incomplete (never revealed) does NOT feed the player model", oneRule.modelAfter === oneRule.modelBefore && oneRule.incomplete.outcome !== "reset", `${oneRule.modelBefore}→${oneRule.modelAfter} (${oneRule.incomplete.outcome})`);
 r.check("a 1 coming down from a held 3 WITH a voice onset is still a reset (was voice-early)", oneRule.fromHeld3WithVoice.outcome === "reset", oneRule.fromHeld3WithVoice.outcome);
 r.check("a 0 coming down from a held 4 WITH a voice onset is still a reset", oneRule.fromHeld4WithVoice.outcome === "reset", oneRule.fromHeld4WithVoice.outcome);
 r.check("neither retraction resolved anything (lastThrownFingerCount unchanged)", oneRule.fromHeld3WithVoice.lastThrown === oneRule.fromFist1.lastThrown && oneRule.fromHeld4WithVoice.lastThrown === oneRule.fromFist1.lastThrown);
@@ -355,6 +361,23 @@ r.check("recorder strip absent without ?rec=1", (await page.$$eval(".rec-strip",
 const page2 = await browser.newPage();
 await page2.goto(`http://127.0.0.1:${srv.address().port}/?rec=1`, { waitUntil: "networkidle0" });
 r.check("recorder strip mounts under ?rec=1", (await page2.$$eval(".rec-strip", (n) => n.length)) === 1);
+// Data hygiene on load: a stored model carrying retraction phantoms is pruned
+// once and saved back (default profile key = the spike's legacy key).
+await page2.evaluate(() => {
+  const mk = (o) => ({ playerFingers: null, playerCall: null, aiFingers: null, aiCall: null, verdictWinner: null, ...o });
+  localStorage.setItem("morra-s03-playermodel-v1", JSON.stringify({ version: 1, throws: [
+    mk({ playerFingers: 3, aiFingers: 2, aiCall: 5, verdictWinner: "player" }),
+    mk({ playerFingers: 1, syncOutcome: "voice-early" }),
+    mk({ playerFingers: 1, syncOutcome: "voice-early" }),
+    mk({ playerFingers: 0, syncOutcome: "hand-only" }),
+    mk({ playerFingers: 1, syncOutcome: "synced" }),
+  ] }));
+});
+await page2.reload({ waitUntil: "networkidle0" });
+r.check("phantoms are pruned from a stored model on load (3 of 5), saved back", await page2.evaluate(() => {
+  const m = window.__play.playerModel; const stored = JSON.parse(localStorage.getItem("morra-s03-playermodel-v1"));
+  return m.throws.length === 2 && stored.throws.length === 2 && m.throws.map((t) => t.playerFingers).join() === "3,1";
+}));
 r.check("recorder starts idle with no frames", await page2.evaluate(() => window.__rec && window.__rec.frames.length === 0));
 await page2.evaluate(() => { window.__rec.label(4); window.__rec.start(); });
 r.check("recorder R/label/start reflect in the status line", /REC.*truth=4/.test(await page2.$eval("#recStatus", (n) => n.textContent)));

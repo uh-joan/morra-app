@@ -222,6 +222,7 @@ function recordMatchHistoryEntry(
     throwIndex: throwEvent.throwIndex,
     sessionId: LOG_SESSION_ID,
     atIso: new Date().toISOString(),
+    source: "partida",
     playerFingers,
     playerCall: playerCallNumber,
     playerWord: throwEvent.word || null,
@@ -254,6 +255,7 @@ function recordTrainingThrow(throwEvent: ThrowEvent): void {
     throwIndex: throwEvent.throwIndex,
     sessionId: LOG_SESSION_ID,
     atIso: new Date().toISOString(),
+    source: "entrenament",
     playerFingers,
     playerCall: wordToNumber(throwEvent.word),
     playerWord: throwEvent.word || null,
@@ -421,7 +423,11 @@ export function maybeResolveGameRound(throwEvent: ThrowEvent): void {
           syncOutcome: throwEvent.outcome,
         };
       // AI's commitment stays exactly as-is — same hash, next throw retries.
-      if (playerFingers != null) recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, null, null);
+      // Data hygiene (2026-08-17): an INCOMPLETE — never revealed, never
+      // judged — does NOT feed the model. This is the path the retraction
+      // phantoms came through and taught L4 to aim at 1 (see
+      // packages/core playermodel.ts, prunePhantomThrows). Resolved rounds
+      // and revealed voids still do — those were real throws.
     }
     markThrowResolvedForReadyPill(playerFingers);
     return;
