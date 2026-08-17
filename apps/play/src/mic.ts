@@ -33,6 +33,20 @@ import { renderShoutError, renderShoutListening, renderShoutRequesting, triggerS
 const mic = new MicGraph(ctx);
 let ring: VadRingBuffer | null = null;
 let latestMicLevel = { rms: 0, threshold: 0 };
+/** Live RMS per worklet level report, last MIC_LEVEL_HISTORY_MS — read by
+ * the calibration flow (shout peak around a throw; quiet-phase floor). */
+export const MIC_LEVEL_HISTORY_MS = 4000;
+export const micLevelHistory: { t: number; rms: number }[] = [];
+export function micRmsBetween(fromT: number, toT: number): number[] {
+  const out: number[] = [];
+  for (let i = micLevelHistory.length - 1; i >= 0; i--) {
+    const f = micLevelHistory[i]!;
+    if (f.t > toT) continue;
+    if (f.t < fromT) break;
+    out.push(f.rms);
+  }
+  return out;
+}
 // ux-pirates: overdriven-input warning. Session logs (c358f352) show every
 // recognition failure in the loud stretch had peak block RMS >= 0.9 —
 // clipped audio that vosk can't read — while 0.2–0.5 recognized 100%. The
@@ -102,6 +116,10 @@ export async function startMic(): Promise<void> {
     ring.onLevel((_t, rms, threshold) => {
       latestMicLevel = { rms, threshold };
       feedAmbientSample(rms);
+      const now = performance.now();
+      micLevelHistory.push({ t: now, rms });
+      const cutoff = now - MIC_LEVEL_HISTORY_MS;
+      while (micLevelHistory.length && micLevelHistory[0]!.t < cutoff) micLevelHistory.shift();
     });
     ring.onOnset((t, _rms) => {
       const perfT = clockMap.toPerformanceTime(t);

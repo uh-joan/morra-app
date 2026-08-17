@@ -30,6 +30,7 @@ import { installProfiles } from "./profiles.js";
 import { installScreens } from "./screens.js";
 import { installTecnic } from "./tecnic.js";
 import { installLandmarkRecorder } from "./landmarkRecorder.js";
+import { installCalibration } from "./calibration.js";
 
 installErrorHandling();
 installTelemetryFlushing();
@@ -68,6 +69,7 @@ resetSyncVerdict();
 installTecnic();
 installScreens();
 installLandmarkRecorder(); // ?rec=1 only — the finger-count corpus recorder
+installCalibration(); // L'Espill → Calibratge (per profile + camera)
 
 // The shared rAF frame loop (spike frame(), L1385–1449): mic meters + the
 // sync-analysis drain — extraction fires only once now >= anchor +

@@ -178,23 +178,63 @@ r.check("training panel visible", (await page.$eval("#trainingPanel", (n) => n.s
 r.check("heatmap renders 25 cells", (await page.$$eval("#bigramHeatmap .hm-cell", (n) => n.length)) === 25);
 r.check("sample count rendered", /tir/.test(await page.$eval("#trainingSampleCount", (n) => n.textContent)));
 
+// Calibratge (per profile + camera). The fake camera has no hand, so the
+// guided steps can't run end-to-end here; what CAN be checked: the section,
+// the panel open/close, the seam-driven apply/save into the live sliders,
+// and that the fit persists per profile and per device.
+r.check("calibratge section in L'Espill, uncalibrated status", /Sense calibrar|per defecte/.test(await page.$eval("#calibStatus", (n) => n.textContent)));
+await page.click("#btnCalibrate");
+r.check("calibratge opens on 'Enquadra' with the ghost hand on", await page.evaluate(() =>
+  document.body.dataset.calibrating === "on" && document.body.dataset.calib === "frame" && window.__play.calibration.active));
+r.check("framing reports no hand (fake camera)", await page.evaluate(() => window.__play.framing.hint === "no-hand"));
+await page.click("#calibClose");
+r.check("close stops calibration, ghost hand off", await page.evaluate(() =>
+  document.body.dataset.calibrating === undefined && !window.__play.calibration.active));
+const before = await page.evaluate(() => window.__play.calibration.currentValues());
+await page.evaluate(() => window.__play.calibration.save({
+  values: { highV: 0.62, lowV: 0.21, vadMult: 4.5 }, measuredAt: new Date().toISOString(),
+  samples: { jitterP95: 0.1, throwPeaks: [1, 1, 1, 1], ambientFloor: 0.01, shoutPeaks: [0.2, 0.2, 0.2], prompts: [] },
+}));
+r.check("saved fit is applied INTO the live sliders", await page.evaluate(() =>
+  document.getElementById("tuneHighV").value === "0.62" && document.getElementById("tuneLowV").value === "0.21" && document.getElementById("tuneVadMult").value === "4.5"));
+r.check("status shows calibrated", /Calibrat/.test(await page.$eval("#calibStatus", (n) => n.textContent)));
+r.check("persisted per profile+device", await page.evaluate(() => {
+  const key = "morra-calibration-v1:" + window.__play.activeProfileId;
+  const blob = JSON.parse(localStorage.getItem(key) || "null");
+  return !!blob && !!blob.byDevice[window.__play.calibration.deviceKey] && blob.byDevice[window.__play.calibration.deviceKey].values.highV === 0.62;
+}));
+await page.click("#calibReset");
+r.check("Restableix returns the sliders to the app defaults and clears the record", await page.evaluate(() =>
+  document.getElementById("tuneHighV").value === "0.5" && document.getElementById("tuneVadMult").value === "6" && /Sense calibrar/.test(document.getElementById("calibStatus").textContent)));
+r.check("(sliders were at defaults before too)", before.highV === 0.5 && before.vadMult === 6, JSON.stringify(before));
+
 // Profiles: default = legacy key; create/switch/delete isolate histories
 r.check("boots with the default profile only", await page.evaluate(() =>
   window.__play.activeProfileId === "default" && window.__play.profiles.length === 1));
 r.check("delete disabled for the default profile", await page.$eval("#btnDeleteProfile", (n) => n.disabled));
 const defaultThrows = await page.evaluate(() => window.__play.playerModel.throws.length);
 r.check("default profile carries this session's history", defaultThrows >= 1, `throws=${defaultThrows}`);
+// give the default profile a calibration fit, to prove it does NOT leak into a new profile
+await page.evaluate(() => window.__play.calibration.save({
+  values: { highV: 0.71, lowV: 0.2, vadMult: 3.5 }, measuredAt: new Date().toISOString(),
+  samples: { jitterP95: 0.1, throwPeaks: [1, 1, 1, 1], ambientFloor: 0.01, shoutPeaks: [0.2, 0.2, 0.2], prompts: [] },
+}));
 promptText = "Bea";
 await page.click("#btnNewProfile");
 promptText = null;
 r.check("new profile activates with a fresh empty model", await page.evaluate(() =>
   window.__play.activeProfileId !== "default" && window.__play.playerModel.throws.length === 0));
+r.check("new profile gets the app-default sensor values, not the default profile's fit", await page.evaluate(() =>
+  document.getElementById("tuneHighV").value === "0.5" && document.getElementById("tuneVadMult").value === "6"));
 r.check("select shows both profiles", (await page.$$eval("#selProfile option", (n) => n.length)) === 2);
 r.check("match reset for the new player", /Tu 0 — 0 Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
 r.check("delete enabled for a non-default profile", await page.$eval("#btnDeleteProfile", (n) => !n.disabled));
 await page.select("#selProfile", "default");
 r.check("switching back restores the default profile's history", await page.evaluate((expected) =>
   window.__play.activeProfileId === "default" && window.__play.playerModel.throws.length === expected, defaultThrows));
+r.check("…and re-applies the default profile's calibration fit", await page.evaluate(() =>
+  document.getElementById("tuneHighV").value === "0.71" && document.getElementById("tuneVadMult").value === "3.5"));
+await page.evaluate(() => document.getElementById("calibReset").click()); // leave the sliders at defaults for the rest
 const beaId = await page.$$eval("#selProfile option", (n) => n.map((o) => o.value).find((v) => v !== "default"));
 await page.select("#selProfile", beaId);
 await page.click("#btnDeleteProfile"); // confirm auto-accepted

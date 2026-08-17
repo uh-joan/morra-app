@@ -163,6 +163,21 @@ export function pendingAnalysisCount(): number {
   return syncPendingAnalysis.length;
 }
 
+/** Additive observers beside gameHooks (game.ts owns the single gameHooks
+ * object; calibration only needs to WATCH throws, never steer them). */
+export interface ThrowObserver {
+  onThrowStart?(t: ThrowEvent): void;
+  onThrowFinalized?(t: ThrowEvent): void;
+}
+const throwObservers: ThrowObserver[] = [];
+export function addThrowObserver(o: ThrowObserver): () => void {
+  throwObservers.push(o);
+  return () => {
+    const i = throwObservers.indexOf(o);
+    if (i >= 0) throwObservers.splice(i, 1);
+  };
+}
+
 let activeRecognitions = 0;
 
 // step 10: the event anchor is motion start, not settle — see config.ts's
@@ -214,6 +229,7 @@ export function onSyncHandOnset(
   // step 11/12: a fresh throw starting is what should replace the previous
   // round's reveal on screen — game.ts's hook (M5).
   gameHooks.onThrowStart(throwEvent);
+  for (const o of throwObservers) o.onThrowStart?.(throwEvent);
   // Phase H: the ready pill's OWN state tracks any sync-mode throw.
   setThrowInProgress(true);
   renderReadyPill();
@@ -518,6 +534,7 @@ export function finalizeSyncThrow(
   renderSyncTally(syncThrows);
   if (isCurrentVerdictThrow(throwEvent)) renderSyncVerdict(throwEvent);
   gameHooks.onThrowFinalized(throwEvent);
+  for (const o of throwObservers) o.onThrowFinalized?.(throwEvent);
 }
 
 export function applyRecognizedWord(t: ThrowEvent, word: string): void {

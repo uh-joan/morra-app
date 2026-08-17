@@ -1,0 +1,88 @@
+import { describe, expect, it } from "vitest";
+import {
+  APP_DEFAULTS,
+  fitAll,
+  fitVelocity,
+  fitVoice,
+  HIGH_V_RANGE,
+  LOW_V_RANGE,
+  MIN_SHOUTS,
+  MIN_THROWS,
+  VAD_MULT_RANGE,
+} from "../../src/calibration/fit.js";
+
+describe("calibration fit: velocity (HIGH_V / LOW_V)", () => {
+  it("a normal thrower on a quiet hand: HIGH_V ≈ 45% of the median throw peak, well above jitter", () => {
+    const r = fitVelocity({ jitterP95: 0.1, throwPeaks: [1.2, 1.4, 1.1, 1.3, 1.5] })!;
+    expect(r.highV).toBeCloseTo(0.45 * 1.3, 2); // 0.585 > 2×0.1
+    expect(r.lowV).toBeGreaterThan(0.1);
+    expect(r.lowV).toBeLessThan(r.highV);
+  });
+  it("a jittery hand: LOW_V stays above the jitter (throws must be able to SETTLE) and HIGH_V rises to keep the ratio", () => {
+    const r = fitVelocity({ jitterP95: 0.4, throwPeaks: [1.0, 1.1, 0.9, 1.0, 1.05] })!;
+    expect(r.lowV).toBeGreaterThanOrEqual(1.5 * 0.4 * 0.999); // 0.6
+    expect(r.highV).toBeGreaterThanOrEqual(0.8); // ≥ 2× jitter…
+    expect(r.highV).toBeCloseTo(1.0, 6); // …raised to lowV / 0.6
+    expect(r.lowV).toBeLessThanOrEqual(0.6 * r.highV + 1e-9);
+  });
+  it("a slow thumb-first thrower: HIGH_V drops toward the floor of the range, never below it", () => {
+    const r = fitVelocity({ jitterP95: 0.05, throwPeaks: [0.5, 0.55, 0.45, 0.6, 0.5] })!;
+    expect(r.highV).toBeGreaterThanOrEqual(HIGH_V_RANGE[0]);
+    expect(r.highV).toBeCloseTo(Math.max(HIGH_V_RANGE[0], 0.45 * 0.5), 6);
+  });
+  it("clamps into the validated range on both ends", () => {
+    const hot = fitVelocity({ jitterP95: 2, throwPeaks: [9, 9, 9, 9] })!;
+    expect(hot.highV).toBe(HIGH_V_RANGE[1]);
+    expect(hot.lowV).toBeLessThanOrEqual(LOW_V_RANGE[1]);
+    const cold = fitVelocity({ jitterP95: 0.001, throwPeaks: [0.05, 0.05, 0.05, 0.05] })!;
+    expect(cold.highV).toBe(HIGH_V_RANGE[0]);
+    expect(cold.lowV).toBeGreaterThanOrEqual(LOW_V_RANGE[0]);
+  });
+  it("LOW_V always leaves the FSM room to settle: ≤ 60% of HIGH_V", () => {
+    for (const j of [0.02, 0.1, 0.3, 0.6]) {
+      const r = fitVelocity({ jitterP95: j, throwPeaks: [1, 1, 1, 1, 1] })!;
+      expect(r.lowV).toBeLessThanOrEqual(0.6 * r.highV + 1e-9);
+    }
+  });
+  it(`refuses with fewer than ${MIN_THROWS} throws or a bad jitter`, () => {
+    expect(fitVelocity({ jitterP95: 0.1, throwPeaks: [1, 1, 1] })).toBeNull();
+    expect(fitVelocity({ jitterP95: NaN, throwPeaks: [1, 1, 1, 1] })).toBeNull();
+    expect(fitVelocity({ jitterP95: 0.1, throwPeaks: [0, -1, NaN, 1, 1] })).toBeNull(); // only 2 valid
+  });
+});
+
+describe("calibration fit: voice (vadMult)", () => {
+  it("a 36× shout over the room floor lands on the spike's 6", () => {
+    expect(fitVoice({ ambientFloor: 0.01, shoutPeaks: [0.36, 0.36, 0.36] })!.vadMult).toBeCloseTo(6, 6);
+  });
+  it("a quiet shouter gets a lower multiplier; a loud one higher; both clamped", () => {
+    expect(fitVoice({ ambientFloor: 0.01, shoutPeaks: [0.1, 0.1, 0.1] })!.vadMult).toBeCloseTo(Math.sqrt(10), 6);
+    expect(fitVoice({ ambientFloor: 0.01, shoutPeaks: [0.9, 0.9, 0.9] })!.vadMult).toBeCloseTo(Math.sqrt(90), 6);
+    expect(fitVoice({ ambientFloor: 0.01, shoutPeaks: [5, 5, 5] })!.vadMult).toBe(VAD_MULT_RANGE[1]);
+    expect(fitVoice({ ambientFloor: 0.5, shoutPeaks: [0.6, 0.6, 0.6] })!.vadMult).toBe(VAD_MULT_RANGE[0]);
+  });
+  it("uses the MEDIAN shout — one weak call doesn't drag it", () => {
+    const strong = fitVoice({ ambientFloor: 0.01, shoutPeaks: [0.36, 0.36, 0.36, 0.36, 0.02] })!.vadMult;
+    expect(strong).toBeCloseTo(6, 6);
+  });
+  it(`refuses with fewer than ${MIN_SHOUTS} shouts, no floor, or a shout not above the floor`, () => {
+    expect(fitVoice({ ambientFloor: 0.01, shoutPeaks: [0.3, 0.3] })).toBeNull();
+    expect(fitVoice({ ambientFloor: 0, shoutPeaks: [0.3, 0.3, 0.3] })).toBeNull();
+    expect(fitVoice({ ambientFloor: 0.5, shoutPeaks: [0.3, 0.3, 0.3] })).toBeNull();
+  });
+});
+
+describe("calibration fit: fitAll merges over current values", () => {
+  it("a fit that can't be made leaves that value untouched and reports it", () => {
+    const { values, fitted } = fitAll(APP_DEFAULTS, { jitterP95: 0.1, throwPeaks: [1, 1] }, { ambientFloor: 0.01, shoutPeaks: [0.36, 0.36, 0.36] });
+    expect(fitted).toEqual({ velocity: false, voice: true });
+    expect(values.highV).toBe(APP_DEFAULTS.highV);
+    expect(values.lowV).toBe(APP_DEFAULTS.lowV);
+    expect(values.vadMult).toBeCloseTo(6, 6);
+  });
+  it("null samples mean nothing fitted", () => {
+    const { values, fitted } = fitAll(APP_DEFAULTS, null, null);
+    expect(values).toEqual(APP_DEFAULTS);
+    expect(fitted).toEqual({ velocity: false, voice: false });
+  });
+});

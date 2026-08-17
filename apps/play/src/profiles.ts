@@ -20,6 +20,7 @@ import {
 import { DEFAULT_PROFILE_ID } from "./profileRegistry.js";
 import { commitAiMove, playVsOpponent, resetGame, setPlayerModelState } from "./game.js";
 import { renderTrainingPanelIfActive } from "./training.js";
+import { applyCalibrationForActiveProfile } from "./calibration.js";
 
 export function renderProfileControls(): void {
   const activeId = getActiveProfileId();
@@ -37,6 +38,7 @@ export function renderProfileControls(): void {
 
 function afterProfileChange(): void {
   setPlayerModelState(loadPlayerModel());
+  applyCalibrationForActiveProfile(); // this profile's fit on this camera, or the defaults
   resetGame(); // fresh match for the new player; in Partida this also re-mints + renders the commitment
   if (!playVsOpponent()) commitAiMove(); // Entrenament: still reseal so no move informed by another profile survives
   renderTrainingPanelIfActive();
