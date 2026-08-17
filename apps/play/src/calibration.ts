@@ -29,11 +29,12 @@ import { addThrowObserver, type ThrowEvent } from "./analysis.js";
 import { cameraDeviceKey, currentFraming, handTrackingActive, lastFingerCount, setDeviceKeyHandler, setFramingGuide, setFramingHandler } from "./camera.js";
 import { currentHandState, peakVelocityBetween, velocityHistory } from "./velocity.js";
 import { micReady, micRmsBetween, pushVadTuning } from "./mic.js";
+import { getEntorn, setEntorn, SUGGEST_AMBIENT_THRESHOLD, type Entorn } from "./entorn.js";
 import { getActiveProfileId } from "./profile.js";
 import { APP_DEFAULTS, FIT_VERSION, fitAll, quantile, round2, type CalibrationValues, MIN_THROWS } from "./calibration/fit.js";
 import { loadBlob, recordFor, saveBlob, withoutRecord, withRecord, type CalibrationRecord } from "./calibration/store.js";
 import type { FramingState } from "./framing.js";
-import { judgeCalibrationThrow, VERDICT_COPY } from "./calibration/judge.js";
+import { HARD_COPY, judgeCalibrationThrow, REPEAT_COPY, shouldRepeatPrompt, VERDICT_COPY } from "./calibration/judge.js";
 
 // ------------------------------------------------------------ apply/persist
 
@@ -102,11 +103,16 @@ interface Session {
   quiet: number[];
   quietStartT: number | null;
   promptIdx: number;
+  /** accepted-but-misread attempts on the CURRENT prompt */
+  attempt: number;
   throwPeaks: number[];
   shoutPeaks: number[];
-  prompts: { truth: number; count: number | null }[];
+  prompts: { truth: number; count: number | null; attempt?: number; hard?: boolean }[];
   jitterP95: number | null;
   ambientFloor: number | null;
+  /** Entorn decided from the measured room floor (quiet step) */
+  entornBefore: Entorn | null;
+  entornDecided: Entorn | null;
   awaitingThrow: ThrowEvent | null;
   fitted: { values: CalibrationValues; before: CalibrationValues; which: { velocity: boolean; voice: boolean } } | null;
 }
@@ -224,9 +230,30 @@ function tick(): void {
       S.jitterP95 = quantile(S.quiet, 0.95);
       const rms = micRmsBetween(S.quietStartT, now);
       S.ambientFloor = rms.length >= 10 ? quantile(rms, 0.25) : null;
-      logEvent("calibration_quiet", { jitterP95: S.jitterP95, ambientFloor: S.ambientFloor, frames: S.quiet.length, rmsSamples: rms.length });
+      // Entorn from the room itself: the same rule the title-screen banner
+      // uses (a floor above the tranquil detector's 0.015 = a noisy room),
+      // decided here in BOTH directions and applied before the throws so
+      // they're judged under the right preset. Switching restarts the mic;
+      // the throws step waits for it (see below). Caveat, stated: the floor
+      // is measured under the CURRENT preset — sorollós's DSP flattens it —
+      // so a noisy room can read quiet from inside sorollós; if the switch
+      // to tranquil is wrong, entorn's own post-restart ambient calibration
+      // raises the banner again.
+      S.entornBefore = getEntorn();
+      S.entornDecided = S.ambientFloor != null && S.ambientFloor > SUGGEST_AMBIENT_THRESHOLD ? "sorollos" : "tranquil";
+      if (S.entornDecided !== S.entornBefore) setEntorn(S.entornDecided, "calibration");
+      logEvent("calibration_quiet", {
+        jitterP95: S.jitterP95, ambientFloor: S.ambientFloor, frames: S.quiet.length, rmsSamples: rms.length,
+        entornBefore: S.entornBefore, entornDecided: S.entornDecided,
+      });
       setStep("throws");
     }
+    return;
+  }
+  if (S.step === "throws" && !micReady()) {
+    // preset switch in flight: the mic is restarting — say so, don't take throws yet
+    const { feedback } = ui();
+    if (feedback && !/micròfon/.test(feedback.textContent ?? "")) setFeedback("Un moment — reajusto el micròfon a la sala…", "no");
     return;
   }
 }
@@ -277,10 +304,23 @@ function onThrowFinalized(t: ThrowEvent): void {
     if (verdict.reason !== "reset") setFeedback(VERDICT_COPY[verdict.reason], "no");
     return;
   }
-  if (peak != null) S.throwPeaks.push(peak);
+  // The shout is a valid voice sample whatever the count read.
   if (shout != null) S.shoutPeaks.push(shout);
-  S.prompts.push({ truth, count: t.handFingerCount });
-  setFeedback(VERDICT_COPY.accepted(truth, t.handFingerCount), "ok");
+  S.attempt++;
+  const count = t.handFingerCount;
+  if (shouldRepeatPrompt(truth, count, S.attempt)) {
+    // Misread: repeat the SAME prompt. The peak isn't taken — a "1" read as
+    // 3 may have been a thrown 3, and the weakest throw is the fit's input.
+    S.prompts.push({ truth, count, attempt: S.attempt });
+    setFeedback(REPEAT_COPY(truth, count, S.attempt), "no");
+    return;
+  }
+  const hard = count !== truth; // capped out: accept-and-flag
+  if (peak != null) S.throwPeaks.push(peak);
+  S.prompts.push({ truth, count, attempt: S.attempt, hard });
+  setFeedback(hard ? HARD_COPY(truth, count) : VERDICT_COPY.accepted(truth, count), hard ? "no" : "ok");
+  logEvent("calibration_prompt_done", { prompt: truth, count, attempts: S.attempt, hard });
+  S.attempt = 0;
   S.promptIdx++;
   renderDots();
   if (S.promptIdx >= PROMPTS.length) finish();
@@ -301,12 +341,18 @@ function finish(): void {
     const line = (label: string, b: number, a: number, why: string, did: boolean) =>
       `<div class="calib-line${did ? "" : " muted"}"><span class="k">${label}</span><span class="v">${round2(b)} → <b>${round2(a)}</b></span><small>${did ? why : "no s'ha pogut ajustar (poques mostres)"}</small></div>`;
     const med = S.throwPeaks.length ? quantile(S.throwPeaks, 0.5) : NaN;
-    const readOk = S.prompts.filter((p) => p.count === p.truth).length;
+    const done = S.prompts.filter((p) => p.attempt != null && (p.count === p.truth || p.hard));
+    const readOk = done.filter((p) => p.count === p.truth).length;
+    const hardOnes = done.filter((p) => p.hard).map((p) => p.truth);
+    const entornLine = S.entornDecided
+      ? `<div class="calib-line"><span class="k">Entorn</span><span class="v">${S.entornBefore === S.entornDecided ? "" : `${S.entornBefore === "sorollos" ? "🔊" : "🎧"} → `}<b>${S.entornDecided === "sorollos" ? "🔊 Local sorollós" : "🎧 Tranquil"}</b></span><small>soroll de sala ${(S.ambientFloor ?? 0).toFixed(4)} ${S.ambientFloor != null && S.ambientFloor > SUGGEST_AMBIENT_THRESHOLD ? ">" : "≤"} ${SUGGEST_AMBIENT_THRESHOLD}</small></div>`
+      : "";
     result.innerHTML =
+      entornLine +
       line("Llindar de tirada (HIGH_V)", before.highV, values.highV, `la teva tirada mediana pica a ${round2(med)}; el repòs a ${round2(S.jitterP95 ?? NaN)}`, fitted.velocity) +
       line("Llindar d'aturada (LOW_V)", before.lowV, values.lowV, `just per sobre del teu repòs`, fitted.velocity) +
       line("Sensibilitat del crit", before.vadMult, values.vadMult, `el teu crit ${round2((quantile(S.shoutPeaks, 0.5) || 0) / (S.ambientFloor || 1))}× per sobre del soroll de la sala`, fitted.voice) +
-      `<div class="calib-line"><span class="k">Lectura dels dits</span><span class="v"><b>${readOk}/${S.prompts.length}</b></span><small>${S.prompts.map((p) => `${p.truth}→${p.count ?? "?"}`).join("  ")}</small></div>`;
+      `<div class="calib-line${hardOnes.length ? " muted" : ""}"><span class="k">Lectura dels dits</span><span class="v"><b>${readOk}/${done.length}</b></span><small>${S.prompts.map((p) => `${p.truth}→${p.count ?? "?"}${p.hard ? "⚠" : ""}`).join("  ")}${hardOnes.length ? ` · números difícils: ${hardOnes.join(", ")}` : ""}</small></div>`;
   }
   logEvent("calibration_result", { before, values, fitted, samples: { jitterP95: S.jitterP95, throwPeaks: S.throwPeaks, ambientFloor: S.ambientFloor, shoutPeaks: S.shoutPeaks, prompts: S.prompts } });
   setStep("result");
@@ -344,7 +390,7 @@ export function start(): void {
     if (status) status.textContent = "Engega la càmera i el micròfon abans de calibrar.";
     return;
   }
-  S = { step: "idle", lastFrameT: null, frameStable: 0, quiet: [], quietStartT: null, promptIdx: 0, throwPeaks: [], shoutPeaks: [], prompts: [], jitterP95: null, ambientFloor: null, awaitingThrow: null, fitted: null };
+  S = { step: "idle", lastFrameT: null, frameStable: 0, quiet: [], quietStartT: null, promptIdx: 0, attempt: 0, throwPeaks: [], shoutPeaks: [], prompts: [], jitterP95: null, ambientFloor: null, entornBefore: null, entornDecided: null, awaitingThrow: null, fitted: null };
   calibrating = true;
   document.body.dataset.calibrating = "on";
   setFramingGuide(true);

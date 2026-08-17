@@ -46,8 +46,22 @@ a faint in-play version are natural next homes.
    (`velocity.ts` history), shout peak RMS from 300 ms before motion start
    to 800 ms after settle (`mic.ts` history), and the count the pipeline
    read vs the prompt.
-4. **Resultat** — old → new per value with one line of why; **Desa per a
-   aquest perfil / Descarta / Restableix**.
+   A prompt whose count did not match is **repeated, up to 3 attempts**,
+   then accepted-and-flagged as a *hard number* (the weakest prompted throw
+   is the velocity fit's input, so a "1" read as 3 can't be assigned blind;
+   the cap is because calibration can't fix the counter — three misreads
+   in a row is the signal for the finger-threshold follow-up). Only correct
+   reads feed the velocity fit; every accepted shout feeds the voice fit.
+   After the quiet step the **Entorn is decided from the measured room
+   floor** (the title-banner rule: > 0.015 → 🔊 Sorollós, else 🎧 Tranquil)
+   in both directions and applied before the throws, so they're judged
+   under the right preset; the throws step waits for the mic restart.
+   Caveat: the floor is measured under the current preset (sorollós's DSP
+   flattens it); entorn's own post-restart calibration re-raises the banner
+   if the switch was wrong.
+4. **Resultat** — Entorn, then old → new per value with one line of why,
+   "Lectura dels dits N/5" with any hard numbers; **Desa per a aquest
+   perfil / Descarta / Restableix**.
 
 ## The fits (`calibration/fit.ts`, pure, tested) — **fit v2**
 

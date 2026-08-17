@@ -138,7 +138,7 @@ export function setEntornChangeHandler(handler: (entorn: Entorn) => void): void 
   onEntornChange = handler;
 }
 
-export function setEntorn(next: Entorn, source: "ui" | "suggestion" | "init"): void {
+export function setEntorn(next: Entorn, source: "ui" | "suggestion" | "init" | "calibration"): void {
   if (next === current && source !== "init") return;
   current = next;
   try {

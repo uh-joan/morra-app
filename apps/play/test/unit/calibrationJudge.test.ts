@@ -45,3 +45,24 @@ describe("calibration judge: what counts as the prompted throw", () => {
     expect(VERDICT_COPY.accepted(3, 2)).toMatch(/He llegit un 2/);
   });
 });
+
+import { HARD_COPY, MAX_ATTEMPTS, REPEAT_COPY, shouldRepeatPrompt } from "../../src/calibration/judge.js";
+
+describe("calibration judge: a misread prompt is repeated, capped, then flagged", () => {
+  it("a correct read never repeats", () => {
+    expect(shouldRepeatPrompt(3, 3, 1)).toBe(false);
+    expect(shouldRepeatPrompt(1, 1, 3)).toBe(false);
+  });
+  it(`a misread repeats until attempt ${MAX_ATTEMPTS}, then stops (accept-and-flag)`, () => {
+    expect(shouldRepeatPrompt(2, 4, 1)).toBe(true);
+    expect(shouldRepeatPrompt(2, 4, 2)).toBe(true);
+    expect(shouldRepeatPrompt(2, 4, MAX_ATTEMPTS)).toBe(false);
+    expect(shouldRepeatPrompt(1, null, 1)).toBe(true);
+  });
+  it("copy names the read, the attempt, and the prompt; hard copy names the number", () => {
+    expect(REPEAT_COPY(2, 4, 1)).toMatch(/llegit un 4/);
+    expect(REPEAT_COPY(2, 4, 1)).toMatch(/1\/3/);
+    expect(REPEAT_COPY(2, 4, 1)).toMatch(/tira un 2/);
+    expect(HARD_COPY(2, 4)).toMatch(/El 2 se'm resisteix/);
+  });
+});

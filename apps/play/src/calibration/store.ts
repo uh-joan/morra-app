@@ -25,8 +25,10 @@ export interface CalibrationRecord {
     throwPeaks: number[];
     ambientFloor: number | null;
     shoutPeaks: number[];
-    /** prompted truth vs what the count read — accuracy feedback + a mini corpus */
-    prompts: { truth: number; count: number | null }[];
+    /** prompted truth vs what the count read, per ACCEPTED attempt (a
+     * misread is repeated up to MAX_ATTEMPTS, then flagged hard) —
+     * accuracy feedback + a mini corpus + the "hard numbers" signal */
+    prompts: { truth: number; count: number | null; attempt?: number; hard?: boolean }[];
   };
 }
 
