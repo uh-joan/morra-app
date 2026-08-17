@@ -43,6 +43,18 @@ r.check("7 status chips render", (await page.$$eval(".status-chip", (n) => n.len
 r.check("session id in footer", /session [0-9a-f]{8}/.test(await page.$eval("#sessionIdFooter", (n) => n.textContent)));
 r.check("commitment minted at boot", /Opponent committed: [0-9a-f]{8}/.test(await page.$eval("#aiCommitStatus", (n) => n.textContent)));
 r.check("boots on the title screen", (await page.evaluate(() => document.body.dataset.screen)) === "title");
+// L'Espill is its own screen (2026-08-17): opens from the title without sensors, shows the coach card, tabs switch, back returns to port
+await page.click("#btnEspillTitle");
+await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
+const espill = await page.evaluate(() => {
+  const tab = document.querySelector('#espillTabs button[data-tab="numeros"]'); tab.click();
+  return { screen: document.body.dataset.screen, coach: document.getElementById("coachSentence").textContent, label: document.getElementById("coachLabel").textContent, pane: document.getElementById("espillPanes").dataset.tab, tilesVisible: getComputedStyle(document.getElementById("trainingTiles")).display !== "none", modeBarHidden: getComputedStyle(document.querySelector(".bar-modes")).visibility === "hidden" };
+});
+r.check("L'Espill opens as its own screen from the title", espill.screen === "espill" && espill.modeBarHidden, JSON.stringify(espill));
+r.check("coach card speaks with an empty profile", /encara no puc dir res|Cap punt feble|costum/i.test(espill.coach + espill.label), JSON.stringify(espill));
+r.check("L'Espill tabs switch panes", espill.pane === "numeros" && espill.tilesVisible, JSON.stringify(espill));
+await page.click("#btnEspillBack");
+r.check("back to port from L'Espill", (await page.evaluate(() => document.body.dataset.screen)) === "title");
 
 // Gesture-gated sensors (the manual buttons on the title screen)
 await page.click("#btnCam");
@@ -245,6 +257,19 @@ const readShown = await page.evaluate(() => {
     drivers: document.getElementById("readDrivers").textContent, self: document.getElementById("readSelfWatch").textContent,
   };
 });
+// L'Espill v2 (2026-08-17): ranked tells carry price/evidence/counter-move; the trends strip says "too early" under 60 rows and shows four tiles on a seeded 70-row history
+const v2panel = await page.evaluate(() => {
+  const H = (pf, pc, af, ac, w) => ({ playerFingers: pf, playerCall: pc, aiFingers: af, aiCall: ac, aiGuessPlayerFingers: 1, aiLevel: "L4", verdictWinner: w, syncOutcome: "synced", source: "partida" });
+  const short = []; for (let i = 0; i < 12; i++) short.push(H(1 + (i % 3), 1 + (i % 3) + 2, 1 + (i % 5), 1 + (i % 5) + 3, "parata"));
+  window.__play.renderTrainingPanel(short, "session");
+  const tooEarly = document.getElementById("trendStrip").textContent;
+  const long = []; for (let i = 0; i < 70; i++) { const f = i % 2 ? 4 : 2; long.push(H(f, f + 2, 1 + (i % 5), 1 + (i % 5) + 3, "parata")); }
+  window.__play.renderTrainingPanel(long, "session");
+  return { tooEarly, tiles: document.querySelectorAll("#trendStrip .trend").length, coach: document.getElementById("coachSentence").textContent, price: document.getElementById("coachPrice").textContent, evidence: document.getElementById("coachEvidence").textContent, counter: document.getElementById("coachCounter").textContent, others: document.querySelectorAll("#tellsList li").length, live: document.getElementById("liveTopTell").textContent };
+});
+r.check("trends strip says too early under 60 rows", /60 tirs/.test(v2panel.tooEarly));
+r.check("trends strip shows four tiles on 70 rows", v2panel.tiles === 4, JSON.stringify(v2panel));
+r.check("coach card names the #1 weakness with price, evidence and the rival's counter-move", /Després de tirar un [24], tires un [24]/.test(v2panel.coach) && /punts cada 100/.test(v2panel.price) && /\d+ de \d+/.test(v2panel.evidence) && /^El Rei: /.test(v2panel.counter) && v2panel.live === v2panel.coach, JSON.stringify(v2panel));
 r.check("the read names what El Rei sees", /apostaria que tiraràs [1-5] \(\d+%\)|cap costum clar/.test(readShown.headline) && readShown.fBars === 5 && readShown.gBars === 5 && /%/.test(readShown.drivers) && readShown.self.length > 0, JSON.stringify(readShown));
 
 // Calibratge (per profile + camera). The fake camera has no hand, so the
@@ -252,9 +277,16 @@ r.check("the read names what El Rei sees", /apostaria que tiraràs [1-5] \(\d+%\
 // the panel open/close, the seam-driven apply/save into the live sliders,
 // and that the fit persists per profile and per device.
 r.check("calibratge section in L'Espill, uncalibrated status", /Sense calibrar|per defecte/.test(await page.$eval("#calibStatus", (n) => n.textContent)));
-r.check("calibratge section sits at the TOP of L'Espill (right under the head)", await page.evaluate(() => {
-  const head = document.querySelector("#trainingPanel .training-head");
-  return !!head && head.nextElementSibling?.classList.contains("calib-section");
+// L'Espill v2 (2026-08-17): calibratge lives in the Entrenament strip, next to the camera it calibrates; export/reset under ⚙ by the Tripulant selector
+r.check("calibratge section sits in the Entrenament strip", await page.evaluate(() => {
+  const sec = document.querySelector("#trainingPanel .calib-section");
+  return !!sec && !!sec.querySelector("#btnCalibrate") && getComputedStyle(sec).display !== "none";
+}));
+r.check("profile menu (⚙) opens with export and reset", await page.evaluate(() => {
+  document.getElementById("btnProfileMenu").click();
+  const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
+  document.body.click();
+  return open && document.getElementById("profileMenu").hidden;
 }));
 await page.click("#btnCalibrate");
 r.check("calibratge opens on 'Enquadra' with the ghost hand on", await page.evaluate(() =>

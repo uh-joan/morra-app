@@ -99,9 +99,10 @@ button.ghost:hover { color: var(--text); }
 body[data-screen="title"]  #screenTitle  { display: flex; }
 body[data-screen="select"] #screenSelect { display: block; }
 body[data-screen="fight"]  #screenFight  { display: block; }
+body[data-screen="espill"] #screenEspill { display: block; }
 #topBar { display: none; }
-body[data-screen="select"] #topBar, body[data-screen="fight"] #topBar { display: flex; }
-body[data-screen="select"] #btnRivalHud { display: none; }
+body[data-screen="select"] #topBar, body[data-screen="fight"] #topBar, body[data-screen="espill"] #topBar { display: flex; }
+body[data-screen="select"] #btnRivalHud, body[data-screen="espill"] #btnRivalHud { display: none; }
 .overlay { display: none; }
 body[data-onboarding="on"] #onboardOverlay { display: flex; }
 body.vs-on #vsSplash { display: flex; }
@@ -120,7 +121,10 @@ body.vs-on #vsSplash { display: flex; }
 .bar-modes { display: flex; gap: 8px; align-items: center; }
 .bar-modes button { font-family: var(--serif); font-weight: 700; }
 .bar-modes button.primary { background: var(--gold); border-color: var(--gold); color: #2a1c04; }
-.bar-profile { display: flex; gap: 6px; align-items: center; }
+.bar-profile { display: flex; gap: 6px; align-items: center; position: relative; }
+.profile-menu { position: absolute; top: calc(100% + 6px); right: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--ink-2); border: 1px solid rgba(147,160,184,.35); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.5); z-index: 30; min-width: 190px; }
+.profile-menu[hidden] { display: none; }
+.profile-menu button { text-align: left; }
 .bar-profile select { max-width: 140px; }
 
 /* ----------------------------------------------------------- title */
@@ -531,6 +535,18 @@ body.match-lost .end-headline { color: #6e2b30; }
 .training-hist-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .training-hist-col { flex: 1; min-width: 90px; }
 .training-hist-title { font-size: 10px; color: #6b5636; margin-bottom: 3px; }
+.training-sub { font-weight: 400; text-transform: none; letter-spacing: 0; color: #8a7a5a; font-size: 11px; }
+.training-tells-list li { display: block; padding: 6px 0; border-bottom: 1px dashed rgba(58,44,20,.15); }
+.training-tells-list li:last-child { border-bottom: 0; }
+.tell-main { font-size: 12.5px; color: #3a2c14; }
+.tell-meta { font-size: 10.5px; color: #6b5636; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tell-price { color: #8a2f1e; font-weight: 700; }
+.tell-counter { font-size: 11px; color: #5a4a2c; font-style: italic; margin-top: 2px; }
+.training-trends { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 10px; }
+.training-trends .trend { background: rgba(58,44,20,.06); border-radius: 6px; padding: 5px 7px; font-size: 10.5px; color: #6b5636; }
+.training-trends .trend b { display: block; font-size: 13px; color: #3a2c14; font-variant-numeric: tabular-nums; }
+.training-trends .trend .up { color: #2f7a3a; } .training-trends .trend .down { color: #8a2f1e; }
+.training-trends .trend-note { grid-column: 1 / -1; font-size: 10.5px; color: #8a7a5a; }
 .training-read-headline { font-family: var(--serif); font-size: 13.5px; margin: 0 0 8px; color: #3a2c14; }
 .training-read-headline strong { color: #8a2f1e; font-size: 16px; }
 .training-hist-list li.read-top { font-weight: 700; color: #8a2f1e; }
@@ -817,3 +833,58 @@ body.tecnic #roundResultCard { display: block; }
   .player-side { gap: 8px; padding-bottom: 12px; }
   .rival-figure-frame { width: min(300px, 78vw); } /* the rival column was the tall one at 1280x800 */
 }
+
+
+/* ================= L'ESPILL — its own screen (2026-08-17) =================
+   A parchment sheet on the night sea. One hero (the coach card), one slim
+   trend line, the detail behind tabs. The same ids the renderer writes. */
+#screenEspill { min-height: calc(100vh - var(--topbar-h, 55px)); background: radial-gradient(900px 500px at 50% -10%, rgba(224,182,79,.10), transparent 60%), linear-gradient(180deg, #0f1730 0%, #0b1224 60%, #070c18 100%); padding: 22px 16px 40px; }
+.espill-wrap { max-width: 860px; margin: 0 auto; background: linear-gradient(180deg, var(--parchment), var(--parchment-2)); color: var(--parchment-ink); border: 3px solid var(--rope); border-radius: 16px; padding: 22px 26px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+.espill-wrap button { background: rgba(58,44,20,.08); border-color: rgba(138,101,64,.5); color: var(--parchment-ink); }
+.espill-wrap button.primary { background: var(--gold); border-color: #a87c22; color: #2a1c04; }
+.espill-wrap button.danger { color: #a3232d; border-color: rgba(163,35,45,.5); background: transparent; }
+.espill-wrap button.ghost { background: transparent; border-color: rgba(138,101,64,.4); color: #6b5636; }
+.espill-wrap .btn-gold { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: #2a1c04; border-color: #a87c22; }
+.espill-wrap .btn-parchment { background: rgba(58,44,20,.06); }
+.espill-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid rgba(58,44,20,.2); padding-bottom: 12px; }
+.espill-title { font-family: var(--serif); font-size: 30px; font-weight: 800; margin: 0; line-height: 1.1; }
+.espill-tag { margin: 4px 0 0; color: #6b5636; font-size: 13px; }
+.espill-scope { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.espill-count { font-size: 12px; color: #6b5636; margin-left: 6px; }
+/* the coach card */
+.coach-card { margin: 18px 0 10px; padding: 18px 20px 14px; border: 2px solid rgba(138,47,30,.35); border-radius: 14px; background: rgba(255,255,255,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+.coach-label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #8a2f1e; font-weight: 700; }
+.coach-sentence { font-family: var(--serif); font-size: 24px; line-height: 1.25; margin: 6px 0 10px; color: #2a1c04; }
+.coach-row { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.coach-price { font-size: 16px; font-weight: 800; color: #8a2f1e; }
+.coach-evidence { font-size: 12.5px; color: #6b5636; }
+.coach-counter { margin: 10px 0 0; font-size: 14px; font-style: italic; color: #4a3a1c; padding-left: 10px; border-left: 3px solid rgba(138,47,30,.35); }
+.coach-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.coach-more { margin-top: 12px; border-top: 1px dashed rgba(58,44,20,.25); padding-top: 4px; }
+.coach-more li .tell-main { font-size: 13.5px; }
+/* the trend line: one slim row */
+.espill-wrap .training-trends { grid-template-columns: repeat(4, 1fr); margin: 8px 0 14px; }
+.espill-wrap .training-trends .trend { background: rgba(58,44,20,.05); border: 1px solid rgba(138,101,64,.25); }
+.espill-wrap .training-trends .trend b { font-size: 15px; }
+/* tabs */
+.espill-tabs { display: flex; gap: 2px; border-bottom: 2px solid rgba(138,101,64,.45); margin-top: 8px; }
+.espill-tabs button { border: 0; border-radius: 8px 8px 0 0; background: transparent; padding: 8px 12px; font-size: 13px; color: #6b5636; }
+.espill-tabs button.on { background: rgba(58,44,20,.10); color: #2a1c04; font-weight: 700; }
+.espill-pane { display: none; padding: 12px 2px 4px; }
+.espill-panes[data-tab="rei"] .espill-pane[data-tab="rei"], .espill-panes[data-tab="numeros"] .espill-pane[data-tab="numeros"], .espill-panes[data-tab="sequencia"] .espill-pane[data-tab="sequencia"], .espill-panes[data-tab="perfil"] .espill-pane[data-tab="perfil"] { display: block; }
+.espill-wrap .training-read-headline { font-size: 17px; }
+.espill-wrap .training-hist-list { font-size: 12.5px; }
+.espill-wrap .training-heatmap { max-width: 420px; }
+.espill-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(58,44,20,.2); flex-wrap: wrap; }
+/* Entrenament live strip in the fight screen */
+.training-live { gap: 6px; }
+.training-live .calib-section { margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(58,44,20,.25); }
+.training-live .calib-blurb { font-size: 11.5px; margin: 0 0 6px; color: #6b5636; }
+.live-tell { font-family: var(--serif); font-size: 15px; margin: 0; color: #2a1c04; }
+.live-exploit { font-size: 12px; color: #6b5636; margin: 0; }
+.coach-more[hidden] { display: none; }
+.coach-actions .btn-gold { font-size: 17px; padding: 10px 22px; border-radius: 10px; letter-spacing: .02em; box-shadow: 0 4px 0 #7a5a16; }
+.coach-actions .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 5px 0 #7a5a16; }
+.coach-actions .btn-parchment, .espill-foot .btn-parchment { font-size: 14px; padding: 9px 14px; }
+/* on the L'Espill screen the bar's mode buttons make no sense — the sheet has its own footer */
+body[data-screen="espill"] .bar-modes { visibility: hidden; }

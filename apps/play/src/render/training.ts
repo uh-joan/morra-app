@@ -7,12 +7,16 @@
 
 import {
   computeBigramHeatmap,
-  computeExploitability,
   computeHistograms,
   computeRandomnessScore,
   computeSyncStats,
+  computeExploitabilityV2,
+  computeTells2,
   computeTopTells,
   explainReadV2,
+  rankExploitValue,
+  summarizeTrend,
+  type ExploitRanking,
   type HistogramSection,
   type TopWord,
   type HistoryEntry,
@@ -97,14 +101,14 @@ function heatmapGrid(heatmap: ReturnType<typeof computeBigramHeatmap>): HTMLElem
 }
 
 export function renderTrainingPanel(history: readonly HistoryEntry[], scope: MirrorScope): void {
-  const exploit = computeExploitability(history);
+  const exploit = computeExploitabilityV2(history); // El Rei's read (v2), not the spike's
   const randomness = computeRandomnessScore(history);
   const hist = computeHistograms(history);
-  const tells = computeTopTells(history);
   const heatmap = computeBigramHeatmap(history);
   const syncStats = computeSyncStats(history);
 
   el.tileExploitability.textContent = exploit.rate != null ? `${(exploit.rate * 100).toFixed(0)}%` : "—";
+  el.liveExploit.textContent = exploit.rate != null ? TRAINING_PANEL_TEXT.liveExploit(Number((exploit.rate * 100).toFixed(0))) : TRAINING_PANEL_TEXT.liveExploitNone;
   el.tileRandomness.textContent = randomness ? `${randomness.redundancyPct.toFixed(1)}%` : "—";
   el.tileSyncRate.textContent = syncStats.syncRate != null ? `${(syncStats.syncRate * 100).toFixed(0)}%` : "—";
   el.tileMedianDelta.textContent = syncStats.medianAbsDeltaMs != null ? `${syncStats.medianAbsDeltaMs.toFixed(0)}ms` : "—";
@@ -113,19 +117,8 @@ export function renderTrainingPanel(history: readonly HistoryEntry[], scope: Mir
   el.gHistogram.replaceChildren(...histogramBars(hist.g));
   el.topCallsList.replaceChildren(...topWordsList(hist.topWords));
 
-  if (tells.length) {
-    el.tellsList.replaceChildren(
-      ...tells.map((t) => {
-        const li = document.createElement("li");
-        li.textContent = t.sentence;
-        return li;
-      })
-    );
-  } else {
-    const li = document.createElement("li");
-    li.textContent = TRAINING_PANEL_TEXT.tellsEmpty;
-    el.tellsList.replaceChildren(li);
-  }
+  renderTells(history, scope);
+  renderTrends(history);
 
   el.bigramHeatmap.replaceChildren(...heatmapGrid(heatmap));
   renderRead(history);
@@ -178,4 +171,91 @@ function renderRead(history: readonly HistoryEntry[]): void {
     r.playerHitRate == null ? TRAINING_PANEL_TEXT.readSelfWatchNone
     : r.playerHitRate > 0.24 ? TRAINING_PANEL_TEXT.readSelfWatchHigh(Number(pct(r.playerHitRate)))
     : TRAINING_PANEL_TEXT.readSelfWatch(Number(pct(r.playerHitRate)));
+}
+
+// ------------------------------------------------------------ ranked tells (tells2)
+// The exploit-value ranking replays El Rei's read over the profile (~1 s per
+// 100 rows) — memoized per scope and refreshed every 5 new rows, so the
+// per-throw rerender in Entrenament stays cheap; the tells themselves are.
+const rankCache = new Map<string, { bucket: number; ranking: ExploitRanking }>();
+function rankingFor(history: readonly HistoryEntry[], scope: MirrorScope): ExploitRanking | undefined {
+  if (history.length < 12) return undefined;
+  const bucket = Math.floor(history.length / 5);
+  const hit = rankCache.get(scope);
+  if (hit && hit.bucket === bucket) return hit.ranking;
+  const ranking = rankExploitValue(history);
+  rankCache.set(scope, { bucket, ranking });
+  return ranking;
+}
+function tellItem(t: { sentence: string; pointsPer100: number | null; evidence: { hits: number; n: number }; counterMove: string; id?: string }, full: boolean): HTMLLIElement {
+  const li = document.createElement("li");
+  if (t.id) li.dataset.tell = t.id;
+  const main = document.createElement("div"); main.className = "tell-main"; main.textContent = t.sentence;
+  li.append(main);
+  if (!full) return li;
+  const meta = document.createElement("div"); meta.className = "tell-meta";
+  if (t.pointsPer100 != null) { const price = document.createElement("span"); price.className = "tell-price"; price.textContent = TRAINING_PANEL_TEXT.tellPrice(t.pointsPer100); meta.append(price, " · "); }
+  meta.append(TRAINING_PANEL_TEXT.tellEvidence(t.evidence.hits, t.evidence.n));
+  const counter = document.createElement("div"); counter.className = "tell-counter"; counter.textContent = TRAINING_PANEL_TEXT.tellCounterPrefix + t.counterMove;
+  li.append(meta, counter);
+  return li;
+}
+function renderTells(history: readonly HistoryEntry[], scope: MirrorScope): void {
+  const tells = computeTells2(history, rankingFor(history, scope));
+  const rounds = history.filter((h) => h.playerFingers != null).length;
+  // the coach card: the #1 weakness
+  const top = tells[0];
+  if (top) {
+    el.coachLabel.textContent = TRAINING_PANEL_TEXT.coachLabel;
+    el.coachSentence.textContent = top.sentence;
+    el.coachPrice.textContent = top.pointsPer100 != null ? TRAINING_PANEL_TEXT.coachPrice(top.pointsPer100) : "";
+    el.coachEvidence.textContent = TRAINING_PANEL_TEXT.coachEvidence(top.evidence.hits, top.evidence.n);
+    el.coachCounter.textContent = TRAINING_PANEL_TEXT.tellCounterPrefix + top.counterMove;
+    el.liveTopTell.textContent = top.sentence;
+  } else {
+    el.coachLabel.textContent = TRAINING_PANEL_TEXT.coachLabelNone;
+    el.coachSentence.textContent = rounds < 20 ? TRAINING_PANEL_TEXT.coachNoneTooEarly(rounds) : TRAINING_PANEL_TEXT.coachNone;
+    el.coachPrice.textContent = ""; el.coachEvidence.textContent = ""; el.coachCounter.textContent = "";
+    el.liveTopTell.textContent = rounds < 20 ? TRAINING_PANEL_TEXT.coachNoneTooEarly(rounds) : TRAINING_PANEL_TEXT.coachNone;
+  }
+  // the others, collapsed under the card
+  const rest = tells.slice(1, 7);
+  el.btnMoreTells.hidden = rest.length === 0;
+  if (rest.length) { el.tellsList.replaceChildren(...rest.map((t) => tellItem(t, true))); return; }
+  // the older, cheaper tells trigger on fewer rows — keep them as the early voice
+  const early = computeTopTells(history);
+  if (early.length && !top) { el.coachLabel.textContent = TRAINING_PANEL_TEXT.coachLabel; el.coachSentence.textContent = early[0]!.sentence; el.liveTopTell.textContent = early[0]!.sentence; el.tellsList.replaceChildren(...early.slice(1).map((t) => tellItem({ sentence: t.sentence, pointsPer100: null, evidence: { hits: 0, n: 0 }, counterMove: "" }, false))); el.btnMoreTells.hidden = early.length < 2; return; }
+  el.tellsList.replaceChildren();
+}
+
+// ------------------------------------------------------------ trends: last 30 vs the 30 before
+const TREND_WINDOW = 30;
+function renderTrends(history: readonly HistoryEntry[]): void {
+  const t = summarizeTrend(history, TREND_WINDOW);
+  if (t.previous.n < TREND_WINDOW) {
+    const note = document.createElement("div"); note.className = "trend-note"; note.textContent = TRAINING_PANEL_TEXT.trendTooEarly;
+    el.trendStrip.replaceChildren(note);
+    return;
+  }
+  const a = t.recent, b = t.previous;
+  const pct = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed(0)}%`);
+  const bits = (x: number | null) => (x == null ? "—" : `${x.toFixed(2)} bits`);
+  // higherIsBetter: entropy and reader-hit; the rest, lower is better
+  const items: { key: string; now: string; delta: number | null; good: boolean }[] = [
+    { key: "predictability", now: pct(a.predictability), delta: a.predictability != null && b.predictability != null ? a.predictability - b.predictability : null, good: (a.predictability ?? 0) <= (b.predictability ?? 0) },
+    { key: "entropy", now: bits(a.entropyBits), delta: a.entropyBits != null && b.entropyBits != null ? a.entropyBits - b.entropyBits : null, good: (a.entropyBits ?? 0) >= (b.entropyBits ?? 0) },
+    { key: "reader", now: pct(a.readerHit), delta: a.readerHit != null && b.readerHit != null ? a.readerHit - b.readerHit : null, good: (a.readerHit ?? 0) >= (b.readerHit ?? 0) },
+    { key: "chase", now: pct(a.chase), delta: a.chase != null && b.chase != null ? a.chase - b.chase : null, good: (a.chase ?? 0) <= (b.chase ?? 0) },
+  ];
+  const tiles = items.map((it) => {
+    const d = document.createElement("div"); d.className = "trend";
+    const v = document.createElement("b"); v.textContent = it.now;
+    const arrow = document.createElement("span"); arrow.className = it.good ? "up" : "down";
+    arrow.textContent = it.delta == null ? "" : ` ${it.delta > 0 ? "▲" : it.delta < 0 ? "▼" : "="} ${it.key === "entropy" ? Math.abs(it.delta).toFixed(2) : (Math.abs(it.delta) * 100).toFixed(0) + " pt"}`;
+    v.append(arrow);
+    d.append(v, TRAINING_PANEL_TEXT.trendLabels[it.key] ?? it.key);
+    return d;
+  });
+  const note = document.createElement("div"); note.className = "trend-note"; note.textContent = TRAINING_PANEL_TEXT.trendTitle(TREND_WINDOW);
+  el.trendStrip.replaceChildren(...tiles, note);
 }

@@ -34,7 +34,12 @@ function trainingHistorySource() {
 }
 
 export function renderTrainingPanelIfActive(): void {
-  if (getSessionMode() !== "entrenament") return;
+  if (getSessionMode() !== "entrenament" && document.body.dataset.screen !== "espill") return;
+  renderTrainingPanel(trainingHistorySource(), mirrorScope);
+}
+/** The L'Espill screen renders on open regardless of mode (it needs no
+ * sensors — it reads the profile). Same renderer, same ids. */
+export function renderEspillScreen(): void {
   renderTrainingPanel(trainingHistorySource(), mirrorScope);
 }
 
@@ -42,10 +47,16 @@ export function installTraining(): void {
   setTrainingPanelHook(renderTrainingPanelIfActive);
   el.btnScopeSession.addEventListener("click", () => setMirrorScope("session"));
   el.btnScopeAllTime.addEventListener("click", () => setMirrorScope("allTime"));
+  // the profile menu (⚙ next to the Tripulant selector): export / reset
+  const closeMenu = () => { el.profileMenu.hidden = true; el.btnProfileMenu.setAttribute("aria-expanded", "false"); };
+  el.btnProfileMenu.addEventListener("click", (ev) => { ev.stopPropagation(); const open = el.profileMenu.hidden; el.profileMenu.hidden = !open; el.btnProfileMenu.setAttribute("aria-expanded", String(open)); });
+  document.addEventListener("click", (ev) => { if (!el.profileMenu.hidden && !el.profileMenu.contains(ev.target as Node)) closeMenu(); });
   el.btnExportProfile.addEventListener("click", () => {
+    closeMenu();
     download("morra-player-profile.json", JSON.stringify(getPlayerModel(), null, 2), "application/json");
   });
   el.btnResetProfile.addEventListener("click", () => {
+    closeMenu();
     if (!confirm(TRAINING_PANEL_TEXT.resetConfirm)) return;
     clearPlayerModel();
     setPlayerModelState(createEmptyModel());

@@ -49,5 +49,5 @@ export function setSessionMode(mode: SessionMode): void {
 export function installModes(): void {
   el.btnModePartida.addEventListener("click", () => setSessionMode("partida"));
   el.btnModeEntrenament.addEventListener("click", () => setSessionMode("entrenament"));
-  el.btnGoToTraining.addEventListener("click", () => setSessionMode("entrenament"));
+  // btnGoToTraining opens the L'Espill screen (screens.ts) — no mode change.
 }
