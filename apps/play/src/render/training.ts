@@ -12,6 +12,7 @@ import {
   computeRandomnessScore,
   computeSyncStats,
   computeTopTells,
+  explainReadV2,
   type HistogramSection,
   type TopWord,
   type HistoryEntry,
@@ -127,8 +128,54 @@ export function renderTrainingPanel(history: readonly HistoryEntry[], scope: Mir
   }
 
   el.bigramHeatmap.replaceChildren(...heatmapGrid(heatmap));
+  renderRead(history);
 
   el.trainingSampleCount.textContent = `${history.length} tir${history.length === 1 ? "" : "s"} (${scope === "session" ? "aquesta sessió" : "tot el temps"})`;
   el.btnScopeSession.classList.toggle("primary", scope === "session");
   el.btnScopeAllTime.classList.toggle("primary", scope === "allTime");
+}
+
+// "El que veu El Rei": the read, shown. Same functions the L4 policy uses
+// (explainReadV2) — the belief about the next fingers, what drives it, where
+// it thinks the player will look, and whether the player is reading it.
+const MIN_ROUNDS_FOR_READ = 8;
+function beliefBars(dist: Record<number, number>, top: number): HTMLLIElement[] {
+  const list = [1, 2, 3, 4, 5].map((v) => ({ value: v, pct: dist[v]! * 100 }));
+  const items = histogramBars({ total: 1, list } as HistogramSection);
+  items.forEach((li, i) => { if (list[i]!.value === top) li.classList.add("read-top"); });
+  return items;
+}
+function renderRead(history: readonly HistoryEntry[]): void {
+  const r = explainReadV2(history);
+  const pct = (x: number) => (x * 100).toFixed(0);
+  if (r.rounds < MIN_ROUNDS_FOR_READ) {
+    el.readHeadline.textContent = TRAINING_PANEL_TEXT.readTooEarly(r.rounds);
+    el.readFBelief.replaceChildren(); el.readDrivers.replaceChildren(); el.readGBelief.replaceChildren();
+    el.readSelfWatch.textContent = "";
+    return;
+  }
+  // a read worth naming: the top digit clears the coin by a margin
+  if (r.topP >= 0.26) {
+    const strong = document.createElement("strong"); strong.textContent = String(r.top);
+    el.readHeadline.replaceChildren(TRAINING_PANEL_TEXT.readHeadlineBefore, strong, TRAINING_PANEL_TEXT.readHeadlineAfter(Number(pct(r.topP))));
+  } else {
+    el.readHeadline.textContent = TRAINING_PANEL_TEXT.readHeadlineFlat;
+  }
+  el.readFBelief.replaceChildren(...beliefBars(r.fBelief, r.top));
+  el.readGBelief.replaceChildren(...beliefBars(r.gBelief, r.gTop));
+  el.readDrivers.replaceChildren(
+    ...r.drivers.slice(0, 3).map((d) => {
+      const li = document.createElement("li");
+      const name = document.createElement("span");
+      name.textContent = TRAINING_PANEL_TEXT.driverNames[d.name] ?? d.name;
+      const w = document.createElement("span");
+      w.textContent = `${pct(d.weight)}%`;
+      li.append(name, w);
+      return li;
+    })
+  );
+  el.readSelfWatch.textContent =
+    r.playerHitRate == null ? TRAINING_PANEL_TEXT.readSelfWatchNone
+    : r.playerHitRate > 0.24 ? TRAINING_PANEL_TEXT.readSelfWatchHigh(Number(pct(r.playerHitRate)))
+    : TRAINING_PANEL_TEXT.readSelfWatch(Number(pct(r.playerHitRate)));
 }

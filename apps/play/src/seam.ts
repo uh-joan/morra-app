@@ -29,6 +29,7 @@ import {
   updateReadyPillFromFrame,
 } from "./readyPill.js";
 import { lastRoundAudioEndCtxTime, rivalClipPlaybacks, setLastRoundAudioEndCtxTime } from "./rivalAudioLog.js";
+import { renderTrainingPanel } from "./render/training.js";
 import {
   commitAiMove,
   getCurrentAiLevel,
@@ -50,6 +51,7 @@ export function installSeam(): void {
   (window as unknown as { __play: object }).__play = {
     // game (same member names as __s03)
     commitAiMove,
+    renderTrainingPanel, // L'Espill with an arbitrary history (harness: "the read")
     maybeResolveGameRound,
     resetGame,
     get currentAiMove() {

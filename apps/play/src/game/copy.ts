@@ -78,6 +78,30 @@ export const TRAINING_PANEL_TEXT = {
   resetConfirm: "Esborrar tot el teu perfil (totes les sessions)? Això no es pot desfer.",
   scopeSession: "Aquesta sessió",
   scopeAllTime: "Tot el temps",
+  // "El que veu El Rei" — the read, shown
+  readHeading: "El que veu El Rei",
+  readTooEarly: (n: number) => `Encara no et llegeix — ${n} tir${n === 1 ? "" : "s"}. En calen uns quants més.`,
+  readHeadlineBefore: "Ara mateix, El Rei apostaria que tiraràs ",
+  readHeadlineAfter: (pct: number) => ` (${pct}%).`,
+  readHeadlineFlat: "Ara mateix, El Rei no et veu cap costum clar — bona feina.",
+  readSelfWatch: (pct: number) => `Tu li has llegit els dits el ${pct}% de les últimes rondes.`,
+  readSelfWatchHigh: (pct: number) => `Tu li has llegit els dits el ${pct}% de les últimes rondes — se n'ha adonat i s'amaga més.`,
+  readSelfWatchNone: "Encara no hi ha prou rondes per saber si el llegeixes.",
+  // BMA context names → what they mean, for the player
+  driverNames: {
+    marginal: "els teus números preferits",
+    freq: "els teus números d'últimament",
+    blend: "l'últim número i els preferits",
+    order1: "el que acabes de tirar",
+    order2: "els teus dos últims números",
+    prevOutcome: "si has guanyat o perdut",
+    outcomePrevF: "com ha acabat la ronda i què has tirat",
+    prevAiF: "els dits que ell ha tret",
+    prevG: "la teva última endevinalla",
+    prevTotal: "el total de l'última ronda",
+    prevAiG: "el número que ell ha cantat",
+    joint: "la mà que lliga la crida",
+  } as Record<string, string>,
 } as const;
 
 export const MODE_BUTTONS = { partida: "Partida", entrenament: "Entrenament" } as const;

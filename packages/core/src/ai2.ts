@@ -86,13 +86,14 @@ const inRange = (x: number | null | undefined): x is Fv => x != null && x >= 1 &
 // ------------------------------------------------------------ the rows
 // The policy reads history as rows: the player's fingers f, their guess g
 // (call − f, only when 1..5), the rival's fingers af, the verdict.
-export interface Row { f: Fv | null; g: Fv | null; af: Fv | null; w: VerdictWinner | null }
+export interface Row { f: Fv | null; g: Fv | null; af: Fv | null; ag: Fv | null; w: VerdictWinner | null }
 export function toRows(history: readonly HistoryEntry[]): Row[] {
   return history.map((h) => {
     const f = inRange(h.playerFingers) ? h.playerFingers : null;
     const g = f != null && h.playerCall != null && inRange(h.playerCall - f) ? ((h.playerCall - f) as Fv) : null;
     const af = inRange(h.aiFingers) ? h.aiFingers : null;
-    return { f, g, af, w: h.verdictWinner ?? null };
+    const ag = inRange(h.aiGuessPlayerFingers) ? h.aiGuessPlayerFingers : null;
+    return { f, g, af, ag, w: h.verdictWinner ?? null };
   });
 }
 
@@ -112,6 +113,11 @@ const CONTEXTS: Record<string, CtxFn> = {
   outcomePrevF: (r, i) => (i >= 1 && r[i - 1]!.w && r[i - 1]!.f != null ? `w${r[i - 1]!.w}f${r[i - 1]!.f}` : null),
   prevAiF: (r, i) => (i >= 1 && r[i - 1]!.af != null ? `a${r[i - 1]!.af}` : null),
   prevG: (r, i) => (i >= 1 && r[i - 1]!.g != null ? `g${r[i - 1]!.g}` : null),
+  // level-2 (Iocaine-style) hypotheses — the player reacting to the RIVAL's
+  // last move: on the f channel "you react to my last guess", on the g
+  // channel "your guess follows my last guess". Only the BMA decides if
+  // any of it predicts.
+  prevAiG: (r, i) => (i >= 1 && r[i - 1]!.ag != null ? `q${r[i - 1]!.ag}` : null),
   prevTotal: (r, i) => {
     if (i < 1) return null;
     const p = r[i - 1]!;
@@ -128,6 +134,8 @@ export const F_PREDICTORS: readonly ContextPredictor[] = [
   { name: "prevAiF", ctx: CONTEXTS.prevAiF!, halfLife: 20 },
   { name: "prevG", ctx: CONTEXTS.prevG!, halfLife: 20 },
   { name: "prevTotal", ctx: CONTEXTS.prevTotal!, halfLife: 20 },
+  // (prevAiG — "you react to my last guess" — measured: no signal on the f
+  // channel, −0.3 pt argmax from dilution; it lives on the g channel only.)
 ];
 // The g channel: what the player will GUESS. Same contexts (order1 here
 // conditions on the previous g), plus the joint f→g predictor below.
@@ -139,6 +147,7 @@ export const G_PREDICTORS: readonly ContextPredictor[] = [
   { name: "prevOutcome", ctx: CONTEXTS.prevOutcome!, halfLife: 20 },
   { name: "order1", ctx: CONTEXTS.order1!, halfLife: 20 },
   { name: "prevTotal", ctx: CONTEXTS.prevTotal!, halfLife: 20 },
+  { name: "prevAiG", ctx: CONTEXTS.prevAiG!, halfLife: 20 },
 ];
 
 /** Dirichlet-smoothed distribution of `channel` at rows[n] given the
@@ -175,6 +184,36 @@ export function blendO1Marginal(rows: readonly Row[], n: number): FingerDistribu
   return d;
 }
 export const F_EXTRAS: readonly ExtraPredictor[] = [{ name: "blend", fn: blendO1Marginal }];
+
+// Level-2 hypotheses for the g channel — a player who is reading the RIVAL:
+// "you guess where I usually am" (decayed frequency of my own fingers) and
+// "you guess anything but where I just was" (T2's inverse: a reader who has
+// learned I hide away from my last). Cheap, and the BMA weighs them by
+// whether they predicted.
+function decayedDist(rows: readonly Row[], n: number, pick: (r: Row) => Fv | null, halfLife: number): FingerDistribution | null {
+  const counts: Record<number, number> = {};
+  let any = false;
+  for (let i = 0; i < n; i++) {
+    const v = pick(rows[i]!);
+    if (v == null) continue;
+    counts[v] = (counts[v] ?? 0) + Math.pow(0.5, (n - 1 - i) / halfLife);
+    any = true;
+  }
+  return any ? dirichlet(counts) : null;
+}
+export const G_EXTRAS_L2: readonly ExtraPredictor[] = [
+  { name: "l2:myFreq", fn: (rs, n) => decayedDist(rs, n, (r) => r.af, 20) },
+  {
+    name: "l2:notMyLast",
+    fn: (rs, n) => {
+      const last = n >= 1 ? rs[n - 1]!.af : null;
+      if (last == null) return null;
+      const d = {} as FingerDistribution;
+      for (const v of V) d[v] = v === last ? 0.04 : 0.24;
+      return d;
+    },
+  },
+];
 
 /** The joint predictor for the g channel: q(g) = Σ_f p̂(f)·p(g|f), where
  * p̂ is the rival's own current read of the player's fingers and p(g|f) is
@@ -348,11 +387,16 @@ function decideL4(rng: () => number, rows: Row[]): AiMoveV2 {
   const b = bmaBelief(rows, "f", F_PREDICTORS, F_EXTRAS);
   const tau = V2_TUNING.tauFixedL4 ?? temperatureFromEdge(b.edge);
   const guess = sample(rng, sharpen(b.dist, tau));
-  // anti-aim: where will the player look? BMA over the g contexts + the joint f→g predictor
-  const q = bmaBelief(rows, "g", G_PREDICTORS, [{ name: "joint", fn: (rs, n) => jointGPredict(rs, n, b.dist) }]);
   const hr = playerHitRate(rows);
+  const beingRead = hr != null && hr > V2_TUNING.selfWatchThreshold;
+  // anti-aim: where will the player look? BMA over the g contexts + the joint
+  // f→g predictor; when the player is READING us (self-watch), also the
+  // level-2 hypotheses (G_EXTRAS_L2) — Iocaine's second guess. On static
+  // replays the layer is a wash (26.4 → 26.1 argmax; it dilutes the BMA), so
+  // it only enters when there is a reader to second-guess.
+  const q = bmaBelief(rows, "g", G_PREDICTORS, [{ name: "joint", fn: (rs, n) => jointGPredict(rs, n, b.dist) }, ...(beingRead ? G_EXTRAS_L2 : [])]);
   // they're reading our fingers → hide less predictably (warmer softmax)
-  const T = hr != null && hr > V2_TUNING.selfWatchThreshold ? V2_TUNING.antiTSelfWatch : V2_TUNING.antiT;
+  const T = beingRead ? V2_TUNING.antiTSelfWatch : V2_TUNING.antiT;
   const fDist = antiAim(q.dist, T);
   const fingers = sample(rng, fDist);
   const fTau = T;
@@ -363,10 +407,57 @@ function decideL4(rng: () => number, rows: Row[]): AiMoveV2 {
   };
 }
 
-/** The v2 dispatcher. L1/L2 are the spike's (Nino stays readable, Bru
- * stays the equilibrium wall); L3/L4 are the new engine. */
+// ------------------------------------------------------------ L1 — Nino, the human template
+// Nino plays like the measured human beginner (docs/rival-intelligence-
+// research.md §1–2), tells amplified (×2 in log space) so a first reader can find
+// them — and they are the SAME tells L'Espill names in the player's own
+// game, so reading Nino teaches reading people:
+//   T1 win-shift: repeats own fingers 16% overall, 10% after scoring
+//   T2 the guess chases the opponent's last fingers (26% → ~40%)
+//   T3 the call is welded to the fingers: g | f from the measured table
+//   the human finger preference (3 and 5 heavy, 1 light)
+export const NINO = {
+  fPref: { 1: 0.13, 2: 0.17, 3: 0.25, 4: 0.20, 5: 0.26 } as FingerDistribution,
+  repeatBase: 0.16,
+  repeatAfterScoring: 0.10,
+  chaseLastFingers: 0.25, // observed ≈ 0.40 once the g|f draw lands there by chance
+  // T3, measured p(g|f), sharpened ×1.5 in log space
+  gGivenF: {
+    1: { 1: 0.13, 2: 0.17, 3: 0.16, 4: 0.21, 5: 0.33 },
+    2: { 1: 0.15, 2: 0.39, 3: 0.08, 4: 0.16, 5: 0.23 },
+    3: { 1: 0.2, 2: 0.14, 3: 0.18, 4: 0.11, 5: 0.37 },
+    4: { 1: 0.17, 2: 0.2, 3: 0.19, 4: 0.25, 5: 0.19 },
+    5: { 1: 0.21, 2: 0.21, 3: 0.23, 4: 0.23, 5: 0.12 },
+  } as Record<Fv, FingerDistribution>,
+  sharpen: 2.0,
+};
+function decideL1Nino(rng: () => number, rows: Row[]): AiMoveV2 {
+  const last = rows.length ? rows[rows.length - 1]! : null;
+  const myLast = last?.af ?? null;
+  const pRepeat = last?.w === "ai" ? NINO.repeatAfterScoring : NINO.repeatBase;
+  let fingers: Fv;
+  if (myLast != null && rng() < pRepeat) fingers = myLast;
+  else {
+    // the preference, without the last one when there is one (repeat rate is set above)
+    const d = {} as FingerDistribution;
+    let t = 0;
+    for (const v of V) { d[v] = v === myLast ? 0 : NINO.fPref[v]; t += d[v]; }
+    for (const v of V) d[v] /= t;
+    fingers = sample(rng, sharpen(d, 1 / NINO.sharpen, 0)); // no floor: the repeat rate is exactly pRepeat
+  }
+  const theirLast = last?.f ?? null;
+  const guess: Fv = theirLast != null && rng() < NINO.chaseLastFingers ? theirLast : sample(rng, sharpen(NINO.gGivenF[fingers], 1 / NINO.sharpen));
+  return {
+    level: "L1", fingers, guessPlayerFingers: guess, call: fingers + guess,
+    predictedPlayerFDist: null, lambda: null, predictorWeights: null, antiAimDist: null, v2: null,
+  };
+}
+
+/** The v2 dispatcher. L1 is Nino, the human template; L2 is the spike's
+ * (Bru stays the equilibrium wall); L3/L4 are the new engine. */
 export function decideMoveV2(level: string, random: RandomSource, history: readonly HistoryEntry[] = []): AiMoveV2 {
   const rng = () => random.next();
+  if (level === "L1") return decideL1Nino(rng, toRows(history));
   if (level === "L3") return decideL3(rng, toRows(history));
   if (level === "L4") return decideL4(rng, toRows(history));
   return { ...decideMoveSpike(level, random, history, null), v2: null };
@@ -377,4 +468,34 @@ export function decideMoveV2(level: string, random: RandomSource, history: reado
 export function predictPlayerFV2(level: string, history: readonly HistoryEntry[]): { dist: FingerDistribution; edge: number } {
   if (level === "L3" || level === "L4") { const b = bmaBelief(toRows(history), "f", F_PREDICTORS, F_EXTRAS); return { dist: b.dist, edge: b.edge }; }
   return { dist: UNIFORM, edge: 0 };
+}
+
+// ------------------------------------------------------------ show the read (L'Espill)
+/** What El Rei sees in this history — for the mirror. Deterministic, no
+ * sampling: the belief about the next fingers, its edge, which contexts
+ * carry the weight, where it thinks the player will look, and how often the
+ * player has been reading IT. Same functions the policy uses; L'Espill only
+ * formats. */
+export interface ReadExplanation {
+  rounds: number;
+  fBelief: FingerDistribution;
+  fEdge: number;
+  top: Fv;
+  topP: number;
+  /** contexts by BMA weight, descending, weights normalized to sum 1 */
+  drivers: { name: string; weight: number }[];
+  gBelief: FingerDistribution;
+  gTop: Fv;
+  gTopP: number;
+  playerHitRate: number | null;
+}
+export function explainReadV2(history: readonly HistoryEntry[]): ReadExplanation {
+  const rows = toRows(history);
+  const b = bmaBelief(rows, "f", F_PREDICTORS, F_EXTRAS);
+  const q = bmaBelief(rows, "g", G_PREDICTORS, [{ name: "joint", fn: (rs, n) => jointGPredict(rs, n, b.dist) }]);
+  const top = V.reduce((x, v) => (b.dist[v] > b.dist[x] ? v : x), 1 as Fv);
+  const gTop = V.reduce((x, v) => (q.dist[v] > q.dist[x] ? v : x), 1 as Fv);
+  const wsum = Object.values(b.weights).reduce((s, w) => s + w, 0) || 1;
+  const drivers = Object.entries(b.weights).map(([name, w]) => ({ name, weight: w / wsum })).sort((x, y) => y.weight - x.weight);
+  return { rounds: rows.length, fBelief: b.dist, fEdge: b.edge, top, topP: b.dist[top], drivers, gBelief: q.dist, gTop, gTopP: q.dist[gTop], playerHitRate: playerHitRate(rows) };
 }

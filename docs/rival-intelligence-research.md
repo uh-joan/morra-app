@@ -300,3 +300,42 @@ the history*; it cannot see when the app hands the policy the wrong
 history. Field traces (`fEdge` at commit) reconciled against a replay of
 the persisted entries are the check — now a script,
 `scripts/diag-live-vs-replay.mjs`.
+
+## 9. Steps 4–5 (2026-08-17, night): the second guess, Nino the human, the read shown
+
+**The fix, confirmed in the field.** After §8's mint-order fix, 77 rounds
+of El Rei on the same profile: **El Rei 20, player 6**; aim 29% (the
+replay predicted 29%); the player's hit on it 10% and falling (13→8);
+`fEdge` reproduces exactly at lag 0 (0/79 at lag 1 — the staleness is
+gone); the onset-time mint fired 2× in 80 (the rare fast-rhythm race, as
+designed). Fingers 17/10/10/23/17.
+
+**Iocaine, gated.** Three level-2 hypotheses about a player who is
+reading the *rival* — "you guess where I usually am" (decayed frequency
+of my fingers), "you guess anything but where I just was", and "your
+guess follows my last guess" (`prevAiG` context) — as candidates in the
+g-channel BMA. On the static corpus the layer is a wash (26.4 → 26.1
+argmax when the f-side `prevAiG` was in; removed from f, neutral on g):
+logged players didn't adapt to a rival that didn't exist. So it enters
+**only when the self-watch trips** (player hit rate on our fingers >
+24%) — a second guess for a reader, dilution for no one else.
+
+**Nino, the human template.** L1 no longer plays the spike's stylized
+tells; it plays the measured human beginner (§1–2), amplified ×2 in log
+space so a first reader can find them: fingers 9/15/27/21/28 (3 and 5
+heavy, 1 light), repeats 15% (10% after scoring — win-shift), the guess
+chases the player's last fingers ~39%, the call welded to the fingers
+(shows 2 → calls 4 half the time). These are the same tells L'Espill
+names in the player's own game — reading Nino is practice for reading
+people. Its aim stays at chance-minus, by design: chasing a player who
+repeats 16% hits less than a coin.
+
+**The read, shown.** L'Espill gets "El que veu El Rei": *what it thinks
+you'll throw* (the BMA belief, the top digit named — "Ara mateix, El Rei
+apostaria que tiraràs 4 (30%)" — or "no et veu cap costum clar" when
+nothing clears 26%), *what guides it* (the top contexts by BMA weight, in
+words: "els teus dos últims números 26% · el que acabes de tirar 18%"),
+*where it thinks you'll look* (the g belief), and the self-watch line
+("Tu li has llegit els dits el 15% de les últimes rondes"). `explainReadV2`
+in core is the same functions the policy uses; the panel only formats.
+Under 8 rounds it says so.
