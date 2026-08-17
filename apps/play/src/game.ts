@@ -14,6 +14,8 @@
 import {
   DEFAULT_LEVEL,
   decideMove,
+  decideMoveV2,
+  type AiMoveV2,
   toHistoryArray,
   recordThrow,
   randomNonceHex,
@@ -27,7 +29,7 @@ import {
   type PlayerModel,
 } from "@morra/core";
 import { CryptoRandomSource } from "@morra/platform-web";
-import { GAME_WIN_SCORE, RIVAL_VOICE_DEFER, RIVAL_VOICE_DEFER_EPS_MS, SYNC_POST_MS } from "./config.js";
+import { GAME_WIN_SCORE, RIVAL_ENGINE, RIVAL_VOICE_DEFER, RIVAL_VOICE_DEFER_EPS_MS, SYNC_POST_MS } from "./config.js";
 import { el } from "./dom.js";
 import { isCalibrating } from "./calibration.js";
 import { ctx } from "./audioClock.js";
@@ -114,12 +116,24 @@ export function setCurrentAiLevel(level: string): void {
   renderRivalAvatar(level);
 }
 
+/** The v2 engine's trace, split by what may be disclosed WHEN: the "read"
+ * side (belief about the player, how cold it aims) at commit; the "hide"
+ * side (where it thought the player would look, how it hid) only at reveal
+ * — before that it describes the sealed move. */
+function v2TraceOf(move: AiMove, side: "read" | "hide"): Record<string, unknown> | null {
+  const t = (move as Partial<AiMoveV2>).v2;
+  if (!t) return null;
+  return side === "read"
+    ? { fEdge: t.fEdge, fTau: t.fTau, playerHitRate: t.playerHitRate }
+    : { gBelief: t.gBelief, gEdge: t.gEdge, fingersTau: t.fingersTau, playerHitRate: t.playerHitRate };
+}
+
 export function commitAiMove(): void {
   // Phase G: L1-L3 read the CURRENT MATCH's history only; L4 reads the
   // cross-match history persisted in playerModel. The policy itself stays
   // agnostic — that choice is made here, at the call site.
   const history = currentAiLevel === "L4" ? toHistoryArray(playerModel) : matchHistory;
-  const move = decideMove(currentAiLevel, random, history, null);
+  const move = RIVAL_ENGINE === "spike" ? decideMove(currentAiLevel, random, history, null) : decideMoveV2(currentAiLevel, random, history);
   const nonce = randomNonceHex(random);
   let hashHex: string;
   try {
@@ -140,6 +154,11 @@ export function commitAiMove(): void {
     predictedPlayerFDist: move.predictedPlayerFDist,
     lambda: move.lambda,
     predictorWeights: move.predictorWeights,
+    engine: RIVAL_ENGINE,
+    // v2: the READ side only (what it believes about the player + how cold
+    // it plays it). The anti-aim trace says where its fingers concentrate —
+    // that's the sealed move's business and is logged at reveal, not here.
+    v2: v2TraceOf(move, "read"),
   });
 }
 
@@ -349,6 +368,9 @@ function resolveGameRound(
     verdictWinner: verdict.winner,
     scoreAfter: { player: gameScore.player, ai: gameScore.ai },
     revealedEarly: alreadyRevealed,
+    // v2 anti-aim trace, disclosed with the move it belonged to: where the
+    // rival thought the player would look, and how it hid
+    v2: v2TraceOf(move, "hide"),
   });
   // Phase G: feed the ladder BEFORE minting the next commitment, so that
   // next decision already sees this round.

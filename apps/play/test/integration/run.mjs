@@ -93,6 +93,21 @@ r.check(
   (await page.$$eval("#rivalHandSvg .finger.extended", (n) => n.length)) === round.aiFingers
 );
 r.check("scoreboard updated or parata", /Tu [01] — [01] Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
+// Rival engine v2 (2026-08-17): switch to L4, force a fresh commitment via
+// the level change, and check the commit event carries the READ trace only
+// (no anti-aim distribution before reveal), and that ?rival is v2.
+const v2commit = await page.evaluate(() => {
+  const sel = document.getElementById("selAiLevel"); sel.value = "L4"; sel.dispatchEvent(new Event("change"));
+  // a level change applies from the NEXT commitment (never a sealed one) — mint it
+  const before = window.__play.eventBusLog.length;
+  window.__play.commitAiMove();
+  const evs = window.__play.eventBusLog.slice(before).filter((e) => e.type === "game_commit");
+  const last = evs[evs.length - 1];
+  const load = window.__play.eventBusLog.find((e) => e.type === "page_load");
+  return { engine: last?.engine, hasRead: !!last?.v2 && "fTau" in last.v2, leaksHide: !!last?.v2 && "gBelief" in last.v2, antiAim: "antiAimDist" in (last ?? {}), pageEngine: load?.rivalEngine, level: last?.level };
+});
+r.check("L4 commit uses the v2 engine and logs the read-side trace only", v2commit.engine === "v2" && v2commit.pageEngine === "v2" && v2commit.level === "L4" && v2commit.hasRead && !v2commit.leaksHide && !v2commit.antiAim, JSON.stringify(v2commit));
+await page.evaluate(() => { const sel = document.getElementById("selAiLevel"); sel.value = "L2"; sel.dispatchEvent(new Event("change")); });
 // r3: the score lives on TOP (strip with big numerals + coins), the verdict
 // is a BANNER over the player card, and the player card carries the pill's
 // state as color.

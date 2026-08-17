@@ -7,7 +7,7 @@
 // table (docs/rival-intelligence-research.md §4.7), not because it sounds
 // clever.
 //
-//   node scripts/eval-rival.mjs [--levels L3,L4] [--seed 7] [--cross] [--min 5]
+//   node scripts/eval-rival.mjs [--engine spike|v2] [--levels L3,L4] [--seed 7] [--cross] [--min 5]
 //
 // Rounds come from spikes/logs/*.ndjson game_reveal events (resolved rounds
 // only — the throws the game judged), replayed in time order per session.
@@ -24,7 +24,8 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CORE = join(HERE, "..", "packages", "core", "dist", "index.js");
-const { decideMove, predictPlayerF, LEVEL_ORDER } = await import(CORE);
+const core = await import(CORE);
+const { LEVEL_ORDER } = core;
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 && args[i + 1] ? args[i + 1] : dflt; };
@@ -32,6 +33,13 @@ const levels = opt("--levels", LEVEL_ORDER.join(",")).split(",");
 const seed = parseInt(opt("--seed", "7"), 10);
 const cross = args.includes("--cross");
 const minHist = parseInt(opt("--min", "5"), 10);
+const engine = opt("--engine", "v2");
+// --tune eta=0.3,alpha=1,edgeMode=hit,tauGain=2 → overrides core.V2_TUNING for this run
+const tune = opt("--tune", "");
+if (tune) for (const kv of tune.split(",")) { const [k, v] = kv.split("="); if (k in core.V2_TUNING) core.V2_TUNING[k] = isNaN(Number(v)) ? v : Number(v); else console.warn("unknown tuning key", k); }
+if (tune) console.log("tuning:", JSON.stringify(core.V2_TUNING));
+const decideMove = engine === "spike" ? core.decideMove : (level, random, hist) => core.decideMoveV2(level, random, hist);
+const predictPlayerF = engine === "spike" ? core.predictPlayerF : (level, hist) => core.predictPlayerFV2(level, hist);
 
 // ------------------------------------------------------------ dataset
 const LOGS = join(HERE, "..", "spikes", "logs");
@@ -52,7 +60,7 @@ for (const f of readdirSync(LOGS).filter((n) => n.endsWith(".ndjson"))) {
 const ordered = [...sessions.entries()].sort((a, b) => a[1].mtime - b[1].mtime);
 for (const [, s] of ordered) s.rounds.sort((a, b) => a.throwIndex - b.throwIndex);
 const total = ordered.reduce((n, [, s]) => n + s.rounds.length, 0);
-console.log(`rounds: ${total} resolved, ${ordered.length} sessions${cross ? " (cross-session memory)" : " (in-session)"}, min history ${minHist}, seed ${seed}\n`);
+console.log(`engine ${engine} · rounds: ${total} resolved, ${ordered.length} sessions${cross ? " (cross-session memory)" : " (in-session)"}, min history ${minHist}, seed ${seed}\n`);
 
 // ------------------------------------------------------------ rng
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
