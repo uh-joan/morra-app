@@ -134,3 +134,18 @@ export const TIMING_COACH = (
 
 // Legacy emoji avatars (superseded by pirate/cast.ts; kept for reference).
 export const AI_LEVEL_AVATAR: Record<string, string> = { L1: "🙂", L2: "🧔", L3: "🧙", L4: "👹" };
+
+// ux-pirates r3: the VERDICT BANNER — the round's outcome, big, over the
+// player card, in the language of "what happened and why". Headlines reuse
+// the frozen strings; the reason is the one line the player needs to fix
+// the next throw. Rendered via textContent only.
+export const VERDICT_BANNER = {
+  win: (pf: number, af: number, total: number, word: string | null): string =>
+    `${pf} + ${af} = ${total} · has dit «${word ?? "?"}»`,
+  loss: (pf: number, af: number, total: number, aiWord: string): string =>
+    `${pf} + ${af} = ${total} · ell ha dit «${aiWord}»`,
+  parata: (pf: number, af: number, total: number, word: string | null, aiWord: string): string =>
+    `ningú l'ha encertat: ${pf} + ${af} = ${total} (tu «${word ?? "?"}», ell «${aiWord}»)`,
+  incompleteHeadline: "INCOMPLETA",
+  incompleteTail: "la mateixa aposta segueix en peu",
+} as const;

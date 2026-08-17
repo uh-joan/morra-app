@@ -16,18 +16,41 @@ import {
   type HistoryEntry,
 } from "@morra/core";
 import { el } from "../dom.js";
-import { GAME_END_TEXT, AI_COMMIT_STATUS, SYNC_OUTCOME_VOID_REASON, SCOREBOARD_TEXT, ROUND_CARD_TEXT, TIMING_COACH } from "../game/copy.js";
+import { GAME_END_TEXT, AI_COMMIT_STATUS, SYNC_OUTCOME_VOID_REASON, SCOREBOARD_TEXT, ROUND_CARD_TEXT, TIMING_COACH, VERDICT_BANNER } from "../game/copy.js";
+
+// ux-pirates r3: the verdict BANNER — same outcomes as the round card, but
+// big and over the player card (where the eyes are). Shown by the resolve
+// renders below, hidden at the next throw's onset (renderGameRoundAnalyzing)
+// and on a fresh round (renderGameRoundPending); CSS dims it once the pill
+// re-arms. Presentation only: it reads the same values the card does.
+type BannerKind = "hit" | "miss" | "parata" | "void" | "incomplete";
+function banner(kind: BannerKind, head: string, reason: string): void {
+  const b = document.getElementById("verdictBanner");
+  const h = document.getElementById("verdictBannerHead");
+  const r = document.getElementById("verdictBannerReason");
+  if (!b || !h || !r) return;
+  b.className = "verdict-banner " + kind;
+  h.textContent = head;
+  r.textContent = reason;
+  b.hidden = false;
+}
+export function hideVerdictBanner(): void {
+  const b = document.getElementById("verdictBanner");
+  if (b) b.hidden = true;
+}
 
 export function renderGameRoundPending(): void {
   el.roundResultCard.className = "verdict-card idle";
   el.roundResultText.textContent = "–";
   el.roundResultDetail.textContent = ROUND_CARD_TEXT.pendingDetail;
+  hideVerdictBanner();
 }
 
 export function renderGameRoundAnalyzing(): void {
   el.roundResultCard.className = "verdict-card pending";
   el.roundResultText.textContent = "…";
   el.roundResultDetail.textContent = ROUND_CARD_TEXT.analyzingDetail;
+  hideVerdictBanner(); // a new throw is on: the last verdict never covers the reveal
 }
 
 export function renderGameIncomplete(
@@ -52,6 +75,7 @@ export function renderGameIncomplete(
   else if (syncOutcome && syncOutcome !== "synced") reason = ROUND_CARD_TEXT.notSynced(syncOutcome);
   else reason = ROUND_CARD_TEXT.unrecognized;
   el.roundResultDetail.textContent = `${reason} — ${ROUND_CARD_TEXT.commitmentStands(commitHash8 ?? "—")}`;
+  banner("incomplete", VERDICT_BANNER.incompleteHeadline, `${reason} · ${VERDICT_BANNER.incompleteTail}`);
 }
 
 // Phase E.2/E.3: the rival was already revealed for this throw (phase 1)
@@ -63,6 +87,7 @@ export function renderGameRoundVoid(syncOutcome: string, syncDeltaMs?: number | 
   const coach = TIMING_COACH(syncOutcome, syncDeltaMs, playerFingers, voicePreWindow);
   const reason = coach || SYNC_OUTCOME_VOID_REASON[syncOutcome as keyof typeof SYNC_OUTCOME_VOID_REASON] || "fora de temps";
   el.roundResultDetail.textContent = `${reason} — torna-hi (el rival ja ha fet una nova aposta)`;
+  banner("void", "RONDA ANUL·LADA", reason);
 }
 
 export function renderGameReveal(
@@ -81,10 +106,18 @@ export function renderGameReveal(
   el.roundResultDetail.textContent =
     `tu: ${playerFingers} dits + "${playerWord}"(${playerCallNumber}) · rival: ${move.fingers} dits + ${aiWord}(${move.call}) · total ${verdict.total}` +
     (verified ? ` · ${ROUND_CARD_TEXT.sealOk}` : ` · ${ROUND_CARD_TEXT.sealFailed}`);
+  if (verdict.winner === "player") banner("hit", "TU GUANYES!", VERDICT_BANNER.win(playerFingers, move.fingers, verdict.total, playerWord));
+  else if (verdict.winner === "ai") banner("miss", "RIVAL GUANYA", VERDICT_BANNER.loss(playerFingers, move.fingers, verdict.total, aiWord));
+  else banner("parata", "PARATA", VERDICT_BANNER.parata(playerFingers, move.fingers, verdict.total, playerWord, aiWord));
 }
 
 export function renderScoreboard(player: number, ai: number): void {
   el.scoreboard.textContent = SCOREBOARD_TEXT(player, ai);
+  // r3: the big numerals in the top strip (the coins next to them are
+  // rendered by pirate/render off the same scoreboard text)
+  const y = document.getElementById("scoreYou"), r = document.getElementById("scoreRival");
+  if (y) y.textContent = String(player);
+  if (r) r.textContent = String(ai);
 }
 
 export function showGameEndBanner(winner: "player" | "ai", playerScore: number, aiScore: number): void {

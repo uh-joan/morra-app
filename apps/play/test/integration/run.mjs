@@ -93,6 +93,24 @@ r.check(
   (await page.$$eval("#rivalHandSvg .finger.extended", (n) => n.length)) === round.aiFingers
 );
 r.check("scoreboard updated or parata", /Tu [01] — [01] Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
+// r3: the score lives on TOP (strip with big numerals + coins), the verdict
+// is a BANNER over the player card, and the player card carries the pill's
+// state as color.
+r.check("score strip visible on top with numerals mirroring the scoreboard", await page.evaluate(() => {
+  const m = /Tu (\d+) — (\d+) Rival/.exec(document.getElementById("scoreboard").textContent);
+  const strip = document.getElementById("scoreStrip");
+  return !!m && getComputedStyle(strip).display === "flex" &&
+    document.getElementById("scoreYou").textContent === m[1] && document.getElementById("scoreRival").textContent === m[2] &&
+    strip.compareDocumentPosition(document.querySelector(".face-off")) & Node.DOCUMENT_POSITION_FOLLOWING;
+}));
+r.check("verdict banner shows the round's headline over the player card", await page.evaluate(() => {
+  const b = document.getElementById("verdictBanner");
+  return !b.hidden && /TU GUANYES|RIVAL GUANYA|PARATA/.test(document.getElementById("verdictBannerHead").textContent) &&
+    document.getElementById("verdictBannerReason").textContent.length > 5 && !!b.closest(".player-side");
+}));
+r.check("player card carries the pill state as data-pill (not-armed right after a resolved throw)", await page.evaluate(() =>
+  ["armed", "not-armed", "analyzing"].includes(document.querySelector(".player-side").dataset.pill) &&
+  document.getElementById("readyPill").closest(".video-wrap") != null));
 r.check("verdict card shows SYNCED", /SYNCED/.test(await page.$eval("#verdictResult", (n) => n.textContent)));
 r.check(
   "treasure coins mirror the scoreboard",

@@ -72,6 +72,18 @@
   <div id="stageScenery" aria-hidden="true"><!-- stage SVG injected --></div>
 
   <div class="arena">
+    <!-- ux-pirates r3: the score lives on TOP, between the two nameplates —
+         your coins fill left→right, the rival's right→left, so the two rows
+         grow toward each other. #scoreboard keeps its id/format (harness +
+         telemetry read "Tu N — M Rival"); it's the visually-hidden caption. -->
+    <div id="scoreStrip" class="score-strip" data-matchpoint="">
+      <span class="ss-label you">TU</span>
+      <div id="coinsPlayer" class="coins"></div>
+      <div class="ss-score"><span id="scoreYou">0</span><span class="ss-dash">—</span><span id="scoreRival">0</span></div>
+      <div id="coinsRival" class="coins rival"></div>
+      <span class="ss-label rival">RIVAL</span>
+      <div class="scoreboard sr-only" id="scoreboard">Tu 0 — 0 Rival</div>
+    </div>
     <div class="face-off">
 
       <!-- Player side -->
@@ -81,6 +93,15 @@
           <div class="video-wrap">
             <video id="camPreview" autoplay muted playsinline></video>
             <canvas id="handOverlay" class="hand-overlay"></canvas>
+            <!-- r3: the ready pill rides ON the video (bottom-center chip); the
+                 whole player card takes its color (data-pill on .player-side) -->
+            <div id="readyPill" class="ready-pill" style="display:none;">Llest — tira!</div>
+            <!-- r3: the round's verdict, big, where the eyes are. Set by
+                 render/gameCards, cleared at the next throw's onset -->
+            <div id="verdictBanner" class="verdict-banner" hidden>
+              <div id="verdictBannerHead" class="vb-head"></div>
+              <div id="verdictBannerReason" class="vb-reason"></div>
+            </div>
           </div>
           <span id="handIndicator" class="hand-indicator"><span class="dot"></span><span id="handIndicatorText">cap mà</span></span>
           <div id="framingHint" class="framing-hint" hidden></div>
@@ -96,7 +117,6 @@
               <div id="bigWordLabel" class="big-number-label">veu apagada</div>
             </div>
           </div>
-          <div id="readyPill" class="ready-pill" style="display:none;">Llest — tira!</div>
         </div>
         <div class="shout-wrap">
           <div id="shoutBadge" class="shout-badge idle">mic apagat</div>
@@ -186,11 +206,6 @@
           <select id="selAiLevel"></select>
         </div>
         <div id="aiLevelDescription" class="hero-prompt"></div>
-        <div class="treasure">
-          <div class="treasure-row"><span class="treasure-label">TU</span><div id="coinsPlayer" class="coins"></div></div>
-          <div class="treasure-row"><span class="treasure-label rival">RIVAL</span><div id="coinsRival" class="coins"></div></div>
-          <div class="scoreboard" id="scoreboard">Tu 0 — 0 Rival</div>
-        </div>
         <div id="roundResultCard" class="verdict-card idle">
           <div class="verdict-result" id="roundResultText">–</div>
           <div class="verdict-detail" id="roundResultDetail">Tira i canta el teu número!</div>
