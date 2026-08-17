@@ -108,6 +108,7 @@ export function renderTrainingPanel(history: readonly HistoryEntry[], scope: Mir
   const syncStats = computeSyncStats(history);
 
   el.tileExploitability.textContent = exploit.rate != null ? `${(exploit.rate * 100).toFixed(0)}%` : "—";
+  el.liveExploit.textContent = exploit.rate != null ? TRAINING_PANEL_TEXT.liveExploit(Number((exploit.rate * 100).toFixed(0))) : TRAINING_PANEL_TEXT.liveExploitNone;
   el.tileRandomness.textContent = randomness ? `${randomness.redundancyPct.toFixed(1)}%` : "—";
   el.tileSyncRate.textContent = syncStats.syncRate != null ? `${(syncStats.syncRate * 100).toFixed(0)}%` : "—";
   el.tileMedianDelta.textContent = syncStats.medianAbsDeltaMs != null ? `${syncStats.medianAbsDeltaMs.toFixed(0)}ms` : "—";
@@ -186,30 +187,45 @@ function rankingFor(history: readonly HistoryEntry[], scope: MirrorScope): Explo
   rankCache.set(scope, { bucket, ranking });
   return ranking;
 }
+function tellItem(t: { sentence: string; pointsPer100: number | null; evidence: { hits: number; n: number }; counterMove: string; id?: string }, full: boolean): HTMLLIElement {
+  const li = document.createElement("li");
+  if (t.id) li.dataset.tell = t.id;
+  const main = document.createElement("div"); main.className = "tell-main"; main.textContent = t.sentence;
+  li.append(main);
+  if (!full) return li;
+  const meta = document.createElement("div"); meta.className = "tell-meta";
+  if (t.pointsPer100 != null) { const price = document.createElement("span"); price.className = "tell-price"; price.textContent = TRAINING_PANEL_TEXT.tellPrice(t.pointsPer100); meta.append(price, " · "); }
+  meta.append(TRAINING_PANEL_TEXT.tellEvidence(t.evidence.hits, t.evidence.n));
+  const counter = document.createElement("div"); counter.className = "tell-counter"; counter.textContent = TRAINING_PANEL_TEXT.tellCounterPrefix + t.counterMove;
+  li.append(meta, counter);
+  return li;
+}
 function renderTells(history: readonly HistoryEntry[], scope: MirrorScope): void {
   const tells = computeTells2(history, rankingFor(history, scope));
-  if (tells.length) {
-    el.tellsList.replaceChildren(
-      ...tells.slice(0, 6).map((t) => {
-        const li = document.createElement("li");
-        li.dataset.tell = t.id;
-        const main = document.createElement("div"); main.className = "tell-main"; main.textContent = t.sentence;
-        const meta = document.createElement("div"); meta.className = "tell-meta";
-        if (t.pointsPer100 != null) { const price = document.createElement("span"); price.className = "tell-price"; price.textContent = TRAINING_PANEL_TEXT.tellPrice(t.pointsPer100); meta.append(price, " · "); }
-        meta.append(TRAINING_PANEL_TEXT.tellEvidence(t.evidence.hits, t.evidence.n));
-        const counter = document.createElement("div"); counter.className = "tell-counter"; counter.textContent = TRAINING_PANEL_TEXT.tellCounterPrefix + t.counterMove;
-        li.append(main, meta, counter);
-        return li;
-      })
-    );
-    return;
+  const rounds = history.filter((h) => h.playerFingers != null).length;
+  // the coach card: the #1 weakness
+  const top = tells[0];
+  if (top) {
+    el.coachLabel.textContent = TRAINING_PANEL_TEXT.coachLabel;
+    el.coachSentence.textContent = top.sentence;
+    el.coachPrice.textContent = top.pointsPer100 != null ? TRAINING_PANEL_TEXT.coachPrice(top.pointsPer100) : "";
+    el.coachEvidence.textContent = TRAINING_PANEL_TEXT.coachEvidence(top.evidence.hits, top.evidence.n);
+    el.coachCounter.textContent = TRAINING_PANEL_TEXT.tellCounterPrefix + top.counterMove;
+    el.liveTopTell.textContent = top.sentence;
+  } else {
+    el.coachLabel.textContent = TRAINING_PANEL_TEXT.coachLabelNone;
+    el.coachSentence.textContent = rounds < 20 ? TRAINING_PANEL_TEXT.coachNoneTooEarly(rounds) : TRAINING_PANEL_TEXT.coachNone;
+    el.coachPrice.textContent = ""; el.coachEvidence.textContent = ""; el.coachCounter.textContent = "";
+    el.liveTopTell.textContent = rounds < 20 ? TRAINING_PANEL_TEXT.coachNoneTooEarly(rounds) : TRAINING_PANEL_TEXT.coachNone;
   }
+  // the others, collapsed under the card
+  const rest = tells.slice(1, 7);
+  el.btnMoreTells.hidden = rest.length === 0;
+  if (rest.length) { el.tellsList.replaceChildren(...rest.map((t) => tellItem(t, true))); return; }
   // the older, cheaper tells trigger on fewer rows — keep them as the early voice
   const early = computeTopTells(history);
-  if (early.length) { el.tellsList.replaceChildren(...early.map((t) => { const li = document.createElement("li"); const main = document.createElement("div"); main.className = "tell-main"; main.textContent = t.sentence; li.append(main); return li; })); return; }
-  const li = document.createElement("li");
-  li.textContent = TRAINING_PANEL_TEXT.tellsEmpty;
-  el.tellsList.replaceChildren(li);
+  if (early.length && !top) { el.coachLabel.textContent = TRAINING_PANEL_TEXT.coachLabel; el.coachSentence.textContent = early[0]!.sentence; el.liveTopTell.textContent = early[0]!.sentence; el.tellsList.replaceChildren(...early.slice(1).map((t) => tellItem({ sentence: t.sentence, pointsPer100: null, evidence: { hits: 0, n: 0 }, counterMove: "" }, false))); el.btnMoreTells.hidden = early.length < 2; return; }
+  el.tellsList.replaceChildren();
 }
 
 // ------------------------------------------------------------ trends: last 30 vs the 30 before

@@ -13,8 +13,9 @@ import { PIRATES, type Pirate } from "./pirate/cast.js";
 import { artWithUniqueIds, PIRATE_ART, WORDMARK_SVG } from "./pirate/art.js";
 import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
+import { renderEspillScreen } from "./training.js";
 
-export type Screen = "title" | "select" | "fight";
+export type Screen = "title" | "select" | "fight" | "espill";
 
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
@@ -119,7 +120,28 @@ export function installScreens(): void {
   setScreen("title");
 
   byId("btnJuga")?.addEventListener("click", () => startOnboarding("partida"));
-  byId("btnEspillTitle")?.addEventListener("click", () => startOnboarding("entrenament"));
+  // L'Espill is its own screen (2026-08-17): reading your game needs no
+  // sensors — it opens directly. Throwing at the mirror (Entrenament) is
+  // the step after, and that one goes through the sensor onboarding.
+  const openEspill = () => { renderEspillScreen(); setScreen("espill"); };
+  byId("btnEspillTitle")?.addEventListener("click", openEspill);
+  el.btnOpenEspill.addEventListener("click", openEspill);
+  el.btnGoToTraining.addEventListener("click", openEspill);
+  el.btnEspillBack.addEventListener("click", () => setScreen("title"));
+  const toTraining = () => startOnboarding("entrenament");
+  el.btnEspillTrain.addEventListener("click", toTraining);
+  el.btnPractica.addEventListener("click", toTraining);
+  el.btnMoreTells.addEventListener("click", () => {
+    const open = el.tellsList.hasAttribute("hidden");
+    el.tellsList.toggleAttribute("hidden", !open);
+    el.btnMoreTells.textContent = open ? "Els altres defectes ▴" : "Els altres defectes ▾";
+  });
+  el.espillTabs.addEventListener("click", (ev) => {
+    const b = (ev.target as HTMLElement).closest("button[data-tab]") as HTMLButtonElement | null;
+    if (!b) return;
+    el.espillPanes.dataset.tab = b.dataset.tab;
+    for (const x of el.espillTabs.querySelectorAll("button")) x.classList.toggle("on", x === b);
+  });
   setOnboardingReadyHook((t) => {
     if (t === "entrenament") {
       setScreen("fight");
@@ -141,7 +163,6 @@ export function installScreens(): void {
   // modes.ts still owns the real state).
   el.btnModePartida.addEventListener("click", () => syncModeDataset("partida"));
   el.btnModeEntrenament.addEventListener("click", () => syncModeDataset("entrenament"));
-  el.btnGoToTraining.addEventListener("click", () => syncModeDataset("entrenament"));
 
   // Level changed from anywhere else (tècnic select, seam): keep the
   // figure in sync.

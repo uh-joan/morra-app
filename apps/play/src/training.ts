@@ -34,7 +34,12 @@ function trainingHistorySource() {
 }
 
 export function renderTrainingPanelIfActive(): void {
-  if (getSessionMode() !== "entrenament") return;
+  if (getSessionMode() !== "entrenament" && document.body.dataset.screen !== "espill") return;
+  renderTrainingPanel(trainingHistorySource(), mirrorScope);
+}
+/** The L'Espill screen renders on open regardless of mode (it needs no
+ * sensors — it reads the profile). Same renderer, same ids. */
+export function renderEspillScreen(): void {
   renderTrainingPanel(trainingHistorySource(), mirrorScope);
 }
 

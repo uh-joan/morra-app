@@ -19,7 +19,7 @@
   <button id="btnToTitle" class="bar-logo" title="Torna al port">🏴‍☠️ <strong>Morra</strong></button>
   <nav class="bar-modes">
     <button id="btnModePartida" class="primary">⚔️ El duel</button>
-    <button id="btnModeEntrenament">🪞 L'Espill</button>
+    <button id="btnModeEntrenament">🎯 Entrenament</button>
     <button id="btnRivalHud" class="ghost">Canvia de rival</button>
   </nav>
   <div class="bar-profile" id="profileControls">
@@ -144,80 +144,15 @@
         <div id="aiCommitStatus" class="rival-commit-status" title="Aposta segellada abans de la teva tirada — mode tècnic (T) per verificar">—</div>
       </div>
 
-      <!-- L'Espill (Entrenament) -->
-      <div class="training-panel" id="trainingPanel" style="display:none;">
-        <div class="training-head">🪞 L'Espill — el teu joc, al mirall</div>
-        <div class="training-section calib-section">
-          <h3>Calibratge — que et llegeixi bé</h3>
-          <p class="calib-blurb">Cinc tirades guiades i el joc s'ajusta a la teva mà, el teu crit i aquesta càmera. Per a aquest perfil; les regles no canvien.</p>
-          <div class="row">
-            <button id="btnCalibrate" class="primary">Calibra ara</button>
-            <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
-          </div>
-          <div id="calibStatus" class="calib-status"></div>
-        </div>
-        <div class="training-tiles" id="trainingTiles">
-          <div class="training-tile"><div class="training-tile-value" id="tileExploitability">—</div><div class="training-tile-label">Explotabilitat</div></div>
-          <div class="training-tile"><div class="training-tile-value" id="tileRandomness">—</div><div class="training-tile-label">Aleatorietat</div></div>
-          <div class="training-tile"><div class="training-tile-value" id="tileSyncRate">—</div><div class="training-tile-label">Sincronia</div></div>
-          <div class="training-tile"><div class="training-tile-value" id="tileMedianDelta">—</div><div class="training-tile-label">Δ mediana</div></div>
-        </div>
-        <div class="row" id="mirrorScopeRow">
-          <button id="btnScopeSession" class="primary">Aquesta sessió</button>
-          <button id="btnScopeAllTime">Tot el temps</button>
-          <span id="trainingSampleCount" class="hero-prompt"></span>
-        </div>
-        <div class="training-trends" id="trendStrip"></div>
-        <div class="training-section">
-          <h3>Els teus números</h3>
-          <div class="training-hist-row">
-            <div class="training-hist-col">
-              <div class="training-hist-title">Dits (f)</div>
-              <ul id="fHistogram" class="training-hist-list"></ul>
-            </div>
-            <div class="training-hist-col">
-              <div class="training-hist-title">Endevinalles (g)</div>
-              <ul id="gHistogram" class="training-hist-list"></ul>
-            </div>
-            <div class="training-hist-col">
-              <div class="training-hist-title">Crits més usats</div>
-              <ul id="topCallsList" class="training-hist-list"></ul>
-            </div>
-          </div>
-        </div>
-        <div class="training-section">
-          <h3>Els teus defectes <span class="training-sub">— ordenats pel que li valen al rival</span></h3>
-          <ul id="tellsList" class="training-tells-list"></ul>
-        </div>
-        <div class="training-section training-read" id="readSection">
-          <h3>El que veu El Rei</h3>
-          <p id="readHeadline" class="training-read-headline">—</p>
-          <div class="training-hist-row">
-            <div class="training-hist-col">
-              <div class="training-hist-title">Què creu que tiraràs</div>
-              <ul id="readFBelief" class="training-hist-list"></ul>
-            </div>
-            <div class="training-hist-col">
-              <div class="training-hist-title">Què el guia</div>
-              <ul id="readDrivers" class="training-hist-list"></ul>
-            </div>
-            <div class="training-hist-col">
-              <div class="training-hist-title">On creu que miraràs</div>
-              <ul id="readGBelief" class="training-hist-list"></ul>
-            </div>
-          </div>
-          <p id="readSelfWatch" class="training-read-note"></p>
-        </div>
-        <div class="training-section">
-          <h3>Seqüència — després de tirar X, tires Y</h3>
-          <div id="bigramHeatmap" class="training-heatmap"></div>
-        </div>
-        <div class="row training-actions">
-          <button id="btnExportProfile">Exporta perfil (JSON)</button>
-          <button id="btnResetProfile" class="danger">Reinicia perfil</button>
+      <!-- Entrenament: the live strip (throw at the mirror; the full mirror is its own screen) -->
+      <div class="training-panel training-live" id="trainingPanel" style="display:none;">
+        <div class="training-head">🎯 Entrenament — tira, i mira't</div>
+        <p class="live-tell" id="liveTopTell">—</p>
+        <p class="live-exploit" id="liveExploit">—</p>
+        <div class="row">
+          <button id="btnOpenEspill" class="btn-parchment">🪞 Obre L'Espill</button>
         </div>
       </div>
-    </div>
 
     <!-- Round / verdict column -->
     <div class="beat-wrap">
@@ -267,6 +202,120 @@
         <div id="syncNaturalLead" class="hero-prompt" style="display:none;"></div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ================= L'ESPILL (its own screen) ================= -->
+<section id="screenEspill" class="screen">
+  <div class="espill-wrap">
+    <header class="espill-head">
+      <div>
+        <h1 class="espill-title">🪞 L'Espill</h1>
+        <p class="espill-tag">el teu joc, al mirall — el que un bon rival veuria de tu</p>
+      </div>
+      <div class="espill-scope">
+        <button id="btnScopeSession" class="primary">Aquesta sessió</button>
+        <button id="btnScopeAllTime">Tot el temps</button>
+        <span id="trainingSampleCount" class="espill-count"></span>
+      </div>
+    </header>
+
+    <section class="coach-card" id="coachCard">
+      <div class="coach-label" id="coachLabel">El teu punt feble</div>
+      <p class="coach-sentence" id="coachSentence">—</p>
+      <div class="coach-row">
+        <span class="coach-price" id="coachPrice"></span>
+        <span class="coach-evidence" id="coachEvidence"></span>
+      </div>
+      <p class="coach-counter" id="coachCounter"></p>
+      <div class="coach-actions">
+        <button id="btnPractica" class="btn-gold">🎯 Practica-ho</button>
+        <button id="btnMoreTells" class="btn-parchment">Els altres defectes ▾</button>
+      </div>
+      <ul id="tellsList" class="training-tells-list coach-more" hidden></ul>
+    </section>
+
+    <div class="training-trends" id="trendStrip"></div>
+
+    <nav class="espill-tabs" id="espillTabs">
+      <button data-tab="rei" class="on">El que veu El Rei</button>
+      <button data-tab="numeros">Els teus números</button>
+      <button data-tab="sequencia">Seqüència</button>
+      <button data-tab="perfil">Perfil i calibratge</button>
+    </nav>
+
+    <div class="espill-panes" id="espillPanes" data-tab="rei">
+      <div class="espill-pane" data-tab="rei">
+        <div class="training-section training-read" id="readSection">
+          <p id="readHeadline" class="training-read-headline">—</p>
+          <div class="training-hist-row">
+            <div class="training-hist-col">
+              <div class="training-hist-title">Què creu que tiraràs</div>
+              <ul id="readFBelief" class="training-hist-list"></ul>
+            </div>
+            <div class="training-hist-col">
+              <div class="training-hist-title">Què el guia</div>
+              <ul id="readDrivers" class="training-hist-list"></ul>
+            </div>
+            <div class="training-hist-col">
+              <div class="training-hist-title">On creu que miraràs</div>
+              <ul id="readGBelief" class="training-hist-list"></ul>
+            </div>
+          </div>
+          <p id="readSelfWatch" class="training-read-note"></p>
+        </div>
+      </div>
+      <div class="espill-pane" data-tab="numeros">
+        <div class="training-tiles" id="trainingTiles">
+          <div class="training-tile"><div class="training-tile-value" id="tileExploitability">—</div><div class="training-tile-label">Explotabilitat</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileRandomness">—</div><div class="training-tile-label">Aleatorietat</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileSyncRate">—</div><div class="training-tile-label">Sincronia</div></div>
+          <div class="training-tile"><div class="training-tile-value" id="tileMedianDelta">—</div><div class="training-tile-label">Δ mediana</div></div>
+        </div>
+        <div class="training-section">
+          <div class="training-hist-row">
+            <div class="training-hist-col">
+              <div class="training-hist-title">Dits (f)</div>
+              <ul id="fHistogram" class="training-hist-list"></ul>
+            </div>
+            <div class="training-hist-col">
+              <div class="training-hist-title">Endevinalles (g)</div>
+              <ul id="gHistogram" class="training-hist-list"></ul>
+            </div>
+            <div class="training-hist-col">
+              <div class="training-hist-title">Crits més usats</div>
+              <ul id="topCallsList" class="training-hist-list"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="espill-pane" data-tab="sequencia">
+        <div class="training-section">
+          <h3>Després de tirar X, tires Y</h3>
+          <div id="bigramHeatmap" class="training-heatmap"></div>
+        </div>
+      </div>
+      <div class="espill-pane" data-tab="perfil">
+        <div class="training-section calib-section">
+          <h3>Calibratge — que et llegeixi bé</h3>
+          <p class="calib-blurb">Cinc tirades guiades i el joc s'ajusta a la teva mà, el teu crit i aquesta càmera. Per a aquest perfil; les regles no canvien.</p>
+          <div class="row">
+            <button id="btnCalibrate" class="primary">Calibra ara</button>
+            <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
+          </div>
+          <div id="calibStatus" class="calib-status"></div>
+        </div>
+        <div class="row training-actions">
+          <button id="btnExportProfile">Exporta perfil (JSON)</button>
+          <button id="btnResetProfile" class="danger">Reinicia perfil</button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="espill-foot">
+      <button id="btnEspillBack" class="ghost">← Torna al port</button>
+      <button id="btnEspillTrain" class="btn-parchment">🎯 Entrenament — tira al mirall</button>
+    </footer>
   </div>
 </section>
 

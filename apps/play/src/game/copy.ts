@@ -82,6 +82,15 @@ export const TRAINING_PANEL_TEXT = {
   tellPrice: (pts: number) => `${pts >= 0 ? "+" : ""}${pts.toFixed(1).replace(".", ",")} punts/100`,
   tellEvidence: (hits: number, n: number) => `${hits} de ${n}`,
   tellCounterPrefix: "El Rei: ",
+  // the coach card (L'Espill screen hero) and the Entrenament live strip
+  coachLabel: "El teu punt feble",
+  coachLabelNone: "Cap punt feble clar",
+  coachNone: "Encara no et veig cap costum clar. Tira una mica més i torna.",
+  coachNoneTooEarly: (n: number) => `Amb ${n} tir${n === 1 ? "" : "s"} encara no puc dir res. En calen uns 20.`,
+  coachPrice: (pts: number) => `${pts >= 0 ? "+" : ""}${pts.toFixed(1).replace(".", ",")} punts cada 100 rondes per al rival`,
+  coachEvidence: (hits: number, n: number) => `${hits} de ${n} vegades`,
+  liveExploit: (pct: number) => `El Rei et llegeix el ${pct}% — 20% és una moneda.`,
+  liveExploitNone: "El Rei encara no té prou tirs per llegir-te.",
   // trends strip — last 30 vs the 30 before
   trendTitle: (n: number) => `Últims ${n} tirs vs els ${n} d'abans`,
   trendTooEarly: "Els canvis es veuran quan hi hagi 60 tirs.",

@@ -54,3 +54,28 @@ stay cheap. On the 120-round session: read 30% in the last 30 vs 50% in
 the 30 before.
 
 Next: the shadow-rival meter in Entrenament, then missions.
+
+## 8. The layout, second pass — L'Espill is its own screen (coach card)
+
+The first layout was right in numbers and wrong in shape: a wall of
+same-weight tan boxes in the fight screen's side column, no hierarchy, no
+"so what". Second pass (decided with Jani: coach card, own screen):
+
+- **`#screenEspill`**, full width, a parchment sheet on the night sea.
+  Opens from the title's "L'Espill" directly — reading your game needs no
+  sensors. Throwing at the mirror (Entrenament) is the step after, through
+  the sensor onboarding ("Practica-ho", "Entrenament — tira al mirall").
+- **The coach card** is the hero: "EL TEU PUNT FEBLE" — the #1 tell as a
+  24px serif sentence, the price ("+9,7 punts cada 100 rondes per al
+  rival"), the evidence ("14 de 24 vegades"), El Rei's counter-move as a
+  quoted line, "Practica-ho" and "Els altres defectes ▾" (collapsed list of
+  the next six, each with price · evidence · counter-move).
+- **One slim trend line** (last 30 vs the 30 before) under the card.
+- **Tabs** for the detail: El que veu El Rei · Els teus números (tiles,
+  histograms) · Seqüència (heatmap) · Perfil i calibratge (calibratge,
+  export/reset).
+- **Entrenament** keeps a compact **live strip** in the fight screen: the
+  #1 tell as one line, "El Rei et llegeix el 34% — 20% és una moneda",
+  "Obre L'Espill". The top-bar mode button now says "Entrenament" (the
+  mirror is no longer a mode).
+Same renderer, same ids — the numbers did not move. Verified headless.
