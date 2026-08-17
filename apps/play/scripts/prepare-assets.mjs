@@ -88,19 +88,32 @@ const VENDOR_FILES = [
   ["vosk/vosk.worker.js", "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.worker.js", false],
 ];
 
+// jsdelivr's +esm bundles end in `//# sourceMappingURL=/sm/<hash>.map` — a
+// path on the CDN. Served from our own origin, Vite tries to read /sm/… off
+// the local disk and logs an ENOENT on every dev start (harmless: only the
+// devtools source map is affected). Strip the comment from vendored .mjs
+// files; also runs on cached copies so an already-vendored file gets fixed.
+function stripCdnSourceMap(dest) {
+  if (!dest.endsWith(".mjs") && !dest.endsWith(".js")) return;
+  const text = readFileSync(dest, "utf8");
+  const stripped = text.replace(/\n\/\/# sourceMappingURL=\/sm\/[^\n]*\n?$/, "\n");
+  if (stripped !== text) writeFileSync(dest, stripped);
+}
+
 async function vendorCdnAssets() {
   let ok = 0, cached = 0, failed = 0;
   for (const [rel, url, required] of VENDOR_FILES) {
     const dest = rel.startsWith("__SRC__")
       ? join(APP_ROOT, "src", rel.slice("__SRC__".length))
       : join(VENDOR_DIR, rel);
-    if (existsSync(dest) && statSync(dest).size > 0) { cached++; continue; }
+    if (existsSync(dest) && statSync(dest).size > 0) { stripCdnSourceMap(dest); cached++; continue; }
     mkdirSync(dirname(dest), { recursive: true });
     try {
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const buf = Buffer.from(await resp.arrayBuffer());
       writeFileSync(dest, buf);
+      stripCdnSourceMap(dest);
       ok++;
       console.log(`prepare-assets: vendored ${rel} (${(buf.length / 1024 / 1024).toFixed(1)} MB)`);
     } catch (err) {

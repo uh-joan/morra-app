@@ -67,7 +67,9 @@ export const HAND_FRAME_HISTORY_MS = 3000;  // finger-count history ring retaine
 // restricts output to the morra number words (+ "tot"/"deu" all-in calls)
 // plus the reject class.
 // ux-pirates r2: vendored by prepare-assets.mjs (offline play); the CDN
-// originals are recorded there. Byte-identical files, local origin.
+// originals are recorded there. Same bytes, local origin — except the CDN
+// sourceMappingURL comment, which prepare-assets strips (it points at
+// jsdelivr's /sm/ path and makes Vite log an ENOENT on every dev start).
 export const VOSK_CDN_URL = "/assets/vendor/vosk/vosk.js";
 export const VOSK_MODEL_URL = "/assets/vosk-model/vosk-model-small-ca-0.4.zip";
 export const VOSK_SAMPLE_RATE = 16000;
