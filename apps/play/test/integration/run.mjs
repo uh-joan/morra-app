@@ -109,8 +109,8 @@ await page.waitForFunction(() => document.getElementById("selAiLevel").value ===
 await page.evaluate(() => { location.hash = "#/"; });
 await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
 await new Promise((r2) => setTimeout(r2, 100));
-const home = await page.evaluate(() => ({ vs: document.getElementById("homeVs").textContent, wordmark: document.querySelectorAll("#titleWordmark svg").length }));
-r.check("home names the standing rival under Juga (the character is parked)", /Bru/.test(home.vs) && home.wordmark === 1, JSON.stringify(home));
+const home = await page.evaluate(() => ({ vs: document.getElementById("homeVs").textContent, wordmark: document.querySelectorAll("#titleWordmark img").length }));
+r.check("home names the standing rival under Juga; the wordmark image is mounted", /Bru/.test(home.vs) && home.wordmark === 1, JSON.stringify(home));
 await page.click("#btnJuga");
 await page.waitForFunction(() => document.body.dataset.screen === "fight" && document.body.dataset.mode === "partida", { timeout: 5000 });
 r.check("Juga goes straight to that table (no select): #/duel/bru", (await page.evaluate(() => location.hash)) === "#/duel/bru");

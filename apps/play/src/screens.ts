@@ -177,8 +177,11 @@ function syncModeDataset(mode: "partida" | "entrenament"): void {
 }
 
 export function installScreens(): void {
+  // The wordmark is an image (public/wordmark.png); the authored SVG stays
+  // as the fallback if the asset fails to load.
   const wordmark = byId("titleWordmark");
-  if (wordmark) wordmark.innerHTML = WORDMARK_SVG; // constant authored art
+  const img = byId("wordmarkImg") as HTMLImageElement | null;
+  if (wordmark && img) img.addEventListener("error", () => { wordmark.innerHTML = WORDMARK_SVG; }, { once: true });
   buildSelectGrid();
   installPirateChoreography();
   installOnboarding();
