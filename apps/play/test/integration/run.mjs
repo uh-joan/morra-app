@@ -85,21 +85,26 @@ await page.click("#pirateCard-L2");
 await page.waitForFunction(() => document.body.dataset.screen === "fight", { timeout: 5000 });
 await page.waitForFunction(() => !document.body.classList.contains("vs-on"), { timeout: 5000 });
 r.check("character select enters the fight", true);
-// Entrenament from the character select goes straight to the fight with the Entrenament pill lit (2026-08-17)
+// The rival is a dimension of both modes (2026-08-17): on the tripulants screen the pill is the intent and
+// stays; choosing a rival keeps it — in Entrenament that is sparring (rival side + strip), route #/entrena/:rival
 const pill = await page.evaluate(() => {
   document.body.dataset.screen = "select";
   document.getElementById("btnModeEntrenament").click();
-  const r1 = { screen: document.body.dataset.screen, ent: document.getElementById("btnModeEntrenament").classList.contains("primary"), duel: document.getElementById("btnModePartida").classList.contains("primary") };
-  document.getElementById("btnModePartida").click();
-  return r1;
+  const r1 = { screen: document.body.dataset.screen, ent: document.getElementById("btnModeEntrenament").classList.contains("primary"), hash: location.hash, soloCardShown: getComputedStyle(document.getElementById("pirateCard-sol")).display !== "none" };
+  document.getElementById("pirateCard-L2").click();
+  const r2 = { screen2: document.body.dataset.screen, hash2: location.hash, mode2: document.body.dataset.mode, sparring: document.body.dataset.sparring, rivalShown: document.getElementById("rivalSide").style.display !== "none", stripShown: document.getElementById("trainingPanel").style.display !== "none", head: document.getElementById("trainingHead").textContent };
+  return { ...r1, ...r2 };
 });
-r.check("Entrenament from the select screen lands on the fight with its pill lit", pill.screen === "fight" && pill.ent && !pill.duel, JSON.stringify(pill));
-await page.evaluate(() => { location.hash = "#/entrena"; });
-await page.waitForFunction(() => document.body.dataset.mode === "entrenament" && document.body.dataset.screen === "fight", { timeout: 3000 });
-r.check("route #/entrena (sensors up) lands on the fight in Entrenament", await page.evaluate(() => document.getElementById("btnModeEntrenament").classList.contains("primary")));
-await page.evaluate(() => { location.hash = "#/duel"; });
+r.check("Entrenament pill on the tripulants screen stays there as the intent (?per=entrena, solo card shown)", pill.screen === "select" && pill.ent && pill.hash === "#/tripulants?per=entrena" && pill.soloCardShown, JSON.stringify(pill));
+r.check("choosing Bru in Entrenament starts sparring: #/entrena/bru, rival side + strip, head names him", pill.screen2 === "fight" && pill.hash2 === "#/entrena/bru" && pill.mode2 === "entrenament" && pill.sparring === "on" && pill.rivalShown && pill.stripShown && /Bru/.test(pill.head), JSON.stringify(pill));
+await page.evaluate(() => { document.body.classList.remove("vs-on"); location.hash = "#/entrena/sol"; });
+await page.waitForFunction(() => document.body.dataset.solo === "on", { timeout: 3000 });
+r.check("route #/entrena/sol: solo training — no rival side, strip head says sol", await page.evaluate(() => document.getElementById("rivalSide").style.display === "none" && /sol/.test(document.getElementById("trainingHead").textContent) && document.getElementById("readingBox").hidden));
+await page.evaluate(() => { location.hash = "#/duel/rei"; });
 await page.waitForFunction(() => document.body.dataset.mode === "partida", { timeout: 3000 });
-r.check("route #/duel flips back to Partida", await page.evaluate(() => document.getElementById("btnModePartida").classList.contains("primary") && location.hash === "#/duel"));
+r.check("route #/duel/rei: Partida against El Rei", await page.evaluate(() => document.getElementById("btnModePartida").classList.contains("primary") && document.getElementById("selAiLevel").value === "L4" && location.hash === "#/duel/rei"));
+await page.evaluate(() => { location.hash = "#/duel/bru"; });
+await page.waitForFunction(() => document.getElementById("selAiLevel").value === "L2", { timeout: 3000 });
 r.check("stage scenery mounted", (await page.$$eval("#stageScenery svg", (n) => n.length)) >= 1);
 r.check("corsair figure mounted", (await page.$$eval("#rivalAvatar svg", (n) => n.length)) === 1);
 

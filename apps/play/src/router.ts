@@ -5,11 +5,11 @@
 // screens.ts/modes.ts keep setting the screen and mode as before and call
 // reflectRoute(); the router only translates.
 //
-//   #/            title
-//   #/tripulants  character select
-//   #/duel        fight, Partida
-//   #/entrena     fight, Entrenament
-//   #/espill      L'Espill (+ ?tab=rei|numeros|sequencia)
+//   #/                    title
+//   #/tripulants          character select (?per=duel|entrena — the intent)
+//   #/duel/:rival         fight, Partida, against nino|bru|merce|rei
+//   #/entrena/:rival      fight, Entrenament — sparring with a rival, or "sol"
+//   #/espill              L'Espill (+ ?tab=rei|numeros|sequencia)
 //
 // Query flags (?rival=, ?tecnic=1, ?entorn=, …) are per-load config in
 // location.search and stay untouched. The VS splash, the end-of-match
@@ -28,22 +28,30 @@ export function routeFor(screen: Screen, mode: Mode): Route {
   if (screen === "fight") return mode === "entrenament" ? "entrena" : "duel";
   return screen === "select" ? "select" : screen === "espill" ? "espill" : "title";
 }
-export function hashFor(route: Route, params: RouteParams = {}): string {
+/** `rival` is the path segment for duel/entrena (nino|bru|merce|rei, or "sol"). */
+export function hashFor(route: Route, params: RouteParams = {}, rival: string | null = null): string {
   const q = new URLSearchParams(params).toString();
-  return PATHS[route] + (q ? "?" + q : "");
+  const seg = (route === "duel" || route === "entrena") && rival ? "/" + rival : "";
+  return PATHS[route] + seg + (q ? "?" + q : "");
 }
-export function parseHash(hash: string): { route: Route; params: RouteParams } | null {
+export function parseHash(hash: string): { route: Route; params: RouteParams; rival: string | null } | null {
   const h = hash || "#/";
-  const [path, query = ""] = h.split("?") as [string, string?];
-  const route = BY_PATH.get(path === "#" || path === "" ? "#/" : path);
+  const [pathRaw, query = ""] = h.split("?") as [string, string?];
+  const path = pathRaw === "#" || pathRaw === "" ? "#/" : pathRaw;
+  let route = BY_PATH.get(path), rival: string | null = null;
+  if (!route) {
+    // #/duel/bru · #/entrena/sol
+    const m = /^(#\/(?:duel|entrena))\/([a-z]+)$/.exec(path);
+    if (m) { route = BY_PATH.get(m[1]!); rival = m[2]!; }
+  }
   if (!route) return null;
-  return { route, params: Object.fromEntries(new URLSearchParams(query)) };
+  return { route, params: Object.fromEntries(new URLSearchParams(query)), rival };
 }
 
 // ------------------------------------------------------------ apply / reflect
 export interface RouteHandlers {
   /** apply a route to the app; called on back/forward, deep link and boot */
-  apply: (route: Route, params: RouteParams) => void;
+  apply: (route: Route, params: RouteParams, rival: string | null) => void;
 }
 let handlers: RouteHandlers | null = null;
 let applying = false;
@@ -51,17 +59,17 @@ let applying = false;
 /** Mirror the app's state into the hash. Screen changes push (a back
  * entry); mode/tab changes replace. No-op when the hash already matches or
  * while a route is being applied (that came FROM the hash). */
-export function reflectRoute(screen: Screen, mode: Mode, params: RouteParams = {}, kind: "push" | "replace" = "push"): void {
+export function reflectRoute(screen: Screen, mode: Mode, params: RouteParams = {}, kind: "push" | "replace" = "push", rival: string | null = null): void {
   if (applying || typeof location === "undefined") return;
-  const next = hashFor(routeFor(screen, mode), params);
+  const next = hashFor(routeFor(screen, mode), params, rival);
   if (location.hash === next) return;
   if (kind === "push" && location.hash !== "") history.pushState(null, "", next);
   else history.replaceState(null, "", next);
   logEvent("route", { hash: next, kind });
 }
 
-export function currentRoute(): { route: Route; params: RouteParams } {
-  return parseHash(location.hash) ?? { route: "title", params: {} };
+export function currentRoute(): { route: Route; params: RouteParams; rival: string | null } {
+  return parseHash(location.hash) ?? { route: "title", params: {}, rival: null };
 }
 
 /** Wire the router: back/forward and typed hashes call `apply`; the boot
@@ -71,16 +79,16 @@ export function installRouter(h: RouteHandlers): void {
   handlers = h;
   window.addEventListener("hashchange", () => {
     const r = parseHash(location.hash);
-    if (!r) { history.replaceState(null, "", "#/"); applyRoute("title", {}); return; }
-    applyRoute(r.route, r.params);
+    if (!r) { history.replaceState(null, "", "#/"); applyRoute("title", {}, null); return; }
+    applyRoute(r.route, r.params, r.rival);
   });
   const boot = parseHash(location.hash);
   if (!boot) history.replaceState(null, "", "#/");
-  else if (boot.route !== "title") applyRoute(boot.route, boot.params);
+  else if (boot.route !== "title") applyRoute(boot.route, boot.params, boot.rival);
 }
-function applyRoute(route: Route, params: RouteParams): void {
+function applyRoute(route: Route, params: RouteParams, rival: string | null): void {
   if (!handlers) return;
   applying = true;
-  try { handlers.apply(route, params); } finally { applying = false; }
-  logEvent("route_apply", { route, params });
+  try { handlers.apply(route, params, rival); } finally { applying = false; }
+  logEvent("route_apply", { route, params, rival });
 }
