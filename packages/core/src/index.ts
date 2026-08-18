@@ -16,3 +16,4 @@ export type { CharacterRenderer, CharacterRenderState } from "./ports/character-
 export * from "./ai2.js";
 export * from "./mirror2.js";
 export * from "./tells2.js";
+export * from "./missions.js";

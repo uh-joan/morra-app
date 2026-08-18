@@ -348,3 +348,32 @@ game round has `gameHandled`); a throw finalized twice fed the model twice.
 Guarded (`trainingRecorded`).
 
 Next: missions behind "Practica-ho".
+
+## 10. Missions — built
+
+Core `missions.ts` (pure, tested): a mission is a spec built from a tell —
+**Trenca el patró** for order-1/order-2 (after A [and B], not the habitual
+next; ≤ 30% over the context throws, 20/25 throws, ≥ 3 contexts to judge),
+**Deslliga la crida** for the weld (showing F, don't call F+G), **Que no et
+llegeixi** for everything else (the shadow's silent read hits ≤ 5 of 20),
+and **Cobreix el tauler** as a standing option (every digit 12–28% over 25
+throws, shadow ≤ 7). `missionProgress` evaluates the throws made under the
+mission against the history that stood before it (contexts for the first
+throws), with per-throw feedback bad/good/neutral and the verdict at N
+(pass / fail / undecidable when the context never came up).
+
+App: the Entrenament strip runs it — title, progress bar, the goal, the
+live rate vs target ("4 després d'un 3: 1 de 4 (25%) — objectiu ≤ 30%"),
+the per-throw line ("Aquest 5 després d'un 3 — ben trencat." / "… el rival
+l'esperava."), the verdict with Torna-hi / Tanca, Prou to stop; every
+phase logged (`training_mission`: start / done with pass, rate, shadow
+hits, ms / stop / close). "Practica-ho" on the coach card queues the
+mission for the #1 tell and starts it when Entrenament opens; the strip's
+button targets the same tell; "Cobreix el tauler" is always there.
+
+Also: from the character select, the Entrenament pill goes straight to
+the fight (choosing a rival afterwards flipped the mode back to Partida).
+
+Verification of the loop still lives in Partida: the tell fades or it
+doesn't. Next: badges when a tell drops out of the coach card, and the
+post-match card from the rival's side.
