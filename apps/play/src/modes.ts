@@ -18,6 +18,7 @@ import { renderRivalCommitted } from "./render/rival.js";
 import { preloadRivalVoiceClips } from "./rivalVoice.js";
 import { renderReadyPill } from "./readyPill.js";
 import { missionArm, renderTrainingPanelIfActive, shadowArm } from "./training.js";
+import { reflectRoute, type Screen as RouteScreen } from "./router.js";
 
 export function setSessionMode(mode: SessionMode): void {
   if (getSessionMode() === mode) return;
@@ -44,6 +45,9 @@ export function setSessionMode(mode: SessionMode): void {
   }
   if (mode === "entrenament") { shadowArm(); renderTrainingPanelIfActive(); missionArm(); }
   renderReadyPill();
+  // the mode is part of the route (#/duel vs #/entrena) — a mode flip replaces, never pushes
+  const screen = (document.body.dataset.screen ?? "title") as RouteScreen;
+  if (screen === "fight") reflectRoute(screen, mode, {}, "replace");
 }
 
 export function installModes(): void {

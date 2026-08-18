@@ -14,6 +14,9 @@ import { artWithUniqueIds, PIRATE_ART, WORDMARK_SVG } from "./pirate/art.js";
 import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
 import { queueMission, renderEspillScreen } from "./training.js";
+import { getSessionMode } from "./game.js";
+import { syncReady } from "./analysis.js";
+import { installRouter, reflectRoute, type Route, type RouteParams } from "./router.js";
 import { getLastTopTell } from "./render/training.js";
 import { missionForTell } from "@morra/core";
 
@@ -22,6 +25,12 @@ export type Screen = "title" | "select" | "fight" | "espill";
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
   logEvent("screen_change", { screen: s });
+  reflectRoute(s, getSessionMode(), s === "espill" ? { tab: el.espillPanes.dataset.tab ?? "rei" } : {});
+}
+function selectEspillTab(tab: string): void {
+  if (!el.espillTabs.querySelector(`button[data-tab="${tab}"]`)) return;
+  el.espillPanes.dataset.tab = tab;
+  for (const x of el.espillTabs.querySelectorAll("button")) x.classList.toggle("on", x.dataset.tab === tab);
 }
 
 function byId(id: string): HTMLElement | null {
@@ -141,9 +150,9 @@ export function installScreens(): void {
   });
   el.espillTabs.addEventListener("click", (ev) => {
     const b = (ev.target as HTMLElement).closest("button[data-tab]") as HTMLButtonElement | null;
-    if (!b) return;
-    el.espillPanes.dataset.tab = b.dataset.tab;
-    for (const x of el.espillTabs.querySelectorAll("button")) x.classList.toggle("on", x === b);
+    if (!b || !b.dataset.tab) return;
+    selectEspillTab(b.dataset.tab);
+    reflectRoute("espill", getSessionMode(), { tab: b.dataset.tab }, "replace");
   });
   setOnboardingReadyHook((t) => {
     if (t === "entrenament") {
@@ -176,4 +185,31 @@ export function installScreens(): void {
   // Level changed from anywhere else (tècnic select, seam): keep the
   // figure in sync.
   el.selAiLevel.addEventListener("change", () => setPirate(el.selAiLevel.value));
+
+  // Routes (router.ts): back/forward, reload and deep links. A route that
+  // needs the sensors (duel, entrena, tripulants) and doesn't have them
+  // opens the onboarding with that target — the same card "Juga" opens.
+  installRouter({
+    apply: (route: Route, params: RouteParams) => {
+      switch (route) {
+        case "title": setScreen("title"); break;
+        case "select": if (syncReady()) setScreen("select"); else startOnboarding("partida"); break;
+        case "duel":
+          if (syncReady()) { setScreen("fight"); setSessionMode("partida"); syncModeDataset("partida"); }
+          else startOnboarding("partida");
+          break;
+        case "entrena":
+          if (syncReady()) { setScreen("fight"); setSessionMode("entrenament"); syncModeDataset("entrenament"); }
+          else startOnboarding("entrenament");
+          break;
+        case "espill":
+          renderEspillScreen();
+          if (params.tab) selectEspillTab(params.tab);
+          setScreen("espill");
+          break;
+      }
+    },
+  });
+  // Backing out of the onboarding card leaves the URL on the title.
+  byId("obBack")?.addEventListener("click", () => reflectRoute("title", getSessionMode(), {}, "replace"));
 }

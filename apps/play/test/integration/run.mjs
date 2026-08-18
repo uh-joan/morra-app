@@ -43,6 +43,8 @@ r.check("7 status chips render", (await page.$$eval(".status-chip", (n) => n.len
 r.check("session id in footer", /session [0-9a-f]{8}/.test(await page.$eval("#sessionIdFooter", (n) => n.textContent)));
 r.check("commitment minted at boot", /Opponent committed: [0-9a-f]{8}/.test(await page.$eval("#aiCommitStatus", (n) => n.textContent)));
 r.check("boots on the title screen", (await page.evaluate(() => document.body.dataset.screen)) === "title");
+// Routes (2026-08-17): the hash mirrors screen+mode; back/forward and deep links apply
+r.check("boot lands on #/", (await page.evaluate(() => location.hash)) === "#/");
 // L'Espill is its own screen (2026-08-17): opens from the title without sensors, shows the coach card, tabs switch, back returns to port
 await page.click("#btnEspillTitle");
 await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
@@ -53,8 +55,19 @@ const espill = await page.evaluate(() => {
 r.check("L'Espill opens as its own screen from the title", espill.screen === "espill" && espill.modeBarHidden, JSON.stringify(espill));
 r.check("coach card speaks with an empty profile", /encara no puc dir res|Cap punt feble|costum/i.test(espill.coach + espill.label), JSON.stringify(espill));
 r.check("L'Espill tabs switch panes", espill.pane === "numeros" && espill.tilesVisible, JSON.stringify(espill));
+r.check("L'Espill route reflects the tab", (await page.evaluate(() => location.hash)) === "#/espill?tab=numeros");
 await page.click("#btnEspillBack");
-r.check("back to port from L'Espill", (await page.evaluate(() => document.body.dataset.screen)) === "title");
+r.check("back to port from L'Espill", (await page.evaluate(() => document.body.dataset.screen)) === "title" && (await page.evaluate(() => location.hash)) === "#/");
+// browser back returns to L'Espill (with its tab); a typed deep link opens it too
+await page.goBack(); await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
+r.check("browser back re-opens L'Espill on the same tab", await page.evaluate(() => document.body.dataset.screen === "espill" && document.getElementById("espillPanes").dataset.tab === "numeros"));
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.evaluate(() => { location.hash = "#/espill?tab=sequencia"; });
+await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
+r.check("deep link #/espill?tab=sequencia opens L'Espill on Seqüència", await page.evaluate(() => document.getElementById("espillPanes").dataset.tab === "sequencia"));
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
 
 // Gesture-gated sensors (the manual buttons on the title screen)
 await page.click("#btnCam");
@@ -81,6 +94,12 @@ const pill = await page.evaluate(() => {
   return r1;
 });
 r.check("Entrenament from the select screen lands on the fight with its pill lit", pill.screen === "fight" && pill.ent && !pill.duel, JSON.stringify(pill));
+await page.evaluate(() => { location.hash = "#/entrena"; });
+await page.waitForFunction(() => document.body.dataset.mode === "entrenament" && document.body.dataset.screen === "fight", { timeout: 3000 });
+r.check("route #/entrena (sensors up) lands on the fight in Entrenament", await page.evaluate(() => document.getElementById("btnModeEntrenament").classList.contains("primary")));
+await page.evaluate(() => { location.hash = "#/duel"; });
+await page.waitForFunction(() => document.body.dataset.mode === "partida", { timeout: 3000 });
+r.check("route #/duel flips back to Partida", await page.evaluate(() => document.getElementById("btnModePartida").classList.contains("primary") && location.hash === "#/duel"));
 r.check("stage scenery mounted", (await page.$$eval("#stageScenery svg", (n) => n.length)) >= 1);
 r.check("corsair figure mounted", (await page.$$eval("#rivalAvatar svg", (n) => n.length)) === 1);
 
