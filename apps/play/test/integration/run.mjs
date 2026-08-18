@@ -271,6 +271,24 @@ r.check("trends strip says too early under 60 rows", /60 tirs/.test(v2panel.tooE
 r.check("trends strip shows four tiles on 70 rows", v2panel.tiles === 4, JSON.stringify(v2panel));
 r.check("coach card names the #1 weakness with price, evidence and the rival's counter-move", /Després de tirar un [24], tires un [24]/.test(v2panel.coach) && /punts cada 100/.test(v2panel.price) && /\d+ de \d+/.test(v2panel.evidence) && /^El Rei: /.test(v2panel.counter) && v2panel.live === v2panel.coach, JSON.stringify(v2panel));
 r.check("the read names what El Rei sees", /apostaria que tiraràs [1-5] \(\d+%\)|cap costum clar/.test(readShown.headline) && readShown.fBars === 5 && readShown.gBars === 5 && /%/.test(readShown.drivers) && readShown.self.length > 0, JSON.stringify(readShown));
+// The shadow rival (2026-08-17): in Entrenament, El Rei's bet is frozen before each throw and scored after;
+// 12 seam throws (alternating 2/4): the first ones say "too early", then the meter fills and the last line speaks.
+const shadow = await page.evaluate(async () => {
+  const map = { 3: "tres", 4: "quatre", 5: "cinc", 6: "sis", 7: "set", 8: "vuit" };
+  for (let i = 0; i < 12; i++) {
+    const f = i % 2 ? 4 : 2;
+    const now = performance.now();
+    window.__play.onSyncHandOnset(now - 50, now - 150, f);
+    const t = window.__play.syncThrows[window.__play.syncThrows.length - 1];
+    window.__play.applyRecognizedWord(t, map[f + 2]);
+    window.__play.finalizeSyncThrow(t, t.debugRec, t.handOnsetPerfTime + 60, false);
+    await new Promise((r2) => setTimeout(r2, 30));
+  }
+  const evs = window.__play.eventBusLog.filter((e) => e.type === "shadow_read");
+  return { events: evs.length, scored: evs.filter((e) => e.hit != null).length, hits: evs.filter((e) => e.hit === true).length, count: document.getElementById("shadowCount").textContent, dots: document.querySelectorAll("#shadowDots span.hit, #shadowDots span.miss").length, last: document.getElementById("shadowLast").textContent };
+});
+r.check("shadow rival scores every training throw once it knows enough", shadow.events >= 12 && shadow.scored >= 4 && /\d+ de \d+/.test(shadow.count) && shadow.dots === shadow.scored, JSON.stringify(shadow));
+r.check("shadow rival reads an alternator (bets land) and says so", shadow.hits >= 2 && /l'esperava|no l'ha vist venir/.test(shadow.last), JSON.stringify(shadow));
 
 // Calibratge (per profile + camera). The fake camera has no hand, so the
 // guided steps can't run end-to-end here; what CAN be checked: the section,

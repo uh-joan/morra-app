@@ -286,6 +286,8 @@ function recordMatchHistoryEntry(
 function recordTrainingThrow(throwEvent: ThrowEvent): void {
   const playerFingers = throwEvent.handFingerCount;
   if (playerFingers == null) return;
+  if (throwEvent.trainingRecorded) return; // once per throw, like gameHandled for Partida
+  throwEvent.trainingRecorded = true;
   const entry: HistoryEntry = {
     throwIndex: throwEvent.throwIndex,
     sessionId: LOG_SESSION_ID,

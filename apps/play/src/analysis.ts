@@ -114,6 +114,7 @@ export interface ThrowEvent {
   pending: boolean;
   word: string | null;
   gameHandled: boolean; // step 11: guards maybeResolveGameRound against double-processing
+  trainingRecorded?: boolean; // Entrenament: guards recordTrainingThrow the same way (a throw feeds the model once)
   clampFloorCtxTime: number | null;
   rivalRevealed: boolean;
   revealedAiMove: AiMove | null;
