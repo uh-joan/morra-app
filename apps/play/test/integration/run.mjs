@@ -43,6 +43,8 @@ r.check("7 status chips render", (await page.$$eval(".status-chip", (n) => n.len
 r.check("session id in footer", /session [0-9a-f]{8}/.test(await page.$eval("#sessionIdFooter", (n) => n.textContent)));
 r.check("commitment minted at boot", /Opponent committed: [0-9a-f]{8}/.test(await page.$eval("#aiCommitStatus", (n) => n.textContent)));
 r.check("boots on the title screen", (await page.evaluate(() => document.body.dataset.screen)) === "title");
+// Routes (2026-08-17): the hash mirrors screen+mode; back/forward and deep links apply
+r.check("boot lands on #/", (await page.evaluate(() => location.hash)) === "#/");
 // L'Espill is its own screen (2026-08-17): opens from the title without sensors, shows the coach card, tabs switch, back returns to port
 await page.click("#btnEspillTitle");
 await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
@@ -53,8 +55,19 @@ const espill = await page.evaluate(() => {
 r.check("L'Espill opens as its own screen from the title", espill.screen === "espill" && espill.modeBarHidden, JSON.stringify(espill));
 r.check("coach card speaks with an empty profile", /encara no puc dir res|Cap punt feble|costum/i.test(espill.coach + espill.label), JSON.stringify(espill));
 r.check("L'Espill tabs switch panes", espill.pane === "numeros" && espill.tilesVisible, JSON.stringify(espill));
+r.check("L'Espill route reflects the tab", (await page.evaluate(() => location.hash)) === "#/espill?tab=numeros");
 await page.click("#btnEspillBack");
-r.check("back to port from L'Espill", (await page.evaluate(() => document.body.dataset.screen)) === "title");
+r.check("back to port from L'Espill", (await page.evaluate(() => document.body.dataset.screen)) === "title" && (await page.evaluate(() => location.hash)) === "#/");
+// browser back returns to L'Espill (with its tab); a typed deep link opens it too
+await page.goBack(); await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
+r.check("browser back re-opens L'Espill on the same tab", await page.evaluate(() => document.body.dataset.screen === "espill" && document.getElementById("espillPanes").dataset.tab === "numeros"));
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.evaluate(() => { location.hash = "#/espill?tab=sequencia"; });
+await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
+r.check("deep link #/espill?tab=sequencia opens L'Espill on Seqüència", await page.evaluate(() => document.getElementById("espillPanes").dataset.tab === "sequencia"));
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
 
 // Gesture-gated sensors (the manual buttons on the title screen)
 await page.click("#btnCam");
@@ -72,15 +85,26 @@ await page.click("#pirateCard-L2");
 await page.waitForFunction(() => document.body.dataset.screen === "fight", { timeout: 5000 });
 await page.waitForFunction(() => !document.body.classList.contains("vs-on"), { timeout: 5000 });
 r.check("character select enters the fight", true);
-// Entrenament from the character select goes straight to the fight with the Entrenament pill lit (2026-08-17)
+// The rival is a dimension of both modes (2026-08-17): on the tripulants screen the pill is the intent and
+// stays; choosing a rival keeps it — in Entrenament that is sparring (rival side + strip), route #/entrena/:rival
 const pill = await page.evaluate(() => {
   document.body.dataset.screen = "select";
   document.getElementById("btnModeEntrenament").click();
-  const r1 = { screen: document.body.dataset.screen, ent: document.getElementById("btnModeEntrenament").classList.contains("primary"), duel: document.getElementById("btnModePartida").classList.contains("primary") };
-  document.getElementById("btnModePartida").click();
-  return r1;
+  const r1 = { screen: document.body.dataset.screen, ent: document.getElementById("btnModeEntrenament").classList.contains("primary"), hash: location.hash, soloCardShown: getComputedStyle(document.getElementById("pirateCard-sol")).display !== "none" };
+  document.getElementById("pirateCard-L2").click();
+  const r2 = { screen2: document.body.dataset.screen, hash2: location.hash, mode2: document.body.dataset.mode, sparring: document.body.dataset.sparring, rivalShown: document.getElementById("rivalSide").style.display !== "none", stripShown: document.getElementById("trainingPanel").style.display !== "none", head: document.getElementById("trainingHead").textContent };
+  return { ...r1, ...r2 };
 });
-r.check("Entrenament from the select screen lands on the fight with its pill lit", pill.screen === "fight" && pill.ent && !pill.duel, JSON.stringify(pill));
+r.check("Entrenament pill on the tripulants screen stays there as the intent (?per=entrena, solo card shown)", pill.screen === "select" && pill.ent && pill.hash === "#/tripulants?per=entrena" && pill.soloCardShown, JSON.stringify(pill));
+r.check("choosing Bru in Entrenament starts sparring: #/entrena/bru, rival side + strip, head names him", pill.screen2 === "fight" && pill.hash2 === "#/entrena/bru" && pill.mode2 === "entrenament" && pill.sparring === "on" && pill.rivalShown && pill.stripShown && /Bru/.test(pill.head), JSON.stringify(pill));
+await page.evaluate(() => { document.body.classList.remove("vs-on"); location.hash = "#/entrena/sol"; });
+await page.waitForFunction(() => document.body.dataset.solo === "on", { timeout: 3000 });
+r.check("route #/entrena/sol: solo training — no rival side, strip head says sol", await page.evaluate(() => document.getElementById("rivalSide").style.display === "none" && /sol/.test(document.getElementById("trainingHead").textContent) && document.getElementById("readingBox").hidden));
+await page.evaluate(() => { location.hash = "#/duel/rei"; });
+await page.waitForFunction(() => document.body.dataset.mode === "partida", { timeout: 3000 });
+r.check("route #/duel/rei: Partida against El Rei", await page.evaluate(() => document.getElementById("btnModePartida").classList.contains("primary") && document.getElementById("selAiLevel").value === "L4" && location.hash === "#/duel/rei"));
+await page.evaluate(() => { location.hash = "#/duel/bru"; });
+await page.waitForFunction(() => document.getElementById("selAiLevel").value === "L2", { timeout: 3000 });
 r.check("stage scenery mounted", (await page.$$eval("#stageScenery svg", (n) => n.length)) >= 1);
 r.check("corsair figure mounted", (await page.$$eval("#rivalAvatar svg", (n) => n.length)) === 1);
 

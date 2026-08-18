@@ -14,6 +14,11 @@ import { artWithUniqueIds, PIRATE_ART, WORDMARK_SVG } from "./pirate/art.js";
 import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
 import { queueMission, renderEspillScreen } from "./training.js";
+import { getSessionMode } from "./game.js";
+import { syncReady } from "./analysis.js";
+import { installRouter, reflectRoute, type Route, type RouteParams } from "./router.js";
+import { isSoloTraining, levelForSlug, setSoloTraining, slugForLevel, SOLO_SLUG } from "./rivalState.js";
+import { applyModeLayout } from "./modes.js";
 import { getLastTopTell } from "./render/training.js";
 import { missionForTell } from "@morra/core";
 
@@ -22,6 +27,21 @@ export type Screen = "title" | "select" | "fight" | "espill";
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
   logEvent("screen_change", { screen: s });
+  reflectRoute(s, getSessionMode(), routeParamsFor(s), "push", currentRivalSlug());
+}
+/** The path segment for the fight routes: the rival, or "sol" when sparring nobody. */
+export function currentRivalSlug(): string {
+  return getSessionMode() === "entrenament" && isSoloTraining() ? SOLO_SLUG : slugForLevel(el.selAiLevel.value || "L1");
+}
+function routeParamsFor(s: Screen): RouteParams {
+  if (s === "espill") return { tab: el.espillPanes.dataset.tab ?? "rei" };
+  if (s === "select") return { per: getSessionMode() === "entrenament" ? "entrena" : "duel" };
+  return {};
+}
+function selectEspillTab(tab: string): void {
+  if (!el.espillTabs.querySelector(`button[data-tab="${tab}"]`)) return;
+  el.espillPanes.dataset.tab = tab;
+  for (const x of el.espillTabs.querySelectorAll("button")) x.classList.toggle("on", x.dataset.tab === tab);
 }
 
 function byId(id: string): HTMLElement | null {
@@ -69,10 +89,23 @@ function buildCard(p: Pirate): HTMLButtonElement {
   return card;
 }
 
+function buildSoloCard(): HTMLButtonElement {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.id = "pirateCard-sol";
+  card.className = "pirate-card solo-card";
+  const portrait = document.createElement("div"); portrait.className = "card-portrait solo-portrait"; portrait.textContent = "🪞";
+  const name = document.createElement("div"); name.className = "card-name"; name.textContent = "Sol";
+  const title = document.createElement("div"); title.className = "card-title"; title.textContent = "davant l'espill";
+  const flavor = document.createElement("div"); flavor.className = "card-flavor"; flavor.textContent = "Ningú et torna la tirada. Només tu, els teus números i l'ombra d'El Rei que et llegeix.";
+  card.append(portrait, name, title, flavor);
+  card.addEventListener("click", () => chooseSolo());
+  return card;
+}
 function buildSelectGrid(): void {
   const grid = byId("selectGrid");
   if (!grid) return;
-  grid.replaceChildren(...PIRATES.map(buildCard));
+  grid.replaceChildren(...PIRATES.map(buildCard), buildSoloCard()); // the solo card shows in Entrenament only (CSS)
 }
 
 let splashTimer: ReturnType<typeof setTimeout> | null = null;
@@ -99,8 +132,18 @@ function chooseRival(p: Pirate): void {
   splashTimer = setTimeout(() => {
     document.body.classList.remove("vs-on");
   }, 1400);
+  // The mode is the player's intent (the pills); choosing a rival keeps it:
+  // in Partida this starts the duel, in Entrenament the sparring.
+  setSoloTraining(false);
   setScreen("fight");
-  setSessionMode("partida");
+  applyModeLayout(); // partner changed inside the same mode: panels + loop + route
+}
+function chooseSolo(): void {
+  setSoloTraining(true);
+  logEvent("rival_chosen", { level: null, solo: true });
+  setSessionMode("entrenament");
+  setScreen("fight");
+  applyModeLayout();
 }
 
 // ----------------------------------------------------------------- wiring
@@ -141,18 +184,16 @@ export function installScreens(): void {
   });
   el.espillTabs.addEventListener("click", (ev) => {
     const b = (ev.target as HTMLElement).closest("button[data-tab]") as HTMLButtonElement | null;
-    if (!b) return;
-    el.espillPanes.dataset.tab = b.dataset.tab;
-    for (const x of el.espillTabs.querySelectorAll("button")) x.classList.toggle("on", x === b);
+    if (!b || !b.dataset.tab) return;
+    selectEspillTab(b.dataset.tab);
+    reflectRoute("espill", getSessionMode(), { tab: b.dataset.tab }, "replace");
   });
   setOnboardingReadyHook((t) => {
-    if (t === "entrenament") {
-      setScreen("fight");
-      setSessionMode("entrenament");
-      syncModeDataset("entrenament");
-    } else {
-      setScreen("select");
-    }
+    // Both intents pass through the tripulants screen: choose whom to duel,
+    // or whom to spar with (or "sol"). The pills carry the intent there.
+    setSessionMode(t);
+    syncModeDataset(t);
+    setScreen("select");
   });
 
   byId("btnToTitle")?.addEventListener("click", () => setScreen("title"));
@@ -167,13 +208,53 @@ export function installScreens(): void {
   el.btnModePartida.addEventListener("click", () => syncModeDataset("partida"));
   el.btnModeEntrenament.addEventListener("click", () => {
     syncModeDataset("entrenament");
-    // From the character select, Entrenament needs no rival: go to the
-    // fight screen now (choosing a rival afterwards would have flipped
-    // the mode back to Partida and lit "El duel").
-    if (document.body.dataset.screen === "select") setScreen("fight");
+    // On the tripulants screen the pill is the INTENT: it stays there and the
+    // cards now read "spar with…"; the route reflects it (?per=entrena).
+    if (document.body.dataset.screen === "select") reflectRoute("select", "entrenament", { per: "entrena" }, "replace");
+  });
+  el.btnModePartida.addEventListener("click", () => {
+    if (document.body.dataset.screen === "select") reflectRoute("select", "partida", { per: "duel" }, "replace");
   });
 
   // Level changed from anywhere else (tècnic select, seam): keep the
   // figure in sync.
   el.selAiLevel.addEventListener("change", () => setPirate(el.selAiLevel.value));
+
+  // Routes (router.ts): back/forward, reload and deep links. A route that
+  // needs the sensors (duel, entrena, tripulants) and doesn't have them
+  // opens the onboarding with that target — the same card "Juga" opens.
+  installRouter({
+    apply: (route: Route, params: RouteParams, rival: string | null) => {
+      const pickRival = (slug: string | null) => {
+        if (slug === SOLO_SLUG) { setSoloTraining(true); return; }
+        const level = slug ? levelForSlug(slug) : null;
+        if (level) { el.selAiLevel.value = level; el.selAiLevel.dispatchEvent(new Event("change")); setPirate(level); }
+        setSoloTraining(false);
+      };
+      switch (route) {
+        case "title": setScreen("title"); break;
+        case "select": {
+          const intent = params.per === "entrena" ? "entrenament" : "partida";
+          setSessionMode(intent); syncModeDataset(intent);
+          if (syncReady()) setScreen("select"); else startOnboarding(intent);
+          break;
+        }
+        case "duel":
+          if (syncReady()) { pickRival(rival); setScreen("fight"); setSessionMode("partida"); syncModeDataset("partida"); applyModeLayout(); }
+          else startOnboarding("partida");
+          break;
+        case "entrena":
+          if (syncReady()) { pickRival(rival); setScreen("fight"); setSessionMode("entrenament"); syncModeDataset("entrenament"); applyModeLayout(); }
+          else startOnboarding("entrenament");
+          break;
+        case "espill":
+          renderEspillScreen();
+          if (params.tab) selectEspillTab(params.tab);
+          setScreen("espill");
+          break;
+      }
+    },
+  });
+  // Backing out of the onboarding card leaves the URL on the title.
+  byId("obBack")?.addEventListener("click", () => reflectRoute("title", getSessionMode(), {}, "replace"));
 }

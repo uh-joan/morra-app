@@ -67,8 +67,10 @@
 
 <!-- ================= CHARACTER SELECT ================= -->
 <section id="screenSelect" class="screen">
-  <h2 class="select-head">Tria el teu rival</h2>
-  <p class="select-sub">Quatre corsaris guarden la taula de morra. Comença per la taverna… si vols arribar viu al fons.</p>
+  <h2 class="select-head select-duel">Tria el teu rival</h2>
+  <p class="select-sub select-duel">Quatre corsaris guarden la taula de morra. Comença per la taverna… si vols arribar viu al fons.</p>
+  <h2 class="select-head select-entrena">Amb qui entrenes?</h2>
+  <p class="select-sub select-entrena">Sense punts, amb mirall: el corsari tira i canta, i L'Espill et diu què veu. O sol, davant l'espill.</p>
   <div id="selectGrid" class="select-grid"><!-- cards built by screens.ts --></div>
 </section>
 
@@ -151,13 +153,18 @@
 
       <!-- Entrenament: the live strip (throw at the mirror; the full mirror is its own screen) -->
       <div class="training-panel training-live" id="trainingPanel" style="display:none;">
-        <div class="training-head">🎯 Entrenament — tira, i mira't</div>
+        <div class="training-head" id="trainingHead">🎯 Entrenament — tira, i mira't</div>
         <p class="live-tell" id="liveTopTell">—</p>
         <p class="live-exploit" id="liveExploit">—</p>
         <div class="shadow" id="shadowRival">
           <div class="shadow-head">L'ombra d'El Rei — t'hauria endevinat <b id="shadowCount">—</b></div>
           <div id="shadowDots" class="shadow-dots" aria-label="últims 20 tirs"></div>
           <p id="shadowLast" class="shadow-last">Tira: abans de cada tir, El Rei aposta en silenci. Després et diu si t'ha vist venir.</p>
+        </div>
+        <div class="shadow reading" id="readingBox" hidden>
+          <div class="shadow-head">Tu a <span id="readingName">ell</span> — li has llegit els dits <b id="readingCount">—</b></div>
+          <div id="readingDots" class="shadow-dots" aria-label="últims 20 tirs"></div>
+          <p class="shadow-last" id="readingLast">Cada ronda: si la teva endevinalla cau als seus dits, verd.</p>
         </div>
         <div class="mission" id="missionBox">
           <div id="missionIdle" class="row">

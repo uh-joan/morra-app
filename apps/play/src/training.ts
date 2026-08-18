@@ -9,6 +9,8 @@ import { logEvent, LOG_SESSION_ID } from "./telemetry.js";
 import { getPlayerModel, getSessionMode, setPlayerModelState, setTrainingPanelHook } from "./game.js";
 import { clearPlayerModel } from "./profile.js";
 import { getLastTopTell, renderTrainingPanel, type MirrorScope } from "./render/training.js";
+import { isSoloTraining } from "./rivalState.js";
+import { PIRATES } from "./pirate/cast.js";
 import { download } from "./export.js";
 import { TRAINING_PANEL_TEXT } from "./game/copy.js";
 
@@ -164,11 +166,49 @@ export function shadowArm(): void {
   shadowFreeze();
   renderShadowMeter();
   if (!shadowRing.length) el.shadowLast.textContent = TRAINING_PANEL_TEXT.shadowIntro;
+  renderStripHead();
+}
+
+// ------------------------------------------------------------ the strip head + the reading meter (sparring)
+// Sparring: the partner throws and calls back — so the mirror also scores
+// YOU as a reader: did your guess land on their fingers? Last 20 rounds.
+const readingRing: { g: number; af: number; hit: boolean }[] = [];
+function partnerName(): string | null {
+  if (isSoloTraining()) return null;
+  const level = el.selAiLevel.value || "L1";
+  return PIRATES.find((p) => p.levelId === level)?.name ?? null;
+}
+function renderStripHead(): void {
+  const name = partnerName();
+  el.trainingHead.textContent = name ? TRAINING_PANEL_TEXT.trainingHeadSparring(name) : TRAINING_PANEL_TEXT.trainingHeadSolo;
+  el.readingBox.hidden = !name;
+  if (name) el.readingName.textContent = name;
+  renderReadingMeter();
+}
+function readingScoreLastRound(): void {
+  const hist = toHistoryArray(getPlayerModel());
+  const last = hist[hist.length - 1];
+  if (!last || last.aiFingers == null || last.playerCall == null || last.playerFingers == null) return;
+  const g = last.playerCall - last.playerFingers;
+  if (g < 1 || g > 5) return;
+  const hit = g === last.aiFingers;
+  readingRing.push({ g, af: last.aiFingers, hit });
+  if (readingRing.length > SHADOW_WINDOW) readingRing.shift();
+  el.readingLast.textContent = hit ? TRAINING_PANEL_TEXT.readingHit(last.aiFingers) : TRAINING_PANEL_TEXT.readingMiss(g, last.aiFingers);
+  renderReadingMeter();
+}
+function renderReadingMeter(): void {
+  const hits = readingRing.filter((x) => x.hit).length;
+  el.readingCount.textContent = readingRing.length ? TRAINING_PANEL_TEXT.readingCount(hits, readingRing.length) : "—";
+  const dots: HTMLSpanElement[] = [];
+  for (let i = 0; i < SHADOW_WINDOW; i++) { const d = document.createElement("span"); const x = readingRing[i]; if (x) d.className = x.hit ? "hit" : "miss"; dots.push(d); }
+  el.readingDots.replaceChildren(...dots);
 }
 
 export function installTraining(): void {
   setTrainingPanelHook(() => {
     const shadowHit = shadowScoreLastThrow();
+    readingScoreLastRound(); // sparring only has rival fingers to read; solo entries have none
     renderTrainingPanelIfActive();
     const hist = toHistoryArray(getPlayerModel()); const last = hist[hist.length - 1];
     if (last?.playerFingers != null) missionOnThrow(last.playerFingers, last.playerCall != null ? last.playerCall - last.playerFingers : null, shadowHit);

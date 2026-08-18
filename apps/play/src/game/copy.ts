@@ -91,6 +91,13 @@ export const TRAINING_PANEL_TEXT = {
   coachEvidence: (hits: number, n: number) => `${hits} de ${n} vegades`,
   liveExploit: (pct: number) => `El Rei et llegeix el ${pct}% — 20% és una moneda.`,
   liveExploitNone: "El Rei encara no té prou tirs per llegir-te.",
+  // Entrenament strip head, by partner
+  trainingHeadSolo: "🎯 Entrenament — sol, davant l'espill",
+  trainingHeadSparring: (name: string) => `🎯 Entrenament amb ${name} — sense punts, amb mirall`,
+  readingCount: (hits: number, n: number) => `${hits} de ${n}`,
+  readingHit: (f: number) => `Has cantat els seus ${f} dits — l'has llegit.`,
+  readingMiss: (g: number, f: number) => `Buscaves ${g}, tenia ${f}.`,
+  readingIntro: "Cada ronda: si la teva endevinalla cau als seus dits, verd.",
   // the shadow rival (Entrenament): El Rei's silent read of each throw, told afterwards
   shadowCount: (hits: number, n: number) => `${hits} de ${n}`,
   shadowCountEmpty: "—",

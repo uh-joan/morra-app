@@ -30,6 +30,7 @@ import {
 } from "@morra/core";
 import { CryptoRandomSource } from "@morra/platform-web";
 import { GAME_WIN_SCORE, RIVAL_ENGINE, RIVAL_VOICE_DEFER, RIVAL_VOICE_DEFER_EPS_MS, SYNC_POST_MS } from "./config.js";
+import { isSoloTraining } from "./rivalState.js";
 import { el } from "./dom.js";
 import { isCalibrating } from "./calibration.js";
 import { ctx } from "./audioClock.js";
@@ -80,7 +81,13 @@ export function setTrainingPanelHook(hook: () => void): void {
   renderTrainingPanelHook = hook;
 }
 
+/** A rival is in the round loop: the duel, or Entrenament sparring (the same
+ * loop, no score). Only solo Entrenament ("sol, davant l'espill") has no rival. */
 export function playVsOpponent(): boolean {
+  return sessionMode === "partida" || !isSoloTraining();
+}
+/** Points and match end are the duel's business only. */
+export function scoring(): boolean {
   return sessionMode === "partida";
 }
 export function getSessionMode(): SessionMode {
@@ -257,7 +264,7 @@ function recordMatchHistoryEntry(
     throwIndex: throwEvent.throwIndex,
     sessionId: LOG_SESSION_ID,
     atIso: new Date().toISOString(),
-    source: "partida",
+    source: sessionMode === "entrenament" ? "entrenament" : "partida", // sparring rounds are Entrenament's
     playerFingers,
     playerCall: playerCallNumber,
     playerWord: throwEvent.word || null,
@@ -270,6 +277,8 @@ function recordMatchHistoryEntry(
     syncDeltaMs: throwEvent.syncDeltaMs,
   };
   persistHistoryEntry(entry);
+  // sparring: the mirror strip (shadow, mission, reading meter) follows every round too
+  if (sessionMode === "entrenament") renderTrainingPanelHook();
   const aimHit = aiMove && aiMove.guessPlayerFingers != null ? aiMove.guessPlayerFingers === playerFingers : null;
   logEvent("ai_aim_result", {
     throwIndex: throwEvent.throwIndex,
@@ -339,8 +348,10 @@ function resolveGameRound(
     }
   }
   const verdict = computeMicatioVerdict(playerFingers, playerCallNumber, move.fingers, move.call);
-  if (verdict.winner === "player") gameScore.player++;
-  else if (verdict.winner === "ai") gameScore.ai++;
+  if (scoring()) {
+    if (verdict.winner === "player") gameScore.player++;
+    else if (verdict.winner === "ai") gameScore.ai++;
+  }
 
   renderGameReveal(move, verified, playerFingers, playerCallNumber, verdict, word);
   if (!alreadyRevealed) {
@@ -396,7 +407,7 @@ function resolveGameRound(
   recordMatchHistoryEntry(throwEvent, playerFingers, playerCallNumber, move, verdict.winner);
   if (!alreadyRevealed) currentAiMove = null; // legacy path: the move just used is spent
 
-  if (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE) {
+  if (scoring() && (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE)) {
     gameOver = true;
     showGameEndBanner(gameScore.player >= GAME_WIN_SCORE ? "player" : "ai", gameScore.player, gameScore.ai);
     renderPostMatchCard(matchHistory);
@@ -525,7 +536,7 @@ export function installGame(): void {
       maybeResolveGameRound(t); // no-ops in Entrenament
       // Phase H: Entrenament's own hook — a reset is still never a throw.
       // Calibration prompts ("tira un 3") are not choices — never the model's.
-      if (sessionMode === "entrenament" && t.outcome !== "reset" && !isCalibrating()) recordTrainingThrow(t);
+      if (sessionMode === "entrenament" && !playVsOpponent() && t.outcome !== "reset" && !isCalibrating()) recordTrainingThrow(t); // solo only — sparring rounds go through the game round
     },
     onWordApplied(t) {
       maybeResolveGameRound(t);

@@ -377,3 +377,40 @@ the fight (choosing a rival afterwards flipped the mode back to Partida).
 Verification of the loop still lives in Partida: the tell fades or it
 doesn't. Next: badges when a tell drops out of the coach card, and the
 post-match card from the rival's side.
+
+## 11. The three places, and the rival as a dimension of two of them
+
+Jani, testing the routes: from `#/tripulants` → Entrenament → *Canvia de
+rival* → Bru → landed on `#/duel` "which is Entrenament with Bru — no duel
+Bru route?" The routes had made a muddled model visible: Entrenament had
+no rival at all (you threw at the mirror alone), yet *Canvia de rival* was
+there, and choosing one silently flipped you to the duel. Decided together:
+
+**The rival and the mode are independent dimensions.** The rival is who
+you face; the mode is what you do with them. Three places:
+
+1. **El duel** — `#/duel/:rival` (nino · bru · merce · rei). Points.
+2. **Entrenament** — `#/entrena/:rival` — **sparring**: the same round
+   loop (they throw and call, you throw and call, commit-reveal, real
+   reads), **no score, no match end**, rounds recorded as
+   `source: "entrenament"`, and the mirror strip talks live under the
+   rival: the shadow meter (is El Rei reading you), **the reading meter**
+   ("Tu a Nino — li has llegit els dits 7 de 20"), the missions,
+   calibratge. What it teaches depends on the partner: Nino → learn to
+   read a human; Bru → pure randomness (unreadable, doesn't read); Mercè →
+   be unreadable within a match; El Rei → the full thing. Plus **"Sol,
+   davant l'espill"** (`#/entrena/sol`) — nobody throws back; the quiet
+   drill that existed before.
+3. **L'Espill** — `#/espill` — read yourself, no sensors.
+
+The pills carry the *intent* on the tripulants screen ("Tria el teu rival"
+/ "Amb qui entrenes?", `?per=duel|entrena`) and keep it: choosing a rival
+in Entrenament starts sparring, *Canvia de rival* keeps the mode. Reload on
+`#/duel/bru` is Bru; a deep link to `#/entrena/nino` is "spar with Nino".
+
+Implementation: `rivalState.ts` (slugs + the solo flag; `selAiLevel` stays
+the source of truth for which rival); `playVsOpponent()` = duel or
+sparring, `scoring()` = duel only; `applyModeLayout()` in modes.ts sets
+panels + loop + route for mode and partner; the strip's hook runs after
+sparring rounds too. Harness: intent pill stays; Bru in Entrenament →
+`#/entrena/bru` with rival side + strip; `#/entrena/sol`; `#/duel/rei`.
