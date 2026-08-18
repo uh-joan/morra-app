@@ -17,6 +17,7 @@ import {
   rankExploitValue,
   summarizeTrend,
   type ExploitRanking,
+  type Tell2,
   type HistogramSection,
   type TopWord,
   type HistoryEntry,
@@ -200,8 +201,12 @@ function tellItem(t: { sentence: string; pointsPer100: number | null; evidence: 
   li.append(meta, counter);
   return li;
 }
+/** The coach card's #1 tell, as last rendered — what "Practica-ho" and the strip's mission button target. */
+let lastTopTell: Tell2 | null = null;
+export function getLastTopTell(): Tell2 | null { return lastTopTell; }
 function renderTells(history: readonly HistoryEntry[], scope: MirrorScope): void {
   const tells = computeTells2(history, rankingFor(history, scope));
+  lastTopTell = tells[0] ?? null;
   const rounds = history.filter((h) => h.playerFingers != null).length;
   // the coach card: the #1 weakness
   const top = tells[0];

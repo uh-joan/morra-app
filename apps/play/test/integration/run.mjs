@@ -72,6 +72,15 @@ await page.click("#pirateCard-L2");
 await page.waitForFunction(() => document.body.dataset.screen === "fight", { timeout: 5000 });
 await page.waitForFunction(() => !document.body.classList.contains("vs-on"), { timeout: 5000 });
 r.check("character select enters the fight", true);
+// Entrenament from the character select goes straight to the fight with the Entrenament pill lit (2026-08-17)
+const pill = await page.evaluate(() => {
+  document.body.dataset.screen = "select";
+  document.getElementById("btnModeEntrenament").click();
+  const r1 = { screen: document.body.dataset.screen, ent: document.getElementById("btnModeEntrenament").classList.contains("primary"), duel: document.getElementById("btnModePartida").classList.contains("primary") };
+  document.getElementById("btnModePartida").click();
+  return r1;
+});
+r.check("Entrenament from the select screen lands on the fight with its pill lit", pill.screen === "fight" && pill.ent && !pill.duel, JSON.stringify(pill));
 r.check("stage scenery mounted", (await page.$$eval("#stageScenery svg", (n) => n.length)) >= 1);
 r.check("corsair figure mounted", (await page.$$eval("#rivalAvatar svg", (n) => n.length)) === 1);
 
@@ -289,6 +298,32 @@ const shadow = await page.evaluate(async () => {
 });
 r.check("shadow rival scores every training throw once it knows enough", shadow.events >= 12 && shadow.scored >= 4 && /\d+ de \d+/.test(shadow.count) && shadow.dots === shadow.scored, JSON.stringify(shadow));
 r.check("shadow rival reads an alternator (bets land) and says so", shadow.hits >= 2 && /l'esperava|no l'ha vist venir/.test(shadow.last), JSON.stringify(shadow));
+// Missions (2026-08-17): the strip's mission button targets the coach card's tell; a break-pattern mission
+// on the alternator (2→4) fed 20 more alternating throws fails with per-throw feedback; the shadow mission
+// runs on the meter; "Prou" stops; the verdict is logged.
+const mission = await page.evaluate(async () => {
+  const map = { 3: "tres", 4: "quatre", 5: "cinc", 6: "sis", 7: "set", 8: "vuit" };
+  const throwOne = async (f) => { const now = performance.now(); window.__play.onSyncHandOnset(now - 50, now - 150, f); const t = window.__play.syncThrows[window.__play.syncThrows.length - 1]; window.__play.applyRecognizedWord(t, map[f + 2]); window.__play.finalizeSyncThrow(t, t.debugRec, t.handOnsetPerfTime + 60, false); await new Promise((r2) => setTimeout(r2, 25)); };
+  const topLabel = document.getElementById("missionTopTitle").textContent;
+  document.getElementById("btnMissionTop").click();
+  const liveShown = !document.getElementById("missionLive").hidden;
+  const title = document.getElementById("missionTitle").textContent;
+  const goal = document.getElementById("missionGoal").textContent;
+  let fedBack = false;
+  for (let i = 0; i < 20; i++) { await throwOne(i % 2 ? 4 : 2); if (/esperava|soldada/.test(document.getElementById("missionFeedback").textContent)) fedBack = true; }
+  const doneShown = !document.getElementById("missionDone").hidden;
+  const verdict = document.getElementById("missionVerdict").textContent;
+  const evs = window.__play.eventBusLog.filter((e) => e.type === "training_mission");
+  const done = evs.find((e) => e.phase === "done");
+  // stop mid-way
+  document.getElementById("btnMissionAgain").click();
+  await throwOne(3);
+  document.getElementById("btnMissionStop").click();
+  const idleBack = !document.getElementById("missionIdle").hidden;
+  return { topLabel, liveShown, title, goal, fedBack, doneShown, verdict, phases: evs.map((e) => e.phase), pass: done?.pass, kind: done?.kind, idleBack };
+});
+r.check("mission starts from the strip with title and goal", mission.liveShown && mission.title.length > 3 && /tirs/i.test(mission.goal) && mission.title === mission.topLabel, JSON.stringify(mission));
+r.check("break-pattern mission on the alternator: feedback per throw, verdict at 20, logged, Prou returns to idle", mission.kind === "break-pattern" && mission.fedBack && mission.doneShown && mission.pass === false && /Torna-hi|no —/.test(mission.verdict) && mission.phases.includes("start") && mission.phases.includes("done") && mission.idleBack, JSON.stringify(mission));
 
 // Calibratge (per profile + camera). The fake camera has no hand, so the
 // guided steps can't run end-to-end here; what CAN be checked: the section,

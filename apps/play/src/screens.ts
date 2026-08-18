@@ -13,7 +13,9 @@ import { PIRATES, type Pirate } from "./pirate/cast.js";
 import { artWithUniqueIds, PIRATE_ART, WORDMARK_SVG } from "./pirate/art.js";
 import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
-import { renderEspillScreen } from "./training.js";
+import { queueMission, renderEspillScreen } from "./training.js";
+import { getLastTopTell } from "./render/training.js";
+import { missionForTell } from "@morra/core";
 
 export type Screen = "title" | "select" | "fight" | "espill";
 
@@ -130,7 +132,8 @@ export function installScreens(): void {
   el.btnEspillBack.addEventListener("click", () => setScreen("title"));
   const toTraining = () => startOnboarding("entrenament");
   el.btnEspillTrain.addEventListener("click", toTraining);
-  el.btnPractica.addEventListener("click", toTraining);
+  // "Practica-ho": queue the mission for the coach card's tell, then Entrenament
+  el.btnPractica.addEventListener("click", () => { queueMission(missionForTell(getLastTopTell())); toTraining(); });
   el.btnMoreTells.addEventListener("click", () => {
     const open = el.tellsList.hasAttribute("hidden");
     el.tellsList.toggleAttribute("hidden", !open);
@@ -162,7 +165,13 @@ export function installScreens(): void {
   // Keep body[data-mode] mirroring the mode buttons (additive listeners —
   // modes.ts still owns the real state).
   el.btnModePartida.addEventListener("click", () => syncModeDataset("partida"));
-  el.btnModeEntrenament.addEventListener("click", () => syncModeDataset("entrenament"));
+  el.btnModeEntrenament.addEventListener("click", () => {
+    syncModeDataset("entrenament");
+    // From the character select, Entrenament needs no rival: go to the
+    // fight screen now (choosing a rival afterwards would have flipped
+    // the mode back to Partida and lit "El duel").
+    if (document.body.dataset.screen === "select") setScreen("fight");
+  });
 
   // Level changed from anywhere else (tècnic select, seam): keep the
   // figure in sync.

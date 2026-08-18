@@ -159,6 +159,24 @@
           <div id="shadowDots" class="shadow-dots" aria-label="últims 20 tirs"></div>
           <p id="shadowLast" class="shadow-last">Tira: abans de cada tir, El Rei aposta en silenci. Després et diu si t'ha vist venir.</p>
         </div>
+        <div class="mission" id="missionBox">
+          <div id="missionIdle" class="row">
+            <button id="btnMissionTop" class="primary">🎯 Missió: <span id="missionTopTitle">Que no et llegeixi</span></button>
+            <button id="btnMissionCoverage">🎲 Cobreix el tauler</button>
+          </div>
+          <div id="missionLive" hidden>
+            <div class="mission-title"><b id="missionTitle"></b> <span id="missionProgress" class="mission-progress"></span></div>
+            <div class="mission-bar"><span id="missionBarFill"></span></div>
+            <p class="mission-goal" id="missionGoal"></p>
+            <p class="mission-live" id="missionLiveLine"></p>
+            <p class="mission-feedback" id="missionFeedback"></p>
+            <div class="row"><button id="btnMissionStop" class="ghost">Prou</button></div>
+          </div>
+          <div id="missionDone" hidden>
+            <p class="mission-verdict" id="missionVerdict"></p>
+            <div class="row"><button id="btnMissionAgain" class="primary">Torna-hi</button><button id="btnMissionClose" class="ghost">Tanca</button></div>
+          </div>
+        </div>
         <div class="row">
           <button id="btnOpenEspill" class="btn-parchment">🪞 Obre L'Espill</button>
         </div>

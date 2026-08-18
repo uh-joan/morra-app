@@ -17,7 +17,7 @@ import {
 import { renderRivalCommitted } from "./render/rival.js";
 import { preloadRivalVoiceClips } from "./rivalVoice.js";
 import { renderReadyPill } from "./readyPill.js";
-import { renderTrainingPanelIfActive, shadowArm } from "./training.js";
+import { missionArm, renderTrainingPanelIfActive, shadowArm } from "./training.js";
 
 export function setSessionMode(mode: SessionMode): void {
   if (getSessionMode() === mode) return;
@@ -42,7 +42,7 @@ export function setSessionMode(mode: SessionMode): void {
     }
     void preloadRivalVoiceClips();
   }
-  if (mode === "entrenament") { shadowArm(); renderTrainingPanelIfActive(); }
+  if (mode === "entrenament") { shadowArm(); renderTrainingPanelIfActive(); missionArm(); }
   renderReadyPill();
 }
 

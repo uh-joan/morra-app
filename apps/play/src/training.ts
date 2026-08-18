@@ -3,12 +3,12 @@
 // controls (scope toggle, export/reset profile). "Session vs all-time" just
 // changes which slice of playerModel.throws feeds the SAME mirror functions.
 
-import { createEmptyModel, predictPlayerFV2, toHistoryArray } from "@morra/core";
+import { COVERAGE_MISSION, createEmptyModel, missionForTell, missionProgress, predictPlayerFV2, toHistoryArray, type HistoryEntry, type MissionProgress, type MissionSpec, type MissionThrow } from "@morra/core";
 import { el } from "./dom.js";
 import { logEvent, LOG_SESSION_ID } from "./telemetry.js";
 import { getPlayerModel, getSessionMode, setPlayerModelState, setTrainingPanelHook } from "./game.js";
 import { clearPlayerModel } from "./profile.js";
-import { renderTrainingPanel, type MirrorScope } from "./render/training.js";
+import { getLastTopTell, renderTrainingPanel, type MirrorScope } from "./render/training.js";
 import { download } from "./export.js";
 import { TRAINING_PANEL_TEXT } from "./game/copy.js";
 
@@ -63,20 +63,89 @@ function shadowFreeze(): void {
   for (const v of [2, 3, 4, 5] as const) if (dist[v] > dist[best]) best = v;
   shadowPending = { predicted: best, p: dist[best], rows: hist.length };
 }
-function shadowScoreLastThrow(): void {
+function shadowScoreLastThrow(): boolean | null {
   const hist = toHistoryArray(getPlayerModel());
   const last = hist[hist.length - 1];
   const actual = last?.playerFingers;
-  if (actual == null || actual < 1 || actual > 5) return;
+  if (actual == null || actual < 1 || actual > 5) return null;
   const bet = shadowPending;
   shadowFreeze(); // the next bet, from history that now includes this throw
-  if (!bet || bet.rows < SHADOW_MIN_ROWS) { el.shadowLast.textContent = TRAINING_PANEL_TEXT.shadowTooEarly(actual); logEvent("shadow_read", { predicted: bet?.predicted ?? null, actual, hit: null, rows: bet?.rows ?? 0 }); return; }
+  if (!bet || bet.rows < SHADOW_MIN_ROWS) { el.shadowLast.textContent = TRAINING_PANEL_TEXT.shadowTooEarly(actual); logEvent("shadow_read", { predicted: bet?.predicted ?? null, actual, hit: null, rows: bet?.rows ?? 0 }); return null; }
   const hit = bet.predicted === actual;
   shadowRing.push({ predicted: bet.predicted, actual, hit });
   if (shadowRing.length > SHADOW_WINDOW) shadowRing.shift();
   logEvent("shadow_read", { predicted: bet.predicted, actual, hit, p: bet.p, rows: bet.rows });
   el.shadowLast.textContent = hit ? TRAINING_PANEL_TEXT.shadowHit(actual, Math.round(bet.p * 100)) : TRAINING_PANEL_TEXT.shadowMiss(actual, bet.predicted);
   renderShadowMeter();
+  return hit;
+}
+
+// ------------------------------------------------------------ missions
+// A mission is a pure spec (core missions.ts) run over the throws made
+// while it is on: the app owns the clock (start/stop/again), feeds each
+// training throw with the shadow verdict, renders progress/feedback/verdict,
+// and logs training_mission at the end. "Practica-ho" in L'Espill queues
+// the mission for the coach card's tell; it starts when Entrenament opens.
+let mission: { spec: MissionSpec; before: HistoryEntry[]; throws: MissionThrow[]; startedAt: number } | null = null;
+let pendingMission: MissionSpec | null = null;
+export function queueMission(spec: MissionSpec): void { pendingMission = spec; }
+export function startMission(spec: MissionSpec): void {
+  mission = { spec, before: [...toHistoryArray(getPlayerModel())], throws: [], startedAt: performance.now() };
+  logEvent("training_mission", { phase: "start", id: spec.id, kind: spec.kind, n: spec.n });
+  el.missionIdle.hidden = true; el.missionDone.hidden = true; el.missionLive.hidden = false;
+  el.missionTitle.textContent = spec.title; el.missionGoal.textContent = spec.goal;
+  el.missionFeedback.textContent = ""; el.missionFeedback.classList.remove("good");
+  renderMission(missionProgress(spec, mission.before, []));
+}
+function stopMission(reason: "stop" | "close"): void {
+  if (mission) logEvent("training_mission", { phase: reason, id: mission.spec.id, n: mission.throws.length });
+  mission = null;
+  el.missionLive.hidden = true; el.missionDone.hidden = true; el.missionIdle.hidden = false;
+}
+function ctxLabel(spec: MissionSpec): string {
+  if (spec.ctx && "a" in spec.ctx) return spec.ctx.b != null ? `un ${spec.ctx.a} i un ${spec.ctx.b}` : `un ${spec.ctx.a}`;
+  return "";
+}
+function renderMission(p: MissionProgress): void {
+  if (!mission) return;
+  const { spec } = mission;
+  el.missionProgress.textContent = TRAINING_PANEL_TEXT.missionProgress(p.n, p.total);
+  el.missionBarFill.style.width = `${Math.min(100, (100 * p.n) / p.total)}%`;
+  if (spec.kind === "break-pattern") el.missionLiveLine.textContent = TRAINING_PANEL_TEXT.missionLiveBreak(spec.bad!, ctxLabel(spec), p.badN, p.ctxN, spec.targetRate ?? 0.3);
+  else if (spec.kind === "unweld") el.missionLiveLine.textContent = TRAINING_PANEL_TEXT.missionLiveUnweld((spec.ctx as { f: number }).f, (spec.ctx as { f: number }).f + spec.bad!, p.badN, p.ctxN, spec.targetRate ?? 0.3);
+  else if (spec.kind === "shadow") el.missionLiveLine.textContent = TRAINING_PANEL_TEXT.missionLiveShadow(p.shadowHits, p.shadowScored, spec.maxHits ?? 5);
+  else el.missionLiveLine.textContent = TRAINING_PANEL_TEXT.missionLiveCoverage(p.shares, p.shadowHits, spec.maxHits ?? 7);
+}
+function missionOnThrow(f: number, g: number | null, shadowHit: boolean | null): void {
+  if (!mission) return;
+  mission.throws.push({ f, g, shadowHit });
+  const p = missionProgress(mission.spec, mission.before, mission.throws);
+  const { spec } = mission;
+  // per-throw feedback
+  let fb: string = TRAINING_PANEL_TEXT.missionFeedbackNeutral, good = false;
+  if (spec.kind === "break-pattern" && p.last === "bad") fb = TRAINING_PANEL_TEXT.missionFeedbackBadBreak(f, ctxLabel(spec));
+  else if (spec.kind === "break-pattern" && p.last === "good") { fb = TRAINING_PANEL_TEXT.missionFeedbackGoodBreak(f, ctxLabel(spec)); good = true; }
+  else if (spec.kind === "unweld" && p.last === "bad") fb = TRAINING_PANEL_TEXT.missionFeedbackBadUnweld(f, f + spec.bad!);
+  else if (spec.kind === "unweld" && p.last === "good") { fb = TRAINING_PANEL_TEXT.missionFeedbackGoodUnweld(f); good = true; }
+  el.missionFeedback.textContent = fb; el.missionFeedback.classList.toggle("good", good);
+  renderMission(p);
+  if (p.done) {
+    logEvent("training_mission", { phase: "done", id: spec.id, kind: spec.kind, pass: p.pass, n: p.n, ctxN: p.ctxN, badN: p.badN, rate: p.rate, shadowHits: p.shadowHits, shadowScored: p.shadowScored, ms: Math.round(performance.now() - mission.startedAt) });
+    el.missionVerdict.textContent = p.pass === true ? TRAINING_PANEL_TEXT.missionPass(spec.title) : p.pass === false ? TRAINING_PANEL_TEXT.missionFail(spec.title) : TRAINING_PANEL_TEXT.missionUndecidable;
+    el.missionLive.hidden = true; el.missionDone.hidden = false;
+    const done = mission; mission = null;
+    el.btnMissionAgain.onclick = () => startMission(done.spec);
+  }
+}
+/** The strip's mission button follows the coach card's #1 tell. */
+function renderMissionIdle(): void {
+  const spec = missionForTell(getLastTopTell());
+  el.missionTopTitle.textContent = spec.title;
+}
+/** Entering Entrenament: start the queued mission, if any. */
+export function missionArm(): void {
+  renderMissionIdle();
+  if (pendingMission) { const m = pendingMission; pendingMission = null; startMission(m); }
 }
 function renderShadowMeter(): void {
   const hits = shadowRing.filter((x) => x.hit).length;
@@ -98,8 +167,18 @@ export function shadowArm(): void {
 }
 
 export function installTraining(): void {
-  setTrainingPanelHook(() => { shadowScoreLastThrow(); renderTrainingPanelIfActive(); });
+  setTrainingPanelHook(() => {
+    const shadowHit = shadowScoreLastThrow();
+    renderTrainingPanelIfActive();
+    const hist = toHistoryArray(getPlayerModel()); const last = hist[hist.length - 1];
+    if (last?.playerFingers != null) missionOnThrow(last.playerFingers, last.playerCall != null ? last.playerCall - last.playerFingers : null, shadowHit);
+    renderMissionIdle();
+  });
   renderShadowMeter();
+  el.btnMissionTop.addEventListener("click", () => startMission(missionForTell(getLastTopTell())));
+  el.btnMissionCoverage.addEventListener("click", () => startMission(COVERAGE_MISSION));
+  el.btnMissionStop.addEventListener("click", () => stopMission("stop"));
+  el.btnMissionClose.addEventListener("click", () => stopMission("close"));
   el.btnScopeSession.addEventListener("click", () => setMirrorScope("session"));
   el.btnScopeAllTime.addEventListener("click", () => setMirrorScope("allTime"));
   // the profile menu (⚙ next to the Tripulant selector): export / reset

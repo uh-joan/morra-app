@@ -24,6 +24,8 @@ export interface Tell2 {
   pointsPer100: number | null;
   /** evidence strength: distance from the baseline, tempered by sample size — the tiebreak */
   strength: number;
+  /** the habit's numbers, for missions: order1 {a,b} · order2 {a,b,c} · weld {f,g} */
+  params?: Record<string, number>;
 }
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
@@ -44,11 +46,11 @@ export function computeTells2(history: readonly HistoryEntry[], ranking?: Exploi
       const n = hm.rowTotals[a] ?? 0;
       for (const b of [1, 2, 3, 4, 5] as const) { const p = hm.probabilities[a]![b]; if (p != null && n >= 6 && p >= 0.4 && (!best || p * Math.min(1, n / 12) > best.p * Math.min(1, best.n / 12))) best = { a, b, p, n }; }
     }
-    if (best) add({ id: "order1", family: "order1", sentence: `Després de tirar un ${best.a}, tires un ${best.b} el ${pct(best.p)} de les vegades.`, counterMove: `aposta al ${best.b} cada cop que veu el teu ${best.a}.`, evidence: { hits: Math.round(best.p * best.n), n: best.n, rate: best.p }, strength: strengthOf(best.p, 0.2, best.n, 12) });
+    if (best) add({ id: "order1", family: "order1", sentence: `Després de tirar un ${best.a}, tires un ${best.b} el ${pct(best.p)} de les vegades.`, counterMove: `aposta al ${best.b} cada cop que veu el teu ${best.a}.`, evidence: { hits: Math.round(best.p * best.n), n: best.n, rate: best.p }, strength: strengthOf(best.p, 0.2, best.n, 12), params: { a: best.a, b: best.b } });
   }
   // --- sequence: order-2 triple
   const o2 = computeOrder2(history);
-  { const t = o2.triples.find((x) => x.contextCount >= 6 && x.p >= 0.5); if (t) add({ id: "order2", family: "order2", sentence: `Després d'un ${t.a} i un ${t.b}, tires un ${t.c} el ${pct(t.p)} de les vegades.`, counterMove: `dos números seguits li diuen el tercer — aposta al ${t.c}.`, evidence: { hits: t.count, n: t.contextCount, rate: t.p }, strength: strengthOf(t.p, 0.2, t.contextCount, 10) }); }
+  { const t = o2.triples.find((x) => x.contextCount >= 6 && x.p >= 0.5); if (t) add({ id: "order2", family: "order2", sentence: `Després d'un ${t.a} i un ${t.b}, tires un ${t.c} el ${pct(t.p)} de les vegades.`, counterMove: `dos números seguits li diuen el tercer — aposta al ${t.c}.`, evidence: { hits: t.count, n: t.contextCount, rate: t.p }, strength: strengthOf(t.p, 0.2, t.contextCount, 10), params: { a: t.a, b: t.b, c: t.c } }); }
   // --- steps and staircase
   const st = computeSteps(history);
   if (st.n >= 12 && st.pStepOne != null && st.pStepOne >= 0.36) add({ id: "stepOne", family: "order1", sentence: `Puges o baixes d'un en un el ${pct(st.pStepOne)} de les vegades.`, counterMove: `apostant a un més o un menys té dues opcions en lloc de cinc.`, evidence: { hits: Math.round(st.pStepOne * st.n), n: st.n, rate: st.pStepOne }, strength: strengthOf(st.pStepOne, 0.32, st.n) });
@@ -77,7 +79,7 @@ export function computeTells2(history: readonly HistoryEntry[], ranking?: Exploi
   {
     let best: { f: number; g: number; p: number; n: number } | null = null;
     for (const f of [1, 2, 3, 4, 5] as const) { const c = wd.gGivenF[f]!; if (c.n >= 10 && c.favouriteP != null && c.favouriteP >= 0.4 && (!best || c.favouriteP > best.p)) best = { f, g: c.favouriteG!, p: c.favouriteP, n: c.n }; }
-    if (best) add({ id: "weld", family: null, sentence: `Quan mostres ${best.f} dits, cantes ${best.f + best.g} el ${pct(best.p)} de les vegades.`, counterMove: `si veu un ${best.f} sap que busques un ${best.g} — i s'hi amaga.`, evidence: { hits: Math.round(best.p * best.n), n: best.n, rate: best.p }, strength: strengthOf(best.p, 0.2, best.n) });
+    if (best) add({ id: "weld", family: null, sentence: `Quan mostres ${best.f} dits, cantes ${best.f + best.g} el ${pct(best.p)} de les vegades.`, counterMove: `si veu un ${best.f} sap que busques un ${best.g} — i s'hi amaga.`, evidence: { hits: Math.round(best.p * best.n), n: best.n, rate: best.p }, strength: strengthOf(best.p, 0.2, best.n), params: { f: best.f, g: best.g } });
   }
   // --- the chase and the guess side
   const gs = computeGuessStats(history);
