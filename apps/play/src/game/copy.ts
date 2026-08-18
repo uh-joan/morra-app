@@ -222,5 +222,4 @@ export const VERDICT_BANNER = {
 
 export const HOME_TEXT = {
   vs: (name: string) => `contra ${name}`,
-  bubbleTell: (tell: string) => `T'he vist. ${tell}`,
 } as const;

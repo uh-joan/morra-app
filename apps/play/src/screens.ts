@@ -66,22 +66,10 @@ function pickHomeRival(): Pirate {
   return PIRATES.find((p) => p.levelId === level) ?? PIRATES[0]!;
 }
 function renderHome(): void {
+  // (the character at the table is parked — the wordmark carries the home)
   homeRival = pickHomeRival();
-  const p = homeRival;
-  const portrait = byId("homePortrait");
-  if (portrait) portrait.innerHTML = artWithUniqueIds(PIRATE_ART[p.levelId] ?? "", "home"); // constant authored art
-  const name = byId("homeRivalName"), title = byId("homeRivalTitle"), vs = byId("homeVs"), bubble = byId("homeBubble");
-  if (name) name.textContent = p.name;
-  if (title) title.textContent = p.title;
-  if (vs) vs.textContent = HOME_TEXT.vs(p.name);
-  if (!bubble) return;
-  // the bubble: the tell, in his mouth — or a greeting
-  const hist = toHistoryArray(getPlayerModel());
-  const rounds = hist.filter((h) => h.playerFingers != null).length;
-  const tell = rounds >= 12 ? (getLastTopTell()?.sentence ?? computeTopTells(hist)[0]?.sentence ?? null) : null;
-  const greet = p.taunts.greet[Math.floor(Math.random() * p.taunts.greet.length)] ?? "";
-  bubble.textContent = tell ? HOME_TEXT.bubbleTell(tell) : greet;
-  bubble.classList.toggle("knows", !!tell);
+  const vs = byId("homeVs");
+  if (vs) vs.textContent = HOME_TEXT.vs(homeRival.name);
 }
 
 // ------------------------------------------------------- character select
