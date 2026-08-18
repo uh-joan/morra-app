@@ -221,10 +221,6 @@ export const VERDICT_BANNER = {
 } as const;
 
 export const HOME_TEXT = {
-  noRival: "Quatre corsaris t'esperen. Comença per la taverna.",
-  lastRival: (name: string, top: boolean) => `Últim rival: ${name}. ${top ? "Torna-hi." : "Torna-hi, o puja de taula."}`,
-  noSpar: "Missions per trencar els teus costums.",
-  lastSpar: (name: string) => `Última sessió: espàrring amb ${name}.`,
-  espillEarly: (n: number) => (n ? `${n} tir${n === 1 ? "" : "s"} — encara no et coneix. Juga i torna.` : "Encara no et coneix — juga i torna."),
-  espillLine: (pct: number | null, tell: string | null) => `${pct != null ? `El Rei et llegeix el ${pct}%.` : ""}${tell ? ` ${tell}` : ""}`.trim(),
+  vs: (name: string) => `contra ${name}`,
+  bubbleTell: (tell: string) => `T'he vist. ${tell}`,
 } as const;

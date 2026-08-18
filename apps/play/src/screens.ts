@@ -5,7 +5,7 @@
 // owned by game.ts/modes.ts — this module only pushes the same buttons a
 // player could (selAiLevel change, btnPlayAgain click, setSessionMode).
 
-import { computeExploitabilityV2, computeTopTells, LEVELS, toHistoryArray } from "@morra/core";
+import { computeTopTells, LEVELS, toHistoryArray } from "@morra/core";
 import { getPlayerModel } from "./game.js";
 import { HOME_TEXT } from "./game/copy.js";
 import { el } from "./dom.js";
@@ -29,7 +29,7 @@ export type Screen = "title" | "select" | "fight" | "espill";
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
   logEvent("screen_change", { screen: s });
-  if (s === "title") setTimeout(renderHomeLines, 0); // personal lines, after first paint
+  if (s === "title") setTimeout(renderHome, 0); // the rival at the table, after first paint
   reflectRoute(s, getSessionMode(), routeParamsFor(s), "push", currentRivalSlug());
 }
 /** The path segment for the fight routes: the rival, or "sol" when sparring nobody. */
@@ -51,23 +51,37 @@ function byId(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
 
-// ------------------------------------------------------- the home's lines
-// Each door carries one line from the profile: the last rival, the last
-// sparring partner, and what El Rei sees. Cheap, and computed after paint.
-function renderHomeLines(): void {
+// ------------------------------------------------------- the home
+// The rival is already at the table: the pirate you'll face (the last one
+// you duelled, or Nino), his nameplate, and a speech bubble — if the mirror
+// knows you, he taunts you with your own tell; otherwise his greeting. One
+// CTA: Juga → that table, straight (the tripulants only if you ask).
+let homeRival: Pirate = PIRATES[0]!;
+let quickPlay = false; // Juga pressed: the ready hook goes to homeRival's table, not the select
+function pickHomeRival(): Pirate {
   const hist = toHistoryArray(getPlayerModel());
-  const nameOf = (level: string | null | undefined) => PIRATES.find((p) => p.levelId === level)?.name ?? null;
   const lastDuel = [...hist].reverse().find((h) => h.source !== "entrenament" && h.aiLevel);
-  const lastSpar = [...hist].reverse().find((h) => h.source === "entrenament" && h.aiLevel);
-  const duelLine = byId("doorDuelLine"), entLine = byId("doorEntrenaLine"), espLine = byId("doorEspillLine");
-  if (duelLine) duelLine.textContent = lastDuel ? HOME_TEXT.lastRival(nameOf(lastDuel.aiLevel) ?? "", lastDuel.aiLevel === "L4") : HOME_TEXT.noRival;
-  if (entLine) entLine.textContent = lastSpar ? HOME_TEXT.lastSpar(nameOf(lastSpar.aiLevel) ?? "") : HOME_TEXT.noSpar;
-  if (!espLine) return;
+  // last one duelled → else the currently-selected level → else Nino
+  const level = lastDuel?.aiLevel ?? el.selAiLevel.value ?? "L1";
+  return PIRATES.find((p) => p.levelId === level) ?? PIRATES[0]!;
+}
+function renderHome(): void {
+  homeRival = pickHomeRival();
+  const p = homeRival;
+  const portrait = byId("homePortrait");
+  if (portrait) portrait.innerHTML = artWithUniqueIds(PIRATE_ART[p.levelId] ?? "", "home"); // constant authored art
+  const name = byId("homeRivalName"), title = byId("homeRivalTitle"), vs = byId("homeVs"), bubble = byId("homeBubble");
+  if (name) name.textContent = p.name;
+  if (title) title.textContent = p.title;
+  if (vs) vs.textContent = HOME_TEXT.vs(p.name);
+  if (!bubble) return;
+  // the bubble: the tell, in his mouth — or a greeting
+  const hist = toHistoryArray(getPlayerModel());
   const rounds = hist.filter((h) => h.playerFingers != null).length;
-  if (rounds < 8) { espLine.textContent = HOME_TEXT.espillEarly(rounds); return; }
-  const ex = computeExploitabilityV2(hist);
-  const tell = getLastTopTell()?.sentence ?? computeTopTells(hist)[0]?.sentence ?? null;
-  espLine.textContent = HOME_TEXT.espillLine(ex.rate != null ? Math.round(ex.rate * 100) : null, tell);
+  const tell = rounds >= 12 ? (getLastTopTell()?.sentence ?? computeTopTells(hist)[0]?.sentence ?? null) : null;
+  const greet = p.taunts.greet[Math.floor(Math.random() * p.taunts.greet.length)] ?? "";
+  bubble.textContent = tell ? HOME_TEXT.bubbleTell(tell) : greet;
+  bubble.classList.toggle("knows", !!tell);
 }
 
 // ------------------------------------------------------- character select
@@ -186,11 +200,12 @@ export function installScreens(): void {
   document.body.dataset.mode = "partida";
   setScreen("title");
 
-  // The home's three doors. The duel and Entrenament go through the sensor
-  // onboarding (both land on the tripulants with that intent); L'Espill
-  // opens directly — reading your game needs no sensors.
-  byId("doorDuel")?.addEventListener("click", () => startOnboarding("partida"));
-  byId("doorEntrena")?.addEventListener("click", () => startOnboarding("entrenament"));
+  // The home. Juga → the sensor onboarding, then straight to homeRival's
+  // table (quick play); "canvia de rival" → the tripulants; Entrenament →
+  // the tripulants with that intent; L'Espill opens directly (no sensors).
+  byId("btnJuga")?.addEventListener("click", () => { quickPlay = true; startOnboarding("partida"); });
+  byId("btnHomeChange")?.addEventListener("click", () => { quickPlay = false; startOnboarding("partida"); });
+  byId("doorEntrena")?.addEventListener("click", () => { quickPlay = false; startOnboarding("entrenament"); });
   const openEspill = () => { renderEspillScreen(); setScreen("espill"); };
   byId("doorEspill")?.addEventListener("click", openEspill);
   el.btnOpenEspill.addEventListener("click", openEspill);
@@ -212,10 +227,12 @@ export function installScreens(): void {
     reflectRoute("espill", getSessionMode(), { tab: b.dataset.tab }, "replace");
   });
   setOnboardingReadyHook((t) => {
-    // Both intents pass through the tripulants screen: choose whom to duel,
-    // or whom to spar with (or "sol"). The pills carry the intent there.
     setSessionMode(t);
     syncModeDataset(t);
+    // Juga from the home: straight to the table shown there. Everything
+    // else passes through the tripulants: choose whom to duel, or whom to
+    // spar with (or "sol"). The pills carry the intent there.
+    if (t === "partida" && quickPlay) { quickPlay = false; chooseRival(homeRival); return; }
     setScreen("select");
   });
 

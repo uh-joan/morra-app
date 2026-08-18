@@ -38,30 +38,20 @@
 <!-- ================= TITLE ================= -->
 <section id="screenTitle" class="screen">
   <div class="title-stars" aria-hidden="true"></div>
-  <div class="title-inner">
+  <div class="title-inner home">
     <div id="titleWordmark" class="title-wordmark"><!-- wordmark SVG injected --></div>
-    <p class="title-tag">El duel dels corsaris — tira els dits i canta el número</p>
-    <nav class="doors" aria-label="On vols anar">
-      <button id="doorDuel" class="door">
-        <span class="door-kicker">Punts</span>
-        <span class="door-name">El duel</span>
-        <span class="door-desc">Tria un corsari i juga a punts. Quatre taules, del port al fons del mar.</span>
-        <span class="door-line" id="doorDuelLine">Quatre corsaris t'esperen.</span>
-      </button>
-      <button id="doorEntrena" class="door">
-        <span class="door-kicker">Sense punts</span>
-        <span class="door-name">Entrenament</span>
-        <span class="door-desc">Espàrring amb un corsari — o sol, davant l'espill — i el mirall et diu què veu.</span>
-        <span class="door-line" id="doorEntrenaLine">Missions per trencar els teus costums.</span>
-      </button>
-      <button id="doorEspill" class="door">
-        <span class="door-kicker">Sense càmera</span>
-        <span class="door-name">L'Espill</span>
-        <span class="door-desc">El que un bon rival veuria de tu: els teus defectes, ordenats pel que li valen.</span>
-        <span class="door-line" id="doorEspillLine">Encara no et coneix — juga i torna.</span>
-      </button>
+    <div class="home-table">
+      <div class="home-bubble" id="homeBubble" role="status">…</div>
+      <div class="home-portrait" id="homePortrait" aria-hidden="true"></div>
+      <div class="home-nameplate"><span id="homeRivalName">Nino</span> <em id="homeRivalTitle">el Grumet</em></div>
+    </div>
+    <button id="btnJuga" class="btn-gold home-cta">Juga</button>
+    <p class="home-sub"><span id="homeVs">contra Nino</span> · <button id="btnHomeChange" class="link">canvia de rival</button></p>
+    <nav class="home-links" aria-label="Més">
+      <button id="doorEntrena" class="link">Entrenament</button>
+      <span class="home-dot" aria-hidden="true">·</span>
+      <button id="doorEspill" class="link">L'Espill</button>
     </nav>
-    <p class="title-hint" id="titleHint">El duel i l'entrenament necessiten la càmera i el micròfon. Tu marques el ritme: cap rellotge, cap espera.</p>
   </div>
   <footer class="title-prep">
     <span>Preparació a mà —</span>
