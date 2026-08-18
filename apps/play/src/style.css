@@ -917,3 +917,34 @@ body[data-sparring="on"] .face-off #trainingPanel { grid-column: 2; }
 .reading .shadow-dots span.hit { background: #2f7a3a; }
 .reading .shadow-dots span.miss { background: rgba(138,47,30,.55); }
 .reading .shadow-head b { color: #2f7a3a; }
+
+/* ================= the home: three doors (2026-08-17) =================
+   Typographic placards on the night sea. No icons: a control is text, or
+   an icon, never both. The bar shows on the home for the tripulant. */
+body[data-screen="title"] #topBar { display: flex; }
+body[data-screen="title"] .bar-modes { display: none; }
+@media (max-width: 640px) { body[data-screen="title"] .bar-logo { display: none; } body[data-screen="title"] #topBar { justify-content: flex-end; } }
+#screenTitle { min-height: calc(100vh - var(--topbar-h, 55px)); justify-content: flex-start; padding-top: 6vh; }
+.title-inner { gap: 14px; }
+.title-wordmark { width: min(440px, 80vw); }
+.title-tag { font-size: 16px; }
+.doors { display: grid; grid-template-columns: repeat(3, minmax(220px, 280px)); gap: 16px; margin: 14px 0 6px; padding: 0; }
+@media (max-width: 900px) { .doors { grid-template-columns: 1fr; width: min(420px, 90vw); } }
+.door {
+  display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 6px;
+  padding: 18px 20px 16px; min-height: 196px; cursor: pointer;
+  background: linear-gradient(180deg, var(--parchment), var(--parchment-2)); color: var(--parchment-ink);
+  border: 3px solid var(--rope); border-radius: 14px; box-shadow: 0 16px 40px rgba(0,0,0,.5);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.door:hover, .door:focus-visible { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 22px 50px rgba(0,0,0,.6), 0 0 0 4px rgba(224,182,79,.18); outline: none; }
+.door-kicker { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #8a6540; font-weight: 700; }
+.door-name { font-family: var(--serif); font-size: 30px; font-weight: 800; line-height: 1; color: #2a1c04; }
+.door-desc { font-size: 12.5px; line-height: 1.35; color: #4a3a1c; }
+.door-line { margin-top: auto; padding-top: 8px; border-top: 1px dashed rgba(58,44,20,.3); font-size: 12px; font-style: italic; color: #8a2f1e; width: 100%; }
+#doorEspill .door-line { color: #6b5636; }
+.title-hint { max-width: 520px; }
+.title-prep { position: static; transform: none; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+@media (max-height: 760px) { .door { min-height: 160px; } .door-name { font-size: 26px; } }
+/* solo card: a mirror-glow instead of a portrait */
+.solo-portrait { background: radial-gradient(closest-side, rgba(224,182,79,.35), rgba(224,182,79,.08) 60%, transparent 70%); }

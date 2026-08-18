@@ -57,7 +57,7 @@ export const PLAY_AGAIN = "Torna a jugar";
 export const AI_COMMIT_STATUS = {
   committed: (hash8: string): string => `Opponent committed: ${hash8}`,
   verified: (hash8: string): string => `Opponent committed: ${hash8} ✓`,
-  verifyFailed: "✗ VERIFY FAILED",
+  verifyFailed: "VERIFY FAILED",
   gameOver: "Partit acabat.",
 };
 
@@ -92,8 +92,8 @@ export const TRAINING_PANEL_TEXT = {
   liveExploit: (pct: number) => `El Rei et llegeix el ${pct}% — 20% és una moneda.`,
   liveExploitNone: "El Rei encara no té prou tirs per llegir-te.",
   // Entrenament strip head, by partner
-  trainingHeadSolo: "🎯 Entrenament — sol, davant l'espill",
-  trainingHeadSparring: (name: string) => `🎯 Entrenament amb ${name} — sense punts, amb mirall`,
+  trainingHeadSolo: "Entrenament — sol, davant l'espill",
+  trainingHeadSparring: (name: string) => `Entrenament amb ${name} — sense punts, amb mirall`,
   readingCount: (hits: number, n: number) => `${hits} de ${n}`,
   readingHit: (f: number) => `Has cantat els seus ${f} dits — l'has llegit.`,
   readingMiss: (g: number, f: number) => `Buscaves ${g}, tenia ${f}.`,
@@ -119,7 +119,7 @@ export const TRAINING_PANEL_TEXT = {
   missionPass: (title: string) => `Missió superada — ${title}. Ara mira si aguanta a la Partida.`,
   missionFail: (title: string) => `Aquesta vegada no — ${title}. Torna-hi: el costum és fort.`,
   missionUndecidable: "No hi ha hagut prou situacions per jutjar-ho. Torna-hi.",
-  missionTopLabel: (title: string) => `🎯 Missió: ${title}`,
+  missionTopLabel: (title: string) => `Missió: ${title}`,
   // trends strip — last 30 vs the 30 before
   trendTitle: (n: number) => `Últims ${n} tirs vs els ${n} d'abans`,
   trendTooEarly: "Els canvis es veuran quan hi hagi 60 tirs.",
@@ -218,4 +218,13 @@ export const VERDICT_BANNER = {
     `ningú l'ha encertat: ${pf} + ${af} = ${total} (tu «${word ?? "?"}», ell «${aiWord}»)`,
   incompleteHeadline: "INCOMPLETA",
   incompleteTail: "la mateixa aposta segueix en peu",
+} as const;
+
+export const HOME_TEXT = {
+  noRival: "Quatre corsaris t'esperen. Comença per la taverna.",
+  lastRival: (name: string, top: boolean) => `Últim rival: ${name}. ${top ? "Torna-hi." : "Torna-hi, o puja de taula."}`,
+  noSpar: "Missions per trencar els teus costums.",
+  lastSpar: (name: string) => `Última sessió: espàrring amb ${name}.`,
+  espillEarly: (n: number) => (n ? `${n} tir${n === 1 ? "" : "s"} — encara no et coneix. Juga i torna.` : "Encara no et coneix — juga i torna."),
+  espillLine: (pct: number | null, tell: string | null) => `${pct != null ? `El Rei et llegeix el ${pct}%.` : ""}${tell ? ` ${tell}` : ""}`.trim(),
 } as const;

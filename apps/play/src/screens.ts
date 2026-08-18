@@ -5,7 +5,9 @@
 // owned by game.ts/modes.ts — this module only pushes the same buttons a
 // player could (selAiLevel change, btnPlayAgain click, setSessionMode).
 
-import { LEVELS } from "@morra/core";
+import { computeExploitabilityV2, computeTopTells, LEVELS, toHistoryArray } from "@morra/core";
+import { getPlayerModel } from "./game.js";
+import { HOME_TEXT } from "./game/copy.js";
 import { el } from "./dom.js";
 import { logEvent } from "./telemetry.js";
 import { setSessionMode } from "./modes.js";
@@ -27,6 +29,7 @@ export type Screen = "title" | "select" | "fight" | "espill";
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
   logEvent("screen_change", { screen: s });
+  if (s === "title") setTimeout(renderHomeLines, 0); // personal lines, after first paint
   reflectRoute(s, getSessionMode(), routeParamsFor(s), "push", currentRivalSlug());
 }
 /** The path segment for the fight routes: the rival, or "sol" when sparring nobody. */
@@ -46,6 +49,25 @@ function selectEspillTab(tab: string): void {
 
 function byId(id: string): HTMLElement | null {
   return document.getElementById(id);
+}
+
+// ------------------------------------------------------- the home's lines
+// Each door carries one line from the profile: the last rival, the last
+// sparring partner, and what El Rei sees. Cheap, and computed after paint.
+function renderHomeLines(): void {
+  const hist = toHistoryArray(getPlayerModel());
+  const nameOf = (level: string | null | undefined) => PIRATES.find((p) => p.levelId === level)?.name ?? null;
+  const lastDuel = [...hist].reverse().find((h) => h.source !== "entrenament" && h.aiLevel);
+  const lastSpar = [...hist].reverse().find((h) => h.source === "entrenament" && h.aiLevel);
+  const duelLine = byId("doorDuelLine"), entLine = byId("doorEntrenaLine"), espLine = byId("doorEspillLine");
+  if (duelLine) duelLine.textContent = lastDuel ? HOME_TEXT.lastRival(nameOf(lastDuel.aiLevel) ?? "", lastDuel.aiLevel === "L4") : HOME_TEXT.noRival;
+  if (entLine) entLine.textContent = lastSpar ? HOME_TEXT.lastSpar(nameOf(lastSpar.aiLevel) ?? "") : HOME_TEXT.noSpar;
+  if (!espLine) return;
+  const rounds = hist.filter((h) => h.playerFingers != null).length;
+  if (rounds < 8) { espLine.textContent = HOME_TEXT.espillEarly(rounds); return; }
+  const ex = computeExploitabilityV2(hist);
+  const tell = getLastTopTell()?.sentence ?? computeTopTells(hist)[0]?.sentence ?? null;
+  espLine.textContent = HOME_TEXT.espillLine(ex.rate != null ? Math.round(ex.rate * 100) : null, tell);
 }
 
 // ------------------------------------------------------- character select
@@ -80,7 +102,7 @@ function buildCard(p: Pirate): HTMLButtonElement {
   flavor.textContent = p.flavor;
   const stage = document.createElement("div");
   stage.className = "card-stage";
-  stage.textContent = "⚓ " + p.stageName;
+  stage.textContent = p.stageName;
   const core = document.createElement("div");
   core.className = "card-core";
   core.textContent = LEVELS[p.levelId]?.name ?? p.levelId;
@@ -94,7 +116,7 @@ function buildSoloCard(): HTMLButtonElement {
   card.type = "button";
   card.id = "pirateCard-sol";
   card.className = "pirate-card solo-card";
-  const portrait = document.createElement("div"); portrait.className = "card-portrait solo-portrait"; portrait.textContent = "🪞";
+  const portrait = document.createElement("div"); portrait.className = "card-portrait solo-portrait"; // a mirror-glow, no icon
   const name = document.createElement("div"); name.className = "card-name"; name.textContent = "Sol";
   const title = document.createElement("div"); title.className = "card-title"; title.textContent = "davant l'espill";
   const flavor = document.createElement("div"); flavor.className = "card-flavor"; flavor.textContent = "Ningú et torna la tirada. Només tu, els teus números i l'ombra d'El Rei que et llegeix.";
@@ -164,12 +186,13 @@ export function installScreens(): void {
   document.body.dataset.mode = "partida";
   setScreen("title");
 
-  byId("btnJuga")?.addEventListener("click", () => startOnboarding("partida"));
-  // L'Espill is its own screen (2026-08-17): reading your game needs no
-  // sensors — it opens directly. Throwing at the mirror (Entrenament) is
-  // the step after, and that one goes through the sensor onboarding.
+  // The home's three doors. The duel and Entrenament go through the sensor
+  // onboarding (both land on the tripulants with that intent); L'Espill
+  // opens directly — reading your game needs no sensors.
+  byId("doorDuel")?.addEventListener("click", () => startOnboarding("partida"));
+  byId("doorEntrena")?.addEventListener("click", () => startOnboarding("entrenament"));
   const openEspill = () => { renderEspillScreen(); setScreen("espill"); };
-  byId("btnEspillTitle")?.addEventListener("click", openEspill);
+  byId("doorEspill")?.addEventListener("click", openEspill);
   el.btnOpenEspill.addEventListener("click", openEspill);
   el.btnGoToTraining.addEventListener("click", openEspill);
   el.btnEspillBack.addEventListener("click", () => setScreen("title"));

@@ -47,7 +47,7 @@ export async function loadVoskModel(): Promise<void> {
     await voskRecognizer.load();
     const totalMs = performance.now() - t0;
     setStatus(el.voskStatus, `Veu a punt (català) — carregada en ${(totalMs / 1000).toFixed(1)}s.`, "ok");
-    el.btnLoadVosk.textContent = "👂 Veu a punt ✓";
+    el.btnLoadVosk.textContent = "Veu a punt";
     setChip(el.chipVosk, "loaded", "ok");
     renderBigWordIdle(true);
   } catch (err) {

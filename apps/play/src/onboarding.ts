@@ -69,7 +69,7 @@ function tick(): void {
   if (mini) {
     const show = startedAt > 0 && document.body.dataset.onboarding !== "on" && !veuOn && !chipBad(el.chipVosk);
     mini.hidden = !show;
-    if (show) mini.textContent = "👂 " + ((el.voskStatus.textContent ?? "") || "Carregant la veu…");
+    if (show) mini.textContent = (el.voskStatus.textContent ?? "") || "Carregant la veu…";
   }
 
   if (camOn && micOn && document.body.dataset.onboarding === "on") {

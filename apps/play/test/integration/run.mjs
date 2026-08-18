@@ -46,7 +46,7 @@ r.check("boots on the title screen", (await page.evaluate(() => document.body.da
 // Routes (2026-08-17): the hash mirrors screen+mode; back/forward and deep links apply
 r.check("boot lands on #/", (await page.evaluate(() => location.hash)) === "#/");
 // L'Espill is its own screen (2026-08-17): opens from the title without sensors, shows the coach card, tabs switch, back returns to port
-await page.click("#btnEspillTitle");
+await page.click("#doorEspill");
 await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
 const espill = await page.evaluate(() => {
   const tab = document.querySelector('#espillTabs button[data-tab="numeros"]'); tab.click();
