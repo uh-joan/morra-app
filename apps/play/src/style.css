@@ -932,12 +932,10 @@ body[data-screen="title"] .bar-modes { display: none; }
 @keyframes portrait-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes bubble-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .home-cta { font-size: 34px; padding: 16px 78px; margin-top: 10px; }
-.home-sub { margin: 2px 0 0; font-size: 13.5px; color: var(--dim); font-family: var(--serif); }
 .home-links { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 14px; }
 .home-dot { color: var(--dim); }
 button.link { background: none; border: 0; padding: 2px 4px; color: var(--parchment); font-family: var(--serif); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(224,182,79,.5); cursor: pointer; }
 button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); }
-.home-sub button.link { color: var(--parchment); font-size: 13.5px; }
 .title-prep { position: static; transform: none; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
 @media (max-width: 640px) {
         .home-cta { font-size: 28px; padding: 14px 60px; }

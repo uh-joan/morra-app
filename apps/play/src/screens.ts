@@ -5,9 +5,7 @@
 // owned by game.ts/modes.ts — this module only pushes the same buttons a
 // player could (selAiLevel change, btnPlayAgain click, setSessionMode).
 
-import { computeTopTells, LEVELS, toHistoryArray } from "@morra/core";
-import { getPlayerModel } from "./game.js";
-import { HOME_TEXT } from "./game/copy.js";
+import { LEVELS } from "@morra/core";
 import { el } from "./dom.js";
 import { logEvent } from "./telemetry.js";
 import { setSessionMode } from "./modes.js";
@@ -29,7 +27,6 @@ export type Screen = "title" | "select" | "fight" | "espill";
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
   logEvent("screen_change", { screen: s });
-  if (s === "title") setTimeout(renderHome, 0); // the rival at the table, after first paint
   reflectRoute(s, getSessionMode(), routeParamsFor(s), "push", currentRivalSlug());
 }
 /** The path segment for the fight routes: the rival, or "sol" when sparring nobody. */
@@ -49,27 +46,6 @@ function selectEspillTab(tab: string): void {
 
 function byId(id: string): HTMLElement | null {
   return document.getElementById(id);
-}
-
-// ------------------------------------------------------- the home
-// The rival is already at the table: the pirate you'll face (the last one
-// you duelled, or Nino), his nameplate, and a speech bubble — if the mirror
-// knows you, he taunts you with your own tell; otherwise his greeting. One
-// CTA: Juga → that table, straight (the tripulants only if you ask).
-let homeRival: Pirate = PIRATES[0]!;
-let quickPlay = false; // Juga pressed: the ready hook goes to homeRival's table, not the select
-function pickHomeRival(): Pirate {
-  const hist = toHistoryArray(getPlayerModel());
-  const lastDuel = [...hist].reverse().find((h) => h.source !== "entrenament" && h.aiLevel);
-  // last one duelled → else the currently-selected level → else Nino
-  const level = lastDuel?.aiLevel ?? el.selAiLevel.value ?? "L1";
-  return PIRATES.find((p) => p.levelId === level) ?? PIRATES[0]!;
-}
-function renderHome(): void {
-  // (the character at the table is parked — the wordmark carries the home)
-  homeRival = pickHomeRival();
-  const vs = byId("homeVs");
-  if (vs) vs.textContent = HOME_TEXT.vs(homeRival.name);
 }
 
 // ------------------------------------------------------- character select
@@ -191,12 +167,11 @@ export function installScreens(): void {
   document.body.dataset.mode = "partida";
   setScreen("title");
 
-  // The home. Juga → the sensor onboarding, then straight to homeRival's
-  // table (quick play); "canvia de rival" → the tripulants; Entrenament →
-  // the tripulants with that intent; L'Espill opens directly (no sensors).
-  byId("btnJuga")?.addEventListener("click", () => { quickPlay = true; startOnboarding("partida"); });
-  byId("btnHomeChange")?.addEventListener("click", () => { quickPlay = false; startOnboarding("partida"); });
-  byId("doorEntrena")?.addEventListener("click", () => { quickPlay = false; startOnboarding("entrenament"); });
+  // The home. Juga and Entrenament go through the sensor onboarding to the
+  // tripulants with that intent; L'Espill opens directly (no sensors).
+  // Juga → the sensor onboarding → the tripulants (choose whom to duel).
+  byId("btnJuga")?.addEventListener("click", () => startOnboarding("partida"));
+  byId("doorEntrena")?.addEventListener("click", () => startOnboarding("entrenament"));
   const openEspill = () => { renderEspillScreen(); setScreen("espill"); };
   byId("doorEspill")?.addEventListener("click", openEspill);
   el.btnOpenEspill.addEventListener("click", openEspill);
@@ -220,10 +195,8 @@ export function installScreens(): void {
   setOnboardingReadyHook((t) => {
     setSessionMode(t);
     syncModeDataset(t);
-    // Juga from the home: straight to the table shown there. Everything
-    // else passes through the tripulants: choose whom to duel, or whom to
-    // spar with (or "sol"). The pills carry the intent there.
-    if (t === "partida" && quickPlay) { quickPlay = false; chooseRival(homeRival); return; }
+    // Both intents pass through the tripulants: choose whom to duel, or
+    // whom to spar with (or "sol"). The pills carry the intent there.
     setScreen("select");
   });
 

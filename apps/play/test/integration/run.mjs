@@ -105,15 +105,15 @@ await page.waitForFunction(() => document.body.dataset.mode === "partida", { tim
 r.check("route #/duel/rei: Partida against El Rei", await page.evaluate(() => document.getElementById("btnModePartida").classList.contains("primary") && document.getElementById("selAiLevel").value === "L4" && location.hash === "#/duel/rei"));
 await page.evaluate(() => { location.hash = "#/duel/bru"; });
 await page.waitForFunction(() => document.getElementById("selAiLevel").value === "L2", { timeout: 3000 });
-// The home (2026-08-17): the rival at the table is the last one duelled; Juga goes straight to that table
+// The home (2026-08-17): Juga → the tripulants (with the sensors up, no onboarding card)
 await page.evaluate(() => { location.hash = "#/"; });
 await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
-await new Promise((r2) => setTimeout(r2, 100));
-const home = await page.evaluate(() => ({ vs: document.getElementById("homeVs").textContent, wordmark: document.querySelectorAll("#titleWordmark img").length }));
-r.check("home names the standing rival under Juga; the wordmark image is mounted", /Bru/.test(home.vs) && home.wordmark === 1, JSON.stringify(home));
+r.check("home mounts the wordmark image", (await page.evaluate(() => document.querySelectorAll("#titleWordmark img").length)) === 1);
 await page.click("#btnJuga");
-await page.waitForFunction(() => document.body.dataset.screen === "fight" && document.body.dataset.mode === "partida", { timeout: 5000 });
-r.check("Juga goes straight to that table (no select): #/duel/bru", (await page.evaluate(() => location.hash)) === "#/duel/bru");
+await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 5000 });
+r.check("Juga goes to the tripulants with the duel intent", (await page.evaluate(() => location.hash)) === "#/tripulants?per=duel" && (await page.evaluate(() => document.body.dataset.mode)) === "partida");
+await page.click("#pirateCard-L2");
+await page.waitForFunction(() => document.body.dataset.screen === "fight", { timeout: 5000 });
 await page.evaluate(() => { document.body.classList.remove("vs-on"); });
 r.check("stage scenery mounted", (await page.$$eval("#stageScenery svg", (n) => n.length)) >= 1);
 r.check("corsair figure mounted", (await page.$$eval("#rivalAvatar svg", (n) => n.length)) === 1);

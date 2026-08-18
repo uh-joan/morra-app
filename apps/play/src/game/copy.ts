@@ -220,6 +220,3 @@ export const VERDICT_BANNER = {
   incompleteTail: "la mateixa aposta segueix en peu",
 } as const;
 
-export const HOME_TEXT = {
-  vs: (name: string) => `contra ${name}`,
-} as const;
