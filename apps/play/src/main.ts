@@ -20,7 +20,8 @@ import { drainPendingAnalysis, onSyncHandOnset, onSyncVoiceOnset } from "./analy
 import { renderReadyPill, setPillRenderHook, updateReadyPillFromFrame } from "./readyPill.js";
 import { resetSyncVerdict } from "./render/syncVerdict.js";
 import { installSeam } from "./seam.js";
-import { installGame } from "./game.js";
+import { getPlayerModel, installGame } from "./game.js";
+import { getActiveProfileId, getActiveProfileName } from "./profile.js";
 import { installExport } from "./export.js";
 import { installTraining } from "./training.js";
 import { installModes } from "./modes.js";
@@ -102,3 +103,7 @@ setChip(el.chipVosk, "not loaded", "dim");
 setChip(el.chipClock, "unsampled", "dim");
 
 logEvent("page_load", { pageVersion: PAGE_VERSION, veudelayActive: RIVAL_VOICE_DEFER, fingerCountRule: FINGER_COUNT_RULE, rivalEngine: RIVAL_ENGINE });
+// Field study (2026-08-18): every session says WHO is playing from the first
+// event — the active profile at boot, not only on a switch — so the logs can
+// be split per player later without guessing.
+logEvent("profile_active", { profileId: getActiveProfileId(), profileName: getActiveProfileName(), throws: getPlayerModel().throws.length });
