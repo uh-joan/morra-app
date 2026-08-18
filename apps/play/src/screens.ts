@@ -138,6 +138,7 @@ function chooseRival(p: Pirate): void {
   setScreen("fight");
   applyModeLayout(); // partner changed inside the same mode: panels + loop + route
 }
+let pendingCalibration = false;
 function chooseSolo(): void {
   setSoloTraining(true);
   logEvent("rival_chosen", { level: null, solo: true });
@@ -172,6 +173,9 @@ export function installScreens(): void {
   // Juga → the sensor onboarding → the tripulants (choose whom to duel).
   byId("btnJuga")?.addEventListener("click", () => startOnboarding("partida"));
   byId("doorEntrena")?.addEventListener("click", () => startOnboarding("entrenament"));
+  // Calibratge from the home: it needs the camera, so through the onboarding,
+  // then straight onto the solo Entrenament table with the calibration open.
+  byId("doorCalibra")?.addEventListener("click", () => { pendingCalibration = true; startOnboarding("entrenament"); });
   const openEspill = () => { renderEspillScreen(); setScreen("espill"); };
   byId("doorEspill")?.addEventListener("click", openEspill);
   el.btnOpenEspill.addEventListener("click", openEspill);
@@ -195,6 +199,12 @@ export function installScreens(): void {
   setOnboardingReadyHook((t) => {
     setSessionMode(t);
     syncModeDataset(t);
+    if (pendingCalibration) {
+      pendingCalibration = false;
+      chooseSolo();
+      byId("btnCalibrate")?.click();
+      return;
+    }
     // Both intents pass through the tripulants: choose whom to duel, or
     // whom to spar with (or "sol"). The pills carry the intent there.
     setScreen("select");

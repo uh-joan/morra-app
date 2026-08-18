@@ -112,6 +112,18 @@ r.check("home mounts the wordmark image", (await page.evaluate(() => document.qu
 await page.click("#btnJuga");
 await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 5000 });
 r.check("Juga goes to the tripulants with the duel intent", (await page.evaluate(() => location.hash)) === "#/tripulants?per=duel" && (await page.evaluate(() => document.body.dataset.mode)) === "partida");
+// Calibratge from the home: with the sensors up it lands on the solo Entrenament table with the calibration open
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.click("#doorCalibra");
+await page.waitForFunction(() => document.body.dataset.calibrating === "on", { timeout: 5000 });
+r.check("home's Calibratge opens the calibration on the solo Entrenament table", await page.evaluate(() => document.body.dataset.screen === "fight" && document.body.dataset.mode === "entrenament" && document.body.dataset.solo === "on" && location.hash === "#/entrena/sol"));
+await page.click("#calibClose");
+await page.waitForFunction(() => document.body.dataset.calibrating === undefined, { timeout: 3000 });
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.click("#btnJuga");
+await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 5000 });
 await page.click("#pirateCard-L2");
 await page.waitForFunction(() => document.body.dataset.screen === "fight", { timeout: 5000 });
 await page.evaluate(() => { document.body.classList.remove("vs-on"); });
