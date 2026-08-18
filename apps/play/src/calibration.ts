@@ -357,7 +357,7 @@ function finish(): void {
     const readOk = done.filter((p) => p.count === p.truth).length;
     const hardOnes = done.filter((p) => p.hard).map((p) => p.truth);
     const entornLine = S.entornDecided
-      ? `<div class="calib-line"><span class="k">Entorn</span><span class="v">${S.entornBefore === S.entornDecided ? "" : `${S.entornBefore === "sorollos" ? "🔊" : "🎧"} → `}<b>${S.entornDecided === "sorollos" ? "Local sorollós" : "Tranquil"}</b></span><small>soroll de sala ${(S.ambientFloor ?? 0).toFixed(4)} ${S.ambientFloor != null && S.ambientFloor > SUGGEST_AMBIENT_THRESHOLD ? ">" : "≤"} ${SUGGEST_AMBIENT_THRESHOLD}</small></div>`
+      ? `<div class="calib-line"><span class="k">Entorn</span><span class="v">${S.entornBefore === S.entornDecided ? "" : `${S.entornBefore === "sorollos" ? "Local sorollós" : "Tranquil"} → `}<b>${S.entornDecided === "sorollos" ? "Local sorollós" : "Tranquil"}</b></span><small>soroll de sala ${(S.ambientFloor ?? 0).toFixed(4)} ${S.ambientFloor != null && S.ambientFloor > SUGGEST_AMBIENT_THRESHOLD ? ">" : "≤"} ${SUGGEST_AMBIENT_THRESHOLD}</small></div>`
       : "";
     result.innerHTML =
       entornLine +
