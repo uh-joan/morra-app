@@ -49,7 +49,7 @@ export function installProfiles(): void {
   renderProfileControls();
   el.selProfile.addEventListener("change", () => {
     if (!activateProfile(el.selProfile.value)) return;
-    logEvent("profile_change", { action: "switch", profileId: getActiveProfileId() });
+    logEvent("profile_change", { action: "switch", profileId: getActiveProfileId(), profileName: getActiveProfileName() });
     afterProfileChange();
   });
   el.btnNewProfile.addEventListener("click", () => {
@@ -57,7 +57,7 @@ export function installProfiles(): void {
     if (name == null) return;
     const id = createAndActivateProfile(name);
     if (!id) return; // blank name
-    logEvent("profile_change", { action: "create", profileId: id });
+    logEvent("profile_change", { action: "create", profileId: id, profileName: getActiveProfileName() });
     afterProfileChange();
   });
   el.btnDeleteProfile.addEventListener("click", () => {
