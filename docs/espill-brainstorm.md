@@ -414,3 +414,25 @@ sparring, `scoring()` = duel only; `applyModeLayout()` in modes.ts sets
 panels + loop + route for mode and partner; the strip's hook runs after
 sparring rounds too. Harness: intent pill stays; Bru in Entrenament →
 `#/entrena/bru` with rival side + strip; `#/entrena/sol`; `#/duel/rei`.
+
+
+## 12. The home, redesigned — the rival is already at the table
+
+The first home was a menu (three equal doors, no CTA, too much text — a
+cognitive load, not an experience). Redone: the person opening the app
+wants to play, so the home gives them ONE action and a reason to press it.
+
+The pirate you'll face is at the table — big, in the art, with his
+nameplate — and he speaks. If the mirror knows you (≥ 12 rounds), the
+bubble is your own top tell in his mouth: "T'he vist. Després de tirar un
+3, tires un 4 el 58% de les vegades." If not, his greeting. Under him one
+giant gold **Juga** → straight to that table (the sensor onboarding, then
+the fight — no select screen). "contra El Rei del Fons · canvia de rival"
+for whoever wants another; two quiet text links, Entrenament · L'Espill,
+for the other two places. The rival shown is the last one you duelled
+(else the currently-selected level, else Nino).
+
+The surprise is that the game already knows you, in character, before you
+touch anything — and the one button needs no thought. Everything else is
+a whisper. (Quick-play: `quickPlay` flag → the onboarding ready hook calls
+chooseRival(homeRival) instead of the tripulants.)

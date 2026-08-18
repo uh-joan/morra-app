@@ -80,7 +80,7 @@ function buildCard(p: Pirate): HTMLButtonElement {
   flavor.textContent = p.flavor;
   const stage = document.createElement("div");
   stage.className = "card-stage";
-  stage.textContent = "⚓ " + p.stageName;
+  stage.textContent = p.stageName;
   const core = document.createElement("div");
   core.className = "card-core";
   core.textContent = LEVELS[p.levelId]?.name ?? p.levelId;
@@ -94,7 +94,7 @@ function buildSoloCard(): HTMLButtonElement {
   card.type = "button";
   card.id = "pirateCard-sol";
   card.className = "pirate-card solo-card";
-  const portrait = document.createElement("div"); portrait.className = "card-portrait solo-portrait"; portrait.textContent = "🪞";
+  const portrait = document.createElement("div"); portrait.className = "card-portrait solo-portrait"; // a mirror-glow, no icon
   const name = document.createElement("div"); name.className = "card-name"; name.textContent = "Sol";
   const title = document.createElement("div"); title.className = "card-title"; title.textContent = "davant l'espill";
   const flavor = document.createElement("div"); flavor.className = "card-flavor"; flavor.textContent = "Ningú et torna la tirada. Només tu, els teus números i l'ombra d'El Rei que et llegeix.";
@@ -138,6 +138,7 @@ function chooseRival(p: Pirate): void {
   setScreen("fight");
   applyModeLayout(); // partner changed inside the same mode: panels + loop + route
 }
+let pendingCalibration = false;
 function chooseSolo(): void {
   setSoloTraining(true);
   logEvent("rival_chosen", { level: null, solo: true });
@@ -153,8 +154,11 @@ function syncModeDataset(mode: "partida" | "entrenament"): void {
 }
 
 export function installScreens(): void {
+  // The wordmark is an image (public/wordmark.png); the authored SVG stays
+  // as the fallback if the asset fails to load.
   const wordmark = byId("titleWordmark");
-  if (wordmark) wordmark.innerHTML = WORDMARK_SVG; // constant authored art
+  const img = byId("wordmarkImg") as HTMLImageElement | null;
+  if (wordmark && img) img.addEventListener("error", () => { wordmark.innerHTML = WORDMARK_SVG; }, { once: true });
   buildSelectGrid();
   installPirateChoreography();
   installOnboarding();
@@ -164,12 +168,16 @@ export function installScreens(): void {
   document.body.dataset.mode = "partida";
   setScreen("title");
 
+  // The home. Juga and Entrenament go through the sensor onboarding to the
+  // tripulants with that intent; L'Espill opens directly (no sensors).
+  // Juga → the sensor onboarding → the tripulants (choose whom to duel).
   byId("btnJuga")?.addEventListener("click", () => startOnboarding("partida"));
-  // L'Espill is its own screen (2026-08-17): reading your game needs no
-  // sensors — it opens directly. Throwing at the mirror (Entrenament) is
-  // the step after, and that one goes through the sensor onboarding.
+  byId("doorEntrena")?.addEventListener("click", () => startOnboarding("entrenament"));
+  // Calibratge from the home: it needs the camera, so through the onboarding,
+  // then straight onto the solo Entrenament table with the calibration open.
+  byId("doorCalibra")?.addEventListener("click", () => { pendingCalibration = true; startOnboarding("entrenament"); });
   const openEspill = () => { renderEspillScreen(); setScreen("espill"); };
-  byId("btnEspillTitle")?.addEventListener("click", openEspill);
+  byId("doorEspill")?.addEventListener("click", openEspill);
   el.btnOpenEspill.addEventListener("click", openEspill);
   el.btnGoToTraining.addEventListener("click", openEspill);
   el.btnEspillBack.addEventListener("click", () => setScreen("title"));
@@ -189,10 +197,16 @@ export function installScreens(): void {
     reflectRoute("espill", getSessionMode(), { tab: b.dataset.tab }, "replace");
   });
   setOnboardingReadyHook((t) => {
-    // Both intents pass through the tripulants screen: choose whom to duel,
-    // or whom to spar with (or "sol"). The pills carry the intent there.
     setSessionMode(t);
     syncModeDataset(t);
+    if (pendingCalibration) {
+      pendingCalibration = false;
+      chooseSolo();
+      byId("btnCalibrate")?.click();
+      return;
+    }
+    // Both intents pass through the tripulants: choose whom to duel, or
+    // whom to spar with (or "sol"). The pills carry the intent there.
     setScreen("select");
   });
 

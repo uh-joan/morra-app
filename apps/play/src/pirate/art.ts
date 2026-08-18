@@ -188,7 +188,7 @@ const REI = `
   </defs>
   <circle cx="110" cy="118" r="108" fill="url(#pk-halo)" class="halo"/>
   <g opacity=".5" stroke="#2f8f87" stroke-width="5" fill="none" stroke-linecap="round">
-    <path d="M178 250 L178 96"/>
+    <path d="M178 244 L178 93"/>
     <path d="M164 100 Q164 80 178 78 Q192 80 192 100"/>
     <path d="M164 100 L164 84 M192 100 L192 84 M178 96 L178 76"/>
   </g>
@@ -423,37 +423,85 @@ export const WORDMARK_SVG = `
       <stop offset="0" stop-color="#f4d98a"/><stop offset=".55" stop-color="#e0b64f"/><stop offset="1" stop-color="#a87c22"/>
     </linearGradient>
   </defs>
-  <g transform="translate(280 86)">
-    <g stroke="#d8c9a8" stroke-width="17" stroke-linecap="round">
-      <path d="M-88 44 L74 -34"/>
-      <path d="M88 44 L-74 -34"/>
+
+  <!-- the word: letters placed one by one so the skull owns the O -->
+  <g class="wm-text" fill="url(#wm-gold)" stroke="#161d2c" stroke-width="4" paint-order="stroke">
+    <text x="88" y="188" text-anchor="middle">M</text>
+    <text x="185" y="188" text-anchor="middle">O</text>
+    <text x="275" y="188" text-anchor="middle">R</text>
+    <text x="360" y="188" text-anchor="middle">R</text>
+    <text x="448" y="188" text-anchor="middle">A</text>
+  </g>
+
+  <!-- crossed bones through the O — the hands call 2 i 5, a morra throw -->
+  <g transform="translate(185 148)">
+    <g stroke="#161d2c" stroke-width="16" stroke-linecap="round" opacity=".9">
+      <path d="M-52 34 L52 -34"/>
+      <path d="M52 34 L-52 -34"/>
     </g>
-    <g transform="translate(84 -40) rotate(-26)" fill="#d8c9a8">
-      <ellipse rx="15" ry="12"/>
-      <g stroke="#d8c9a8" stroke-width="6.5" stroke-linecap="round">
-        <path d="M-8 -9 L-15 -26"/><path d="M-1 -11 L-2 -30"/><path d="M6 -10 L11 -28"/><path d="M12 -6 L21 -19"/><path d="M-13 -2 L-27 -8"/>
+    <g stroke="#d8c9a8" stroke-width="11" stroke-linecap="round">
+      <path d="M-52 34 L52 -34"/>
+      <path d="M52 34 L-52 -34"/>
+    </g>
+    <!-- lower ends: bone knobs -->
+    <g fill="#d8c9a8" stroke="#161d2c" stroke-width="2.5">
+      <circle cx="-56" cy="30" r="7"/><circle cx="-49" cy="39" r="7"/>
+      <circle cx="56" cy="30" r="7"/><circle cx="49" cy="39" r="7"/>
+    </g>
+    <!-- upper-left hand: FIVE -->
+    <g transform="translate(-56 -38) rotate(-30)" fill="#d8c9a8" stroke="#161d2c" stroke-width="2">
+      <ellipse rx="13" ry="10.5"/>
+      <g stroke="#d8c9a8" stroke-width="5.5" stroke-linecap="round">
+        <path d="M-7 -8 L-13 -23"/><path d="M-1 -10 L-2 -27"/><path d="M5 -9 L9 -25"/><path d="M10 -5 L18 -17"/><path d="M-11 -2 L-24 -7"/>
       </g>
     </g>
-    <g transform="translate(-84 -40) rotate(26)" fill="#d8c9a8">
-      <ellipse rx="15" ry="12"/>
-      <g stroke="#d8c9a8" stroke-width="6.5" stroke-linecap="round">
-        <path d="M-4 -11 L-9 -30"/><path d="M4 -11 L9 -30"/>
+    <!-- upper-right hand: TWO -->
+    <g transform="translate(56 -38) rotate(30)" fill="#d8c9a8" stroke="#161d2c" stroke-width="2">
+      <ellipse rx="13" ry="10.5"/>
+      <g stroke="#d8c9a8" stroke-width="5.5" stroke-linecap="round">
+        <path d="M-4 -10 L-8 -27"/><path d="M4 -10 L8 -27"/>
       </g>
-    </g>
-    <g transform="translate(0 -14)">
-      <path d="M-34 -6 Q-34 -44 0 -44 Q34 -44 34 -6 Q34 12 22 18 L22 30 Q11 36 0 36 Q-11 36 -22 30 L-22 18 Q-34 12 -34 -6 Z" fill="#f0e6cc"/>
-      <circle cx="-13" cy="-8" r="9.5" fill="#161d2c"/>
-      <circle cx="13" cy="-8" r="9.5" fill="#161d2c"/>
-      <path d="M0 2 L6 14 L-6 14 Z" fill="#161d2c"/>
-      <path d="M-13 24 L-13 32 M-4 26 L-4 35 M4 26 L4 35 M13 24 L13 32" stroke="#161d2c" stroke-width="3.4" stroke-linecap="round"/>
-      <path d="M-46 -30 Q-24 -62 0 -62 Q24 -62 46 -30 Q22 -42 0 -42 Q-22 -42 -46 -30 Z" fill="#22304a"/>
-      <path d="M-46 -30 Q-22 -40 0 -40 Q22 -40 46 -30 Q22 -32 0 -32 Q-22 -32 -46 -30 Z" fill="#2c3e60"/>
-      <path d="M-44 -31 Q-22 -40 0 -40 Q22 -40 44 -31" stroke="#e0b64f" stroke-width="2.4" fill="none"/>
     </g>
   </g>
-  <text x="280" y="232" text-anchor="middle" class="wm-text" fill="url(#wm-gold)" stroke="#161d2c" stroke-width="3" paint-order="stroke">MORRA</text>
-  <g transform="translate(280 262)">
-    <path d="M-150 0 L-30 0 M30 0 L150 0" stroke="#8a6540" stroke-width="3"/>
-    <circle r="4" fill="#e0b64f"/><circle cx="-18" r="2.4" fill="#8a6540"/><circle cx="18" r="2.4" fill="#8a6540"/>
+
+  <!-- the skull, on the O -->
+  <g transform="translate(185 144)">
+    <path d="M-30 -6 Q-30 -40 0 -40 Q30 -40 30 -6 Q30 10 19 15 L19 26 Q10 31 0 31 Q-10 31 -19 26 L-19 15 Q-30 10 -30 -6 Z" fill="#f0e6cc" stroke="#161d2c" stroke-width="3"/>
+    <circle cx="-11.5" cy="-7" r="8.2" fill="#161d2c"/>
+    <circle cx="11.5" cy="-7" r="8.2" fill="#161d2c"/>
+    <path d="M0 1 L5 12 L-5 12 Z" fill="#161d2c"/>
+    <path d="M-11 21 L-11 28 M-3.5 23 L-3.5 30 M3.5 23 L3.5 30 M11 21 L11 28" stroke="#161d2c" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- the anchor, closing the word — turned 90 graus -->
+  <g transform="translate(517 152) rotate(-90) scale(.95)">
+    <g stroke="#161d2c" stroke-width="15" stroke-linecap="round" fill="none">
+      <circle cx="0" cy="-36" r="9"/>
+      <path d="M-19 -20 L19 -20"/>
+      <path d="M0 -27 L0 34"/>
+      <path d="M-27 8 Q0 42 27 8"/>
+    </g>
+    <g stroke="#e0b64f" stroke-width="8.5" stroke-linecap="round" fill="none">
+      <circle cx="0" cy="-36" r="9"/>
+      <path d="M-19 -20 L19 -20"/>
+      <path d="M0 -27 L0 34"/>
+      <path d="M-27 8 Q0 42 27 8"/>
+    </g>
+    <path d="M-27 8 L-38 16 L-24 22 Z" fill="#e0b64f" stroke="#161d2c" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M27 8 L38 16 L24 22 Z" fill="#e0b64f" stroke="#161d2c" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+
+  <!-- the rope, under it all -->
+  <g fill="none" stroke-linecap="round">
+    <path id="wm-rope" d="M52 238 Q170 262 280 258 Q390 254 508 232" stroke="#161d2c" stroke-width="13"/>
+    <path d="M52 238 Q170 262 280 258 Q390 254 508 232" stroke="#8a6540" stroke-width="10"/>
+    <g stroke="#5f4527" stroke-width="2.6">
+      <path d="M76 233 L84 245"/><path d="M108 238 L116 250"/><path d="M140 242 L148 254"/><path d="M172 245 L180 257"/>
+      <path d="M204 247 L212 259"/><path d="M236 248 L244 260"/><path d="M268 248 L276 260"/><path d="M300 247 L308 259"/>
+      <path d="M332 246 L340 258"/><path d="M364 244 L372 256"/><path d="M396 241 L404 253"/><path d="M428 237 L436 249"/>
+      <path d="M460 232 L468 244"/><path d="M488 227 L496 239"/>
+    </g>
+    <path d="M52 238 q-10 -8 -4 -16 q7 -8 14 0 q5 8 -10 16 Z" fill="#8a6540" stroke="#161d2c" stroke-width="2.5"/>
+    <path d="M508 232 q12 -6 8 -15 q-6 -9 -15 -2 q-7 7 7 17 Z" fill="#8a6540" stroke="#161d2c" stroke-width="2.5"/>
   </g>
 </svg>`;

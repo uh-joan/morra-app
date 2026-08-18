@@ -16,10 +16,10 @@
 
 <!-- Shared top bar (select + fight screens) -->
 <header id="topBar">
-  <button id="btnToTitle" class="bar-logo" title="Torna al port">🏴‍☠️ <strong>Morra</strong></button>
+  <button id="btnToTitle" class="bar-logo" title="Torna al port"><strong>Morra</strong></button>
   <nav class="bar-modes">
-    <button id="btnModePartida" class="primary">⚔️ El duel</button>
-    <button id="btnModeEntrenament">🎯 Entrenament</button>
+    <button id="btnModePartida" class="primary">El duel</button>
+    <button id="btnModeEntrenament">Entrenament</button>
     <button id="btnRivalHud" class="ghost">Canvia de rival</button>
   </nav>
   <div class="bar-profile" id="profileControls">
@@ -38,25 +38,29 @@
 <!-- ================= TITLE ================= -->
 <section id="screenTitle" class="screen">
   <div class="title-stars" aria-hidden="true"></div>
-  <div class="title-inner">
-    <div id="titleWordmark" class="title-wordmark"><!-- wordmark SVG injected --></div>
-    <p class="title-tag">El duel dels corsaris — tira els dits i canta el número</p>
-    <button id="btnJuga" class="btn-gold">⚓ Juga</button>
-    <button id="btnEspillTitle" class="btn-parchment">🪞 L'Espill — coneix el teu joc</button>
-    <p class="title-hint">Necessitaràs la càmera i el micròfon. Tu marques el ritme: cap rellotge, cap espera.</p>
+  <div class="title-inner home">
+    <div id="titleWordmark" class="title-wordmark"><img id="wordmarkImg" src="wordmark.png" alt="Morra — el duel dels corsaris" decoding="async"><!-- SVG fallback injected if the image fails --></div>
+    <button id="btnJuga" class="btn-gold home-cta">Juga</button>
+    <nav class="home-links" aria-label="Més">
+      <button id="doorEntrena" class="link">Entrenament</button>
+      <span class="home-dot" aria-hidden="true">·</span>
+      <button id="doorEspill" class="link">L'Espill</button>
+      <span class="home-dot" aria-hidden="true">·</span>
+      <button id="doorCalibra" class="link">Calibratge</button>
+    </nav>
   </div>
   <footer class="title-prep">
-    <span>Preparació manual:</span>
-    <button id="btnCam" class="ghost">🔭 Càmera</button>
-    <button id="btnMic" class="ghost">📯 Micròfon</button>
-    <button id="btnLoadVosk" class="ghost">👂 Veu (47 MB)</button>
+    <span>Preparació a mà —</span>
+    <button id="btnCam" class="ghost">Càmera</button>
+    <button id="btnMic" class="ghost">Micròfon</button>
+    <button id="btnLoadVosk" class="ghost">Veu (47 MB)</button>
     <span id="entornToggle" class="entorn-toggle" role="group" aria-label="Entorn de joc">
-      <button data-entorn="tranquil" class="ghost active" aria-pressed="true">🎧 Tranquil</button>
-      <button data-entorn="sorollos" class="ghost" aria-pressed="false">🔊 Local sorollós</button>
+      <button data-entorn="tranquil" class="ghost active" aria-pressed="true">Tranquil</button>
+      <button data-entorn="sorollos" class="ghost" aria-pressed="false">Local sorollós</button>
     </span>
   </footer>
   <div id="entornSuggest" class="entorn-suggest" hidden>
-    <span>⚓ Sembla que hi ha soroll de taverna. Activo el mode <b>Local sorollós</b>?</span>
+    <span>Sembla que hi ha soroll de taverna. Activo el mode <b>Local sorollós</b>?</span>
     <button id="entornSuggestYes" class="btn-gold">Sí, activa'l</button>
     <button id="entornSuggestNo" class="ghost">Ara no</button>
   </div>
@@ -132,7 +136,7 @@
             <div id="voiceMeterFill" class="fill"></div>
             <div id="voiceThreshMark" class="thresh-mark"></div>
           </div>
-          <div id="clipWarn" class="clip-warn" hidden>🔥 Massa fort! El micròfon satura — crida una mica més fluix</div>
+          <div id="clipWarn" class="clip-warn" hidden>Massa fort! El micròfon satura — crida una mica més fluix</div>
         </div>
       </div>
 
@@ -153,7 +157,7 @@
 
       <!-- Entrenament: the live strip (throw at the mirror; the full mirror is its own screen) -->
       <div class="training-panel training-live" id="trainingPanel" style="display:none;">
-        <div class="training-head" id="trainingHead">🎯 Entrenament — tira, i mira't</div>
+        <div class="training-head" id="trainingHead">Entrenament — tira, i mira't</div>
         <p class="live-tell" id="liveTopTell">—</p>
         <p class="live-exploit" id="liveExploit">—</p>
         <div class="shadow" id="shadowRival">
@@ -168,8 +172,8 @@
         </div>
         <div class="mission" id="missionBox">
           <div id="missionIdle" class="row">
-            <button id="btnMissionTop" class="primary">🎯 Missió: <span id="missionTopTitle">Que no et llegeixi</span></button>
-            <button id="btnMissionCoverage">🎲 Cobreix el tauler</button>
+            <button id="btnMissionTop" class="primary">Missió: <span id="missionTopTitle">Que no et llegeixi</span></button>
+            <button id="btnMissionCoverage">Cobreix el tauler</button>
           </div>
           <div id="missionLive" hidden>
             <div class="mission-title"><b id="missionTitle"></b> <span id="missionProgress" class="mission-progress"></span></div>
@@ -185,7 +189,7 @@
           </div>
         </div>
         <div class="row">
-          <button id="btnOpenEspill" class="btn-parchment">🪞 Obre L'Espill</button>
+          <button id="btnOpenEspill" class="btn-parchment">Obre L'Espill</button>
         </div>
         <div class="training-section calib-section">
           <h3>Calibratge — que et llegeixi bé</h3>
@@ -223,9 +227,9 @@
               <div class="training-tile"><div class="training-tile-value" id="postMatchSyncRate">—</div><div class="training-tile-label">Sincronia</div></div>
             </div>
             <div class="end-actions">
-              <button id="btnPlayAgain" class="btn-gold">⚔️ Torna-hi</button>
+              <button id="btnPlayAgain" class="btn-gold">Torna-hi</button>
               <button id="btnCanviaRival" class="btn-parchment">Canvia de rival</button>
-              <button id="btnGoToTraining" class="ghost">🪞 Ves a L'Espill per l'anàlisi completa</button>
+              <button id="btnGoToTraining" class="ghost">Ves a L'Espill per l'anàlisi completa</button>
             </div>
           </div>
         </div>
@@ -254,7 +258,7 @@
   <div class="espill-wrap">
     <header class="espill-head">
       <div>
-        <h1 class="espill-title">🪞 L'Espill</h1>
+        <h1 class="espill-title">L'Espill</h1>
         <p class="espill-tag">el teu joc, al mirall — el que un bon rival veuria de tu</p>
       </div>
       <div class="espill-scope">
@@ -273,7 +277,7 @@
       </div>
       <p class="coach-counter" id="coachCounter"></p>
       <div class="coach-actions">
-        <button id="btnPractica" class="btn-gold">🎯 Practica-ho</button>
+        <button id="btnPractica" class="btn-gold">Practica-ho</button>
         <button id="btnMoreTells" class="btn-parchment">Els altres defectes ▾</button>
       </div>
       <ul id="tellsList" class="training-tells-list coach-more" hidden></ul>
@@ -342,7 +346,7 @@
 
     <footer class="espill-foot">
       <button id="btnEspillBack" class="ghost">← Torna al port</button>
-      <button id="btnEspillTrain" class="btn-parchment">🎯 Entrenament — tira al mirall</button>
+      <button id="btnEspillTrain" class="btn-parchment">Entrenament — tira al mirall</button>
     </footer>
   </div>
 </section>
@@ -353,19 +357,16 @@
     <h2>Salpem!</h2>
     <p class="ob-sub">El vaixell demana tres coses abans del duel:</p>
     <div class="ob-row" id="obRowCam" data-state="pending">
-      <span class="ob-ico">🔭</span>
       <span class="ob-what"><strong>L'ullera de llarga vista</strong><small>la càmera, per veure't els dits</small></span>
       <span class="ob-state">—</span>
       <button id="obRetryCam" class="ob-retry ghost">Torna-hi</button>
     </div>
     <div class="ob-row" id="obRowMic" data-state="pending">
-      <span class="ob-ico">📯</span>
       <span class="ob-what"><strong>El corn de crida</strong><small>el micròfon, per sentir el teu crit</small></span>
       <span class="ob-state">—</span>
       <button id="obRetryMic" class="ob-retry ghost">Torna-hi</button>
     </div>
     <div class="ob-row" id="obRowVeu" data-state="pending">
-      <span class="ob-ico">👂</span>
       <span class="ob-what"><strong>L'oïda del rival</strong><small>reconeix els teus números en català (47 MB, un sol cop)</small></span>
       <span class="ob-state">—</span>
       <button id="obRetryVeu" class="ob-retry ghost">Torna-hi</button>

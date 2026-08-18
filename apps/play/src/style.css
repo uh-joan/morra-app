@@ -153,7 +153,8 @@ body.vs-on #vsSplash { display: flex; }
 @keyframes twinkle { from { opacity: .55; } to { opacity: .95; } }
 .title-inner { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 24px; }
 .title-wordmark { width: min(520px, 86vw); filter: drop-shadow(0 10px 30px rgba(0,0,0,.6)); animation: wordmark-in .8s ease-out both; }
-.title-wordmark svg { width: 100%; height: auto; display: block; }
+.title-wordmark svg, .title-wordmark img { width: 100%; height: auto; display: block; }
+.title-wordmark img { filter: drop-shadow(0 12px 28px rgba(0,0,0,.65)); }
 .wm-text { font-family: var(--serif); font-size: 108px; font-weight: 900; letter-spacing: .08em; }
 @keyframes wordmark-in { from { transform: translateY(-16px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
 .title-tag { font-family: var(--serif); font-size: 17px; color: var(--parchment); opacity: .9; margin: 0; text-align: center; }
@@ -917,3 +918,28 @@ body[data-sparring="on"] .face-off #trainingPanel { grid-column: 2; }
 .reading .shadow-dots span.hit { background: #2f7a3a; }
 .reading .shadow-dots span.miss { background: rgba(138,47,30,.55); }
 .reading .shadow-head b { color: #2f7a3a; }
+
+/* ================= the home (2026-08-17): the rival at the table =========
+   One CTA. The pirate you'll face, big, with his nameplate and a speech
+   bubble — the mirror's read in his mouth, or his greeting. Two quiet text
+   links. No icons: a control is text, or an icon, never both. */
+body[data-screen="title"] #topBar { display: flex; }
+body[data-screen="title"] .bar-modes { display: none; }
+@media (max-width: 640px) { body[data-screen="title"] .bar-logo { display: none; } body[data-screen="title"] #topBar { justify-content: flex-end; } }
+#screenTitle { min-height: calc(100vh - var(--topbar-h, 55px)); justify-content: flex-start; padding-top: 3vh; }
+.title-inner.home { gap: 10px; padding-top: 2vh; }
+.home .title-wordmark { width: min(620px, 92vw); }
+@keyframes portrait-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.home-cta { font-size: 34px; padding: 16px 78px; margin-top: 10px; }
+.home-links { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 14px; }
+.home-dot { color: var(--dim); }
+button.link { background: none; border: 0; padding: 2px 4px; color: var(--parchment); font-family: var(--serif); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(224,182,79,.5); cursor: pointer; }
+button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); }
+.title-prep { position: static; transform: none; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+@media (max-width: 640px) {
+        .home-cta { font-size: 28px; padding: 14px 60px; }
+}
+@media (max-height: 760px) { .home .title-wordmark { width: min(480px, 84vw); } }
+/* solo card: a mirror-glow instead of a portrait */
+.solo-portrait { background: radial-gradient(closest-side, rgba(224,182,79,.35), rgba(224,182,79,.08) 60%, transparent 70%); }

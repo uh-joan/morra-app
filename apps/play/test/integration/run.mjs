@@ -46,7 +46,7 @@ r.check("boots on the title screen", (await page.evaluate(() => document.body.da
 // Routes (2026-08-17): the hash mirrors screen+mode; back/forward and deep links apply
 r.check("boot lands on #/", (await page.evaluate(() => location.hash)) === "#/");
 // L'Espill is its own screen (2026-08-17): opens from the title without sensors, shows the coach card, tabs switch, back returns to port
-await page.click("#btnEspillTitle");
+await page.click("#doorEspill");
 await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
 const espill = await page.evaluate(() => {
   const tab = document.querySelector('#espillTabs button[data-tab="numeros"]'); tab.click();
@@ -105,6 +105,28 @@ await page.waitForFunction(() => document.body.dataset.mode === "partida", { tim
 r.check("route #/duel/rei: Partida against El Rei", await page.evaluate(() => document.getElementById("btnModePartida").classList.contains("primary") && document.getElementById("selAiLevel").value === "L4" && location.hash === "#/duel/rei"));
 await page.evaluate(() => { location.hash = "#/duel/bru"; });
 await page.waitForFunction(() => document.getElementById("selAiLevel").value === "L2", { timeout: 3000 });
+// The home (2026-08-17): Juga → the tripulants (with the sensors up, no onboarding card)
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+r.check("home mounts the wordmark image", (await page.evaluate(() => document.querySelectorAll("#titleWordmark img").length)) === 1);
+await page.click("#btnJuga");
+await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 5000 });
+r.check("Juga goes to the tripulants with the duel intent", (await page.evaluate(() => location.hash)) === "#/tripulants?per=duel" && (await page.evaluate(() => document.body.dataset.mode)) === "partida");
+// Calibratge from the home: with the sensors up it lands on the solo Entrenament table with the calibration open
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.click("#doorCalibra");
+await page.waitForFunction(() => document.body.dataset.calibrating === "on", { timeout: 5000 });
+r.check("home's Calibratge opens the calibration on the solo Entrenament table", await page.evaluate(() => document.body.dataset.screen === "fight" && document.body.dataset.mode === "entrenament" && document.body.dataset.solo === "on" && location.hash === "#/entrena/sol"));
+await page.click("#calibClose");
+await page.waitForFunction(() => document.body.dataset.calibrating === undefined, { timeout: 3000 });
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.click("#btnJuga");
+await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 5000 });
+await page.click("#pirateCard-L2");
+await page.waitForFunction(() => document.body.dataset.screen === "fight", { timeout: 5000 });
+await page.evaluate(() => { document.body.classList.remove("vs-on"); });
 r.check("stage scenery mounted", (await page.$$eval("#stageScenery svg", (n) => n.length)) >= 1);
 r.check("corsair figure mounted", (await page.$$eval("#rivalAvatar svg", (n) => n.length)) === 1);
 
