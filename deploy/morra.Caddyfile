@@ -1,0 +1,21 @@
+# morra.joans.cat — static site block for the SHARED Caddy on the Hetzner box
+# (the one already serving buzz). Append this to that box's Caddyfile
+# (buzz-relay-ops → buzz/deploy/compose/Caddyfile), then reload Caddy.
+#
+# Caddy auto-issues the Let's Encrypt cert on first request. The app's full
+# Content-Security-Policy ships as a <meta> in index.html; the header block
+# below adds the header-only hardening a meta CSP can't express (same set as
+# apps/play/public/_headers, which Caddy does not read).
+morra.joans.cat {
+  encode zstd gzip
+  root * /srv/morra
+  file_server
+
+  header {
+    X-Frame-Options "DENY"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "no-referrer"
+    Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()"
+    Content-Security-Policy "frame-ancestors 'none'"
+  }
+}
