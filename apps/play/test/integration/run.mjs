@@ -420,9 +420,9 @@ r.check("uncalibrated status reads defaults", /Sense calibrar|per defecte/.test(
 // 2026-08-20: calibratge left the Entrenament strip — status + Restableix live on its own page
 r.check("no calibratge section in the Entrenament strip; status + reset on the Calibratge page", await page.evaluate(() =>
   !document.querySelector("#trainingPanel .calib-section") && !!document.querySelector("#screenCalib #calibStatus") && !!document.querySelector("#screenCalib #calibReset")));
-r.check("profile menu (⚙) opens with export and reset", await page.evaluate(() => {
+r.check("the tripulant chip's menu opens with rename, export and reset", await page.evaluate(() => {
   document.getElementById("btnProfileMenu").click();
-  const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
+  const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnRenameProfile") && !!document.querySelector("#profileMenu #btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
   document.body.click();
   return open && document.getElementById("profileMenu").hidden;
 }));
@@ -504,37 +504,34 @@ await page.evaluate(async () => {
     await new Promise((r2) => setTimeout(r2, 250));
   }
 });
-r.check("boots with the default profile only", await page.evaluate(() =>
-  window.__play.activeProfileId === "default" && window.__play.profiles.length === 1));
-r.check("delete disabled for the default profile", await page.$eval("#btnDeleteProfile", (n) => n.disabled));
+// One tripulant per vessel (2026-08-20): no switching/creating/deleting —
+// the chip names who's aboard, its card renames, the registry stays a seam.
+r.check("one tripulant only, named at the first run", await page.evaluate(() =>
+  window.__play.activeProfileId === "default" && window.__play.profiles.length === 1 && window.__play.profiles[0].name === "Grumet"));
+r.check("the chip shows the tripulant", await page.evaluate(() =>
+  document.getElementById("tripulantName").textContent === "Grumet"));
 const defaultThrows = await page.evaluate(() => window.__play.playerModel.throws.length);
-r.check("default profile carries this session's history", defaultThrows >= 1, `throws=${defaultThrows}`);
-// give the default profile a calibration fit, to prove it does NOT leak into a new profile
-await page.evaluate(() => window.__play.calibration.save({
-  values: { highV: 0.71, lowV: 0.2, vadMult: 3.5 }, fitVersion: 2, measuredAt: new Date().toISOString(),
-  samples: { jitterP95: 0.1, throwPeaks: [1, 1, 1, 1], ambientFloor: 0.01, shoutPeaks: [0.2, 0.2, 0.2], prompts: [] },
-}));
-// 2026-08-20: "+" opens the sign-on card (no prompt()); create → the card offers Calibra ara / Més tard
-await page.click("#btnNewProfile");
+r.check("the tripulant carries this session's history", defaultThrows >= 1, `throws=${defaultThrows}`);
+// rename: the chip's card, prefilled — the history stays
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.evaluate(() => { document.getElementById("btnProfileMenu").click(); document.getElementById("btnRenameProfile").click(); });
 await page.waitForFunction(() => document.body.dataset.firstrun === "on", { timeout: 3000 });
-await page.type("#firstrunName", "Bea");
+r.check("rename card comes prefilled with the current name", await page.evaluate(() =>
+  document.getElementById("firstrunName").value === "Grumet" && /Canvia el nom/.test(document.getElementById("firstrunTitle").textContent)));
+await page.evaluate(() => { const i = document.getElementById("firstrunName"); i.value = "Pep"; i.dispatchEvent(new Event("input")); });
 await page.click("#firstrunGo");
-r.check("new tripulant card hails and offers Calibra ara / Més tard", await page.evaluate(() =>
-  /A coberta, tripulant Bea!/.test(document.getElementById("firstrunTitle").textContent) && !document.getElementById("firstrunOffer").hidden));
-await page.click("#firstrunLater");
 await page.waitForFunction(() => document.body.dataset.firstrun === "off", { timeout: 3000 });
-r.check("new profile activates with a fresh empty model", await page.evaluate(() =>
-  window.__play.activeProfileId !== "default" && window.__play.playerModel.throws.length === 0),
-await page.evaluate(() => JSON.stringify({ active: window.__play.activeProfileId, throws: window.__play.playerModel.throws, syncCount: window.__play.syncThrows.length, pending: window.__play.syncPendingAnalysisCount })));
-r.check("new profile gets the app-default sensor values, not the default profile's fit", await page.evaluate(() =>
-  document.getElementById("tuneHighV").value === "0.5" && document.getElementById("tuneVadMult").value === "6"));
-r.check("select shows both profiles", (await page.$$eval("#selProfile option", (n) => n.length)) === 2);
-r.check("match reset for the new player", /Tu 0 — 0 Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
-r.check("delete enabled for a non-default profile", await page.$eval("#btnDeleteProfile", (n) => !n.disabled));
-// The play detour (2026-08-20): Bea has no fit on this camera — heading to
-// play routes through Calibratge first; declining (✕) continues and is
-// remembered for the session.
-await page.evaluate(() => { location.hash = "#/tripulants?per=duel"; });
+r.check("rename sticks — chip and registry, history untouched", await page.evaluate((expected) =>
+  document.getElementById("tripulantName").textContent === "Pep" && window.__play.profiles[0].name === "Pep" && window.__play.playerModel.throws.length === expected, defaultThrows));
+// The play detour (2026-08-20): wipe the fit and this session's declines —
+// heading to play routes through Calibratge; declining (✕) continues and
+// is remembered for the session.
+await page.evaluate(() => {
+  localStorage.removeItem("morra-calibration-v1:" + window.__play.activeProfileId);
+  window.__play.calibration.clearDeclines();
+  location.hash = "#/tripulants?per=duel";
+});
 await page.waitForFunction(() => document.body.dataset.calibrating === "on", { timeout: 5000 });
 r.check("an uncalibrated tripulant heading to play detours to Calibratge", await page.evaluate(() =>
   document.body.dataset.screen === "calib" && location.hash === "#/calibratge"));
@@ -548,17 +545,6 @@ await page.waitForFunction(() => document.body.dataset.screen === "select", { ti
 r.check("no re-detour after declining this session", await page.evaluate(() => document.body.dataset.calibrating === undefined));
 await page.evaluate(() => { location.hash = "#/"; });
 await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
-await page.select("#selProfile", "default");
-r.check("switching back restores the default profile's history", await page.evaluate((expected) =>
-  window.__play.activeProfileId === "default" && window.__play.playerModel.throws.length === expected, defaultThrows));
-r.check("…and re-applies the default profile's calibration fit", await page.evaluate(() =>
-  document.getElementById("tuneHighV").value === "0.71" && document.getElementById("tuneVadMult").value === "3.5"));
-await page.evaluate(() => document.getElementById("calibReset").click()); // leave the sliders at defaults for the rest
-const beaId = await page.$$eval("#selProfile option", (n) => n.map((o) => o.value).find((v) => v !== "default"));
-await page.select("#selProfile", beaId);
-await page.click("#btnDeleteProfile"); // confirm auto-accepted
-r.check("deleting the active profile falls back to default", await page.evaluate(() =>
-  window.__play.activeProfileId === "default" && window.__play.profiles.length === 1));
 
 // Mode tècnic: hidden by default, T toggles the drawer
 r.check("tècnic drawer hidden by default", await page.evaluate(() =>

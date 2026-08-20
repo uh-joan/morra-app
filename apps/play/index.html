@@ -22,15 +22,14 @@
     <button id="btnModeEntrenament">Entrenament</button>
     <button id="btnRivalHud" class="ghost">Canvia de rival</button>
   </nav>
-  <div class="bar-profile" id="profileControls">
-    <label for="selProfile">Tripulant</label>
-    <select id="selProfile"></select>
-    <button id="btnNewProfile" title="Nou tripulant">+</button>
-    <button id="btnDeleteProfile" class="danger" title="Esborra el tripulant">✕</button>
-    <button id="btnProfileMenu" class="ghost" title="Perfil: exporta / reinicia" aria-haspopup="true" aria-expanded="false">⚙</button>
+  <!-- One tripulant per vessel: the chip is the whole account system. It
+       shows only at the port (CSS); the rare actions live in its menu. -->
+  <div class="bar-tripulant" id="profileControls">
+    <button id="btnProfileMenu" class="ghost tripulant-chip" aria-haspopup="true" aria-expanded="false">⚓ <span id="tripulantName">—</span></button>
     <div id="profileMenu" class="profile-menu" hidden>
-      <button id="btnExportProfile">Exporta perfil (JSON)</button>
-      <button id="btnResetProfile" class="danger">Reinicia perfil</button>
+      <button id="btnRenameProfile">Canvia el nom</button>
+      <button id="btnExportProfile">Exporta la llibreta (JSON)</button>
+      <button id="btnResetProfile" class="danger">Torna a començar</button>
     </div>
   </div>
 </header>
@@ -382,12 +381,6 @@
     <button id="firstrunGo" class="btn-gold" type="submit" disabled>Embarca</button>
     <button id="firstrunCancel" class="ghost" type="button" hidden>Ara no</button>
     <p class="ob-sub firstrun-note" id="firstrunNote">Després et mirarem la mà i el crit — mig minut — i a jugar.</p>
-    <div id="firstrunOffer" hidden>
-      <div class="firstrun-actions">
-        <button id="firstrunCalibra" class="btn-gold" type="button">Calibra ara</button>
-        <button id="firstrunLater" class="ghost" type="button">Més tard</button>
-      </div>
-    </div>
   </form>
 </div>
 

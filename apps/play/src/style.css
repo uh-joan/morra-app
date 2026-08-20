@@ -122,11 +122,15 @@ body.vs-on #vsSplash { display: flex; }
 .bar-modes { display: flex; gap: 8px; align-items: center; }
 .bar-modes button { font-family: var(--serif); font-weight: 700; }
 .bar-modes button.primary { background: var(--gold); border-color: var(--gold); color: #2a1c04; }
-.bar-profile { display: flex; gap: 6px; align-items: center; position: relative; }
+/* The tripulant chip: who's aboard — at the port only. During play the
+   header is about the game. */
+.bar-tripulant { position: relative; }
+body:not([data-screen="title"]) .bar-tripulant { display: none; }
+.tripulant-chip { font-weight: 700; }
+.tripulant-chip #tripulantName { color: var(--gold); }
 .profile-menu { position: absolute; top: calc(100% + 6px); right: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--ink-2); border: 1px solid rgba(147,160,184,.35); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.5); z-index: 30; min-width: 190px; }
 .profile-menu[hidden] { display: none; }
 .profile-menu button { text-align: left; }
-.bar-profile select { max-width: 140px; }
 
 /* ----------------------------------------------------------- title */
 #screenTitle {
@@ -621,8 +625,6 @@ body[data-firstrun="on"] #firstrunOverlay { display: flex; }
 .firstrun-card button[type="submit"] { font-size: 16px; padding: 10px 14px; }
 .firstrun-card button[type="submit"]:disabled { opacity: .45; cursor: default; }
 .firstrun-note { margin-top: 2px; }
-.firstrun-actions { display: flex; gap: 10px; }
-.firstrun-actions button { flex: 1; font-size: 15px; padding: 9px 12px; }
 
 #veuMini {
   position: fixed; right: 14px; bottom: 14px; z-index: 60;

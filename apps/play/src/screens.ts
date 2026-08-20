@@ -13,9 +13,9 @@ import { PIRATES, type Pirate } from "./pirate/cast.js";
 import { artWithUniqueIds, PIRATE_ART, WORDMARK_SVG } from "./pirate/art.js";
 import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
-import { installFirstRun, maybeStartFirstRun, setCalibraAraHook, setFirstRunNamedHook } from "./firstrun.js";
+import { installFirstRun, maybeStartFirstRun, setFirstRunNamedHook } from "./firstrun.js";
 import { renderProfileControls } from "./profiles.js";
-import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
+import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, isCalibrationDeclined, markCalibrationDeclined, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
 import { getActiveProfileName } from "./profile.js";
 import { renderEspillScreen } from "./training.js";
 import { getSessionMode } from "./game.js";
@@ -175,13 +175,13 @@ function moveVideoBack(): void {
 // The play detour: nobody plays uncalibrated by ACCIDENT. Heading to play
 // with no saved fit for this profile+camera routes through Calibratge
 // first; Desa — or declining (✕/Descarta) — continues to where they were
-// going. A decline is remembered per profile+camera for THIS session only,
-// so the invitation returns next sitting but never nags within one.
-const calibDeclined = new Set<string>();
+// going. A decline is remembered per profile+camera for THIS session only
+// (calibration.ts owns the set), so the invitation returns next sitting
+// but never nags within one.
 let afterCalibration: (() => void) | null = null;
 function maybeDetourToCalibration(after: () => void): boolean {
   // callers guarantee the sensors are up, so the device key is known
-  if (hasCalibrationForCurrentSite() || calibDeclined.has(calibrationSiteKey())) return false;
+  if (hasCalibrationForCurrentSite() || isCalibrationDeclined()) return false;
   logEvent("calibration_detour", { site: calibrationSiteKey() });
   afterCalibration = after;
   enterCalibration();
@@ -242,12 +242,6 @@ export function installScreens(): void {
     pendingCalibration = true;
     startOnboarding("entrenament");
   });
-  // "Calibra ara" from the new-tripulant card: the exact Calibratge-from-
-  // home path, in the same click gesture.
-  setCalibraAraHook(() => {
-    pendingCalibration = true;
-    startOnboarding("entrenament");
-  });
   // When a calibration session ends — Desa, Descarta or the ✕, all valid
   // ways in — the Calibratge page closes: back to the port, or, on the
   // first run, into the game (the tripulants in Partida, sensors warm, one
@@ -258,7 +252,7 @@ export function installScreens(): void {
     moveVideoBack();
     // Anything but Desa counts as declining for this profile+camera — the
     // play detour won't re-ask this session.
-    if (outcome !== "saved") calibDeclined.add(calibrationSiteKey());
+    if (outcome !== "saved") markCalibrationDeclined();
     if (firstRunFlow) {
       firstRunFlow = false;
       afterCalibration = null;

@@ -81,6 +81,17 @@ export function calibrationSiteKey(): string {
   return getActiveProfileId() + "|" + (cameraDeviceKey ?? "");
 }
 
+// Declined detours, per profile+camera, for THIS session only — the play
+// detour won't re-ask until the next page load. Owned here (it is
+// calibration state); screens.ts is the only writer via the end hook.
+const declinedSites = new Set<string>();
+export function markCalibrationDeclined(): void {
+  declinedSites.add(calibrationSiteKey());
+}
+export function isCalibrationDeclined(): boolean {
+  return declinedSites.has(calibrationSiteKey());
+}
+
 /** Re-apply the stored fit for the active profile on the current camera —
  * or the app defaults if there is none. Called on profile switch and when
  * the camera reports its device key. */
@@ -514,5 +525,7 @@ export const __calibration = {
   get deviceKey() {
     return cameraDeviceKey;
   },
+  /** Test seam: forget this session's declined detours. */
+  clearDeclines: () => declinedSites.clear(),
   MIN_THROWS,
 };

@@ -75,7 +75,7 @@ export const TRAINING_PANEL_TEXT = {
   bigramHeading: "Seqüència — després de tirar X, tires Y",
   exportButton: "Exporta perfil (JSON)",
   resetButton: "Reinicia perfil",
-  resetConfirm: "Esborrar tot el teu perfil (totes les sessions)? Això no es pot desfer.",
+  resetConfirm: "Tornar a començar de zero — esborrar tot l'historial de joc (totes les sessions)? El calibratge es conserva. Això no es pot desfer.",
   scopeSession: "Aquesta sessió",
   scopeAllTime: "Tot el temps",
   // ranked tells (tells2): price, evidence, the rival's counter-move
@@ -161,14 +161,11 @@ export const TRAINING_PANEL_TEXT = {
 
 export const MODE_BUTTONS = { partida: "Partida", entrenament: "Entrenament" } as const;
 
+// One tripulant per vessel (2026-08-20): only the out-of-the-box name
+// survives here — it is the first-run gate's sentinel (profileRegistry
+// needsFirstRun). The card copy lives with the card (firstrun.ts).
 export const PROFILE_TEXT = {
-  label: "Perfil",
   defaultName: "Principal",
-  newButton: "Nou perfil",
-  deleteButton: "Esborra",
-  newPrompt: "Nom del nou tripulant:",
-  deleteConfirm: (name: string): string =>
-    `Esborrar el tripulant «${name}» i tot el seu historial? Això no es pot desfer.`,
 } as const;
 
 // ux-pirates: round-card detail strings (gameCards.ts renders these).

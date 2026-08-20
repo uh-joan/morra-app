@@ -236,7 +236,8 @@ export function installTraining(): void {
   el.btnMissionClose.addEventListener("click", () => stopMission("close"));
   el.btnScopeSession.addEventListener("click", () => setMirrorScope("session"));
   el.btnScopeAllTime.addEventListener("click", () => setMirrorScope("allTime"));
-  // the profile menu (⚙ next to the Tripulant selector): export / reset
+  // the tripulant chip's menu (the port): export / reset — rename is wired
+  // in profiles.ts, same menu
   const closeMenu = () => { el.profileMenu.hidden = true; el.btnProfileMenu.setAttribute("aria-expanded", "false"); };
   el.btnProfileMenu.addEventListener("click", (ev) => { ev.stopPropagation(); const open = el.profileMenu.hidden; el.profileMenu.hidden = !open; el.btnProfileMenu.setAttribute("aria-expanded", String(open)); });
   document.addEventListener("click", (ev) => { if (!el.profileMenu.hidden && !el.profileMenu.contains(ev.target as Node)) closeMenu(); });
