@@ -86,15 +86,21 @@ const GHOST: readonly [number, number][] = [
 ];
 
 /** Draws the ghost + zone state on the overlay. Call AFTER the skeleton so
- * the skeleton stays on top; caller clears the canvas. */
-export function drawFramingGuide(ctx: CanvasRenderingContext2D, w: number, h: number, state: FramingState): void {
+ * the skeleton stays on top; caller clears the canvas. The outline as
+ * authored reads as a LEFT hand once the canvas's CSS mirror is applied;
+ * `mirror` flips it for the right hand (Mà dreta on the Calibratge page). */
+export function drawFramingGuide(ctx: CanvasRenderingContext2D, w: number, h: number, state: FramingState, mirror = false): void {
   ctx.save();
   ctx.lineWidth = 3;
   ctx.setLineDash(state.inZone ? [] : [10, 8]);
   ctx.strokeStyle = state.inZone ? "rgba(232, 189, 79, 0.95)" : "rgba(244, 233, 210, 0.7)";
   ctx.fillStyle = state.inZone ? "rgba(232, 189, 79, 0.18)" : "rgba(244, 233, 210, 0.08)";
   ctx.beginPath();
-  GHOST.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x * w, y * h) : ctx.lineTo(x * w, y * h)));
+  GHOST.forEach(([x, y], i) => {
+    const px = (mirror ? 1 - x : x) * w;
+    if (i === 0) ctx.moveTo(px, y * h);
+    else ctx.lineTo(px, y * h);
+  });
   ctx.closePath();
   ctx.fill();
   ctx.stroke();

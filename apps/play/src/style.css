@@ -100,6 +100,7 @@ body[data-screen="title"]  #screenTitle  { display: flex; }
 body[data-screen="select"] #screenSelect { display: block; }
 body[data-screen="fight"]  #screenFight  { display: block; }
 body[data-screen="espill"] #screenEspill { display: block; }
+body[data-screen="calib"]  #screenCalib  { display: flex; }
 #topBar { display: none; }
 body[data-screen="select"] #topBar, body[data-screen="fight"] #topBar, body[data-screen="espill"] #topBar { display: flex; }
 body[data-screen="select"] #btnRivalHud, body[data-screen="espill"] #btnRivalHud { display: none; }
@@ -605,6 +606,24 @@ body.match-lost .end-headline { color: #6e2b30; }
 #onboardOverlay .status.err { color: #a3232d; border-color: rgba(163,35,45,.5); }
 #onboardOverlay .status.ok { color: #2e8c5a; border-color: rgba(46,140,90,.5); }
 
+/* ------------------------------------------------ first-run sign-on */
+#firstrunOverlay {
+  position: fixed; inset: 0; z-index: 84; /* under the sensor card (85): the flow moves forward, never back */
+  align-items: center; justify-content: center;
+  background: rgba(5,7,15,.8); backdrop-filter: blur(6px);
+}
+body[data-firstrun="on"] #firstrunOverlay { display: flex; }
+.firstrun-card input {
+  font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid rgba(138,101,64,.55); background: rgba(255,255,255,.55); color: var(--parchment-ink);
+}
+.firstrun-card input:focus { outline: 2px solid var(--rope); outline-offset: 1px; }
+.firstrun-card button[type="submit"] { font-size: 16px; padding: 10px 14px; }
+.firstrun-card button[type="submit"]:disabled { opacity: .45; cursor: default; }
+.firstrun-note { margin-top: 2px; }
+.firstrun-actions { display: flex; gap: 10px; }
+.firstrun-actions button { flex: 1; font-size: 15px; padding: 9px 12px; }
+
 #veuMini {
   position: fixed; right: 14px; bottom: 14px; z-index: 60;
   background: rgba(13,18,32,.92); color: var(--foam); border: 1px solid var(--border);
@@ -719,11 +738,34 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
 .calib-status { font-size: 12px; color: #6b5636; margin-top: 6px; }
 .calib-status.ok { color: #2f6b3a; }
 
-/* The calibration panel sits over the rival/L'Espill column while active,
-   leaving the player video (and its ghost hand) fully visible. */
+/* Calibratge is its own page (#/calibratge): the live camera on one side,
+   the parchment step panel on the other. The panel only has content while
+   a session runs (body[data-calibrating]). */
+#screenCalib { align-items: center; justify-content: center; padding: 24px 16px; }
+.calib-page { display: flex; flex-direction: column; gap: 16px; align-items: center; width: min(980px, 96vw); }
+.calib-welcome { font-family: var(--serif); font-size: clamp(28px, 4.5vw, 46px); line-height: 1.15; text-align: center; }
+.calib-welcome b { color: var(--gold); }
+/* Which hand throws (body[data-ma], right by default): the camera sits on
+   the throwing-hand side, the steps on the free-hand side. */
+.calib-hand-tabs { display: flex; gap: 8px; }
+.calib-hand-tabs button {
+  font-size: 13px; padding: 6px 16px; border-radius: 999px;
+  background: rgba(147,160,184,.10); color: var(--dim); border: 1px solid var(--border);
+}
+.calib-hand-tabs button.on { background: rgba(224,182,79,.18); color: var(--gold); border-color: var(--gold); }
+.calib-cols { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; justify-content: center; width: 100%; }
+.calib-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: center; }
+.calib-meta .calib-status { margin-top: 0; color: var(--dim); }
+.calib-meta .calib-status.ok { color: var(--good); }
+.calib-meta #calibReset { font-size: 12px; }
+body[data-ma="dreta"] .calib-cols { flex-direction: row-reverse; }
+.calib-stage { flex: 1 1 380px; max-width: 560px; }
+.calib-stage .video-wrap { width: 100%; }
+/* the fight furniture that rides inside .video-wrap stays out of this page
+   (inline styles set by renderReadyPill — hence the !important) */
+body[data-screen="calib"] #readyPill, body[data-screen="calib"] #verdictBanner { display: none !important; }
 .calib-panel {
-  display: none; position: fixed; right: 24px; top: 84px; z-index: 60;
-  width: min(420px, 92vw);
+  display: none; flex: 1 1 340px; width: min(420px, 92vw);
   background: linear-gradient(180deg, var(--parchment), var(--parchment-2));
   color: var(--parchment-ink); border: 3px solid var(--rope); border-radius: 14px;
   padding: 14px 16px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.55);
@@ -732,8 +774,8 @@ body[data-calibrating="on"] .calib-panel { display: flex; flex-direction: column
 .calib-head { display: flex; align-items: center; justify-content: space-between; }
 .calib-kicker { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6b5636; }
 .calib-close { font-size: 14px; padding: 2px 8px; }
-.calib-panel h3 { margin: 0; font-family: var(--serif); font-size: 20px; }
-.calib-panel p { margin: 0; font-size: 14px; line-height: 1.35; }
+.calib-panel h3 { margin: 0; font-family: var(--serif); font-size: 26px; }
+.calib-panel p { margin: 0; font-size: 15px; line-height: 1.4; }
 .calib-prompt { font-size: 17px; line-height: 1.35; padding: 10px 12px; border-radius: 10px; background: rgba(58,44,20,.08); }
 .calib-prompt small { color: #6b5636; font-size: 12px; }
 .calib-dots { display: flex; gap: 8px; }
@@ -751,7 +793,11 @@ body[data-calibrating="on"] .calib-panel { display: flex; flex-direction: column
 .calib-line.muted { opacity: .6; }
 .calib-actions { margin-top: 4px; }
 .calib-panel .btn-gold { font-size: 14px; padding: 8px 14px; }
-@media (max-width: 900px) { .calib-panel { right: 12px; left: 12px; width: auto; top: auto; bottom: 12px; } }
+@media (max-width: 900px) {
+  /* stacked: camera above the steps, whichever the hand */
+  .calib-cols, body[data-ma="dreta"] .calib-cols { flex-direction: column; align-items: center; }
+  .calib-panel { width: 100%; max-width: 560px; }
+}
 .calib-feedback { font-size: 13px; padding: 6px 10px; border-radius: 8px; min-height: 1.4em; }
 .calib-feedback.ok { background: rgba(47,107,58,.14); color: #2f6b3a; }
 .calib-feedback.no { background: rgba(176,58,46,.12); color: #8a2f25; }
@@ -853,6 +899,11 @@ body.tecnic #roundResultCard { display: block; }
 .espill-scope { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .espill-count { font-size: 12px; color: #6b5636; margin-left: 6px; }
 /* the coach card */
+.espill-headline { margin: 16px 0 0; font-family: var(--serif); font-size: clamp(20px, 3vw, 28px); }
+.espill-headline strong { color: #8a2f1e; }
+.bigram-headline { margin: 0 0 10px; font-size: 13px; color: #6b5636; }
+.hm-cell.hm-thin { opacity: .45; }
+.hm-label small { margin-left: 2px; font-size: 8px; opacity: .7; }
 .coach-card { margin: 18px 0 10px; padding: 18px 20px 14px; border: 2px solid rgba(138,47,30,.35); border-radius: 14px; background: rgba(255,255,255,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
 .coach-label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #8a2f1e; font-weight: 700; }
 .coach-sentence { font-family: var(--serif); font-size: 24px; line-height: 1.25; margin: 6px 0 10px; color: #2a1c04; }
@@ -880,6 +931,9 @@ body.tecnic #roundResultCard { display: block; }
 /* Entrenament live strip in the fight screen */
 .training-live { gap: 6px; }
 .shadow { margin-top: 8px; padding: 8px 10px; background: rgba(58,44,20,.06); border: 1px solid rgba(138,101,64,.3); border-radius: 8px; }
+/* Sparring already has a partner reading you — El Rei's shadow belongs to
+   the solo mirror. It keeps scoring underneath (missions, solo view). */
+body[data-sparring="on"] #shadowRival { display: none; }
 .shadow-head { font-size: 12px; color: #6b5636; }
 .shadow-head b { color: #8a2f1e; font-size: 14px; }
 .shadow-dots { display: flex; gap: 3px; margin: 6px 0 4px; }

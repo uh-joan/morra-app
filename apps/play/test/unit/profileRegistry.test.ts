@@ -5,8 +5,10 @@ import {
   deleteProfile,
   DEFAULT_PROFILE_ID,
   LEGACY_PLAYER_MODEL_KEY,
+  needsFirstRun,
   normalizeRegistry,
   PROFILE_MODEL_KEY_PREFIX,
+  renameProfile,
   setActiveProfile,
   storageKeyFor,
 } from "../../src/profileRegistry.js";
@@ -85,5 +87,49 @@ describe("profileRegistry: create/delete/setActive", () => {
     expect(setActiveProfile(withP1, DEFAULT_PROFILE_ID)!.activeId).toBe(DEFAULT_PROFILE_ID);
     expect(setActiveProfile(withP1, "ghost")).toBeNull();
     expect(setActiveProfile(withP1, "p1")).toBe(withP1); // no-op returns same object
+  });
+});
+
+describe("profileRegistry: renameProfile", () => {
+  const base = defaultRegistry(NAME);
+
+  it("renames in place, trims, never mutates", () => {
+    const next = renameProfile(base, DEFAULT_PROFILE_ID, "  Jordi ")!;
+    expect(next.profiles[0]).toEqual({ id: DEFAULT_PROFILE_ID, name: "Jordi", createdAtIso: null });
+    expect(next.activeId).toBe(base.activeId);
+    expect(base.profiles[0]!.name).toBe(NAME); // untouched
+  });
+  it("rejects blank names and unknown ids", () => {
+    expect(renameProfile(base, DEFAULT_PROFILE_ID, "   ")).toBeNull();
+    expect(renameProfile(base, "ghost", "Nom")).toBeNull();
+  });
+  it("same-name rename is a no-op returning the same object", () => {
+    expect(renameProfile(base, DEFAULT_PROFILE_ID, NAME)).toBe(base);
+    expect(renameProfile(base, DEFAULT_PROFILE_ID, "  " + NAME + " ")).toBe(base);
+  });
+  it("a renamed default survives a storage round-trip through normalizeRegistry", () => {
+    const renamed = renameProfile(base, DEFAULT_PROFILE_ID, "Jordi")!;
+    const back = normalizeRegistry(JSON.parse(JSON.stringify(renamed)), NAME);
+    expect(back.profiles[0]!.name).toBe("Jordi");
+  });
+});
+
+describe("profileRegistry: needsFirstRun", () => {
+  it("true only for a factory-fresh registry (an untouched Principal)", () => {
+    expect(needsFirstRun(defaultRegistry(NAME), NAME)).toBe(true);
+  });
+  it("false once the default profile is named", () => {
+    const named = renameProfile(defaultRegistry(NAME), DEFAULT_PROFILE_ID, "Jordi")!;
+    expect(needsFirstRun(named, NAME)).toBe(false);
+  });
+  it("false when any extra profile exists, and after deleting back to only the named default", () => {
+    const withP1 = createProfile(defaultRegistry(NAME), "p1", "Bea", "x")!;
+    expect(needsFirstRun(withP1, NAME)).toBe(false);
+    // delete the extra: the default kept its factory name → gate reopens
+    // (nobody ever named themselves), which is the intended reading
+    expect(needsFirstRun(deleteProfile(withP1, "p1")!, NAME)).toBe(true);
+    // but a renamed default keeps the gate closed after the same delete
+    const namedThenP1 = createProfile(renameProfile(defaultRegistry(NAME), DEFAULT_PROFILE_ID, "Jordi")!, "p1", "Bea", "x")!;
+    expect(needsFirstRun(deleteProfile(namedThenP1, "p1")!, NAME)).toBe(false);
   });
 });

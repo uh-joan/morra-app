@@ -13,8 +13,10 @@ import { logEvent } from "./telemetry.js";
 import {
   createProfile,
   deleteProfile,
+  needsFirstRun,
   normalizeRegistry,
   REGISTRY_STORAGE_KEY,
+  renameProfile,
   setActiveProfile,
   storageKeyFor,
   type ProfileEntry,
@@ -87,6 +89,23 @@ export function getActiveProfileId(): string {
 
 export function getActiveProfileName(): string {
   return registry.profiles.find((p) => p.id === registry.activeId)?.name ?? registry.activeId;
+}
+
+/** True while the registry still looks factory-fresh (only an untouched
+ * "Principal") — the first-run onboarding gate reads this at boot. */
+export function needsFirstRunProfile(): boolean {
+  return needsFirstRun(registry, PROFILE_TEXT.defaultName);
+}
+
+/** Renames a profile in place — the first-run flow claims the default
+ * profile this way, so its storage key and any accumulated history carry
+ * over. Returns true when the name actually changed. */
+export function renameProfileById(id: string, name: string): boolean {
+  const next = renameProfile(registry, id, name);
+  if (!next || next === registry) return false;
+  registry = next;
+  writeRegistry(registry);
+  return true;
 }
 
 /** Creates AND activates; returns the new id, or null on invalid name. */

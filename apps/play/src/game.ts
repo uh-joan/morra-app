@@ -513,6 +513,9 @@ export function resetGame(): void {
 export function installGame(): void {
   setGameHooks({
     onThrowStart(t) {
+      // Calibration owns the sensors while it runs: prompted throws are not
+      // game throws, whatever screen/mode sits underneath the calib page.
+      if (isCalibrating()) return;
       // step 11/12: a fresh throw starting replaces the previous round's
       // reveal on screen — not the auto-recommit that follows it.
       if (!playVsOpponent() || gameOver) return;
@@ -533,12 +536,14 @@ export function installGame(): void {
       }
     },
     onThrowFinalized(t) {
-      maybeResolveGameRound(t); // no-ops in Entrenament
       // Phase H: Entrenament's own hook — a reset is still never a throw.
       // Calibration prompts ("tira un 3") are not choices — never the model's.
-      if (sessionMode === "entrenament" && !playVsOpponent() && t.outcome !== "reset" && !isCalibrating()) recordTrainingThrow(t); // solo only — sparring rounds go through the game round
+      if (isCalibrating()) return;
+      maybeResolveGameRound(t); // no-ops in Entrenament
+      if (sessionMode === "entrenament" && !playVsOpponent() && t.outcome !== "reset") recordTrainingThrow(t); // solo only — sparring rounds go through the game round
     },
     onWordApplied(t) {
+      if (isCalibrating()) return;
       maybeResolveGameRound(t);
     },
     onReset() {

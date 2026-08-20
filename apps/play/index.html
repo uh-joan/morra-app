@@ -191,15 +191,6 @@
         <div class="row">
           <button id="btnOpenEspill" class="btn-parchment">Obre L'Espill</button>
         </div>
-        <div class="training-section calib-section">
-          <h3>Calibratge — que et llegeixi bé</h3>
-          <p class="calib-blurb">Cinc tirades guiades i el joc s'ajusta a la teva mà, el teu crit i aquesta càmera. Per a aquest perfil; les regles no canvien.</p>
-          <div class="row">
-            <button id="btnCalibrate" class="primary">Calibra ara</button>
-            <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
-          </div>
-          <div id="calibStatus" class="calib-status"></div>
-        </div>
       </div>
 
     <!-- Round / verdict column -->
@@ -268,6 +259,9 @@
       </div>
     </header>
 
+    <!-- The one number: El Rei's replayed read over this history, out of 20 -->
+    <p class="espill-headline" id="espillHeadline">—</p>
+
     <section class="coach-card" id="coachCard">
       <div class="coach-label" id="coachLabel">El teu punt feble</div>
       <p class="coach-sentence" id="coachSentence">—</p>
@@ -276,11 +270,8 @@
         <span class="coach-evidence" id="coachEvidence"></span>
       </div>
       <p class="coach-counter" id="coachCounter"></p>
-      <div class="coach-actions">
-        <button id="btnPractica" class="btn-gold">Practica-ho</button>
-        <button id="btnMoreTells" class="btn-parchment">Els altres defectes ▾</button>
-      </div>
-      <ul id="tellsList" class="training-tells-list coach-more" hidden></ul>
+      <!-- The other tells, always in view (2026-08-20: CTA + toggle removed) -->
+      <ul id="tellsList" class="training-tells-list coach-more"></ul>
     </section>
 
     <div class="training-trends" id="trendStrip"></div>
@@ -339,6 +330,7 @@
       <div class="espill-pane" data-tab="sequencia">
         <div class="training-section">
           <h3>Després de tirar X, tires Y</h3>
+          <p class="bigram-headline" id="bigramHeadline">—</p>
           <div id="bigramHeatmap" class="training-heatmap"></div>
         </div>
       </div>
@@ -378,23 +370,66 @@
   </div>
 </div>
 
-<!-- ================= CALIBRATGE (L'Espill) ================= -->
-<div id="calibOverlay" class="calib-panel" aria-live="polite">
-  <div class="calib-head">
-    <span class="calib-kicker">Calibratge</span>
-    <button id="calibClose" class="ghost calib-close" title="Tanca">✕</button>
-  </div>
-  <h3 id="calibTitle"></h3>
-  <p id="calibBody"></p>
-  <div id="calibPrompt" class="calib-prompt" hidden></div>
-  <div id="calibFeedback" class="calib-feedback" hidden></div>
-  <div id="calibDots" class="calib-dots"></div>
-  <div id="calibResult" class="calib-result" hidden></div>
-  <div class="row calib-actions">
-    <button id="calibSave" class="btn-gold" hidden>Desa per a aquest perfil</button>
-    <button id="calibDiscard" class="ghost" hidden>Descarta i torna als valors per defecte</button>
-  </div>
+<!-- ================= PRIMERA VEGADA (sign-on) ================= -->
+<!-- Shown via body[data-firstrun="on"] when the registry is factory-fresh
+     (firstrun.ts). One input, one button, no skip: naming yourself claims
+     the default profile and opens the port. -->
+<div id="firstrunOverlay" class="overlay">
+  <form id="firstrunForm" class="ob-card firstrun-card">
+    <h2 id="firstrunTitle">Puja a bord</h2>
+    <p class="ob-sub" id="firstrunSub">Cada corsari deixa la seva marca a la taula de morra. Com et dius?</p>
+    <input id="firstrunName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="El teu nom" aria-label="El teu nom">
+    <button id="firstrunGo" class="btn-gold" type="submit" disabled>Embarca</button>
+    <button id="firstrunCancel" class="ghost" type="button" hidden>Ara no</button>
+    <p class="ob-sub firstrun-note" id="firstrunNote">Després et mirarem la mà i el crit — mig minut — i a jugar.</p>
+    <div id="firstrunOffer" hidden>
+      <div class="firstrun-actions">
+        <button id="firstrunCalibra" class="btn-gold" type="button">Calibra ara</button>
+        <button id="firstrunLater" class="ghost" type="button">Més tard</button>
+      </div>
+    </div>
+  </form>
 </div>
+
+<!-- ================= CALIBRATGE (its own page, #/calibratge) ================= -->
+<!-- The camera's .video-wrap is reparented into #calibStage while this
+     screen is up (screens.ts) — one live camera pipeline, two homes. -->
+<section id="screenCalib" class="screen">
+  <div class="calib-page">
+    <!-- The hail: filled with the active profile's name on entry (screens.ts) -->
+    <div id="calibWelcome" class="calib-welcome"></div>
+    <!-- Which hand throws: layout mirrors so the steps sit on the free-hand
+         side. body[data-ma] drives it (calibration.ts persists the choice). -->
+    <div class="calib-hand-tabs" role="tablist" aria-label="Amb quina mà tires?">
+      <button id="maDreta" data-ma="dreta" role="tab">Mà dreta</button>
+      <button id="maEsquerra" data-ma="esquerra" role="tab">Mà esquerra</button>
+    </div>
+    <div class="calib-cols">
+    <div id="calibStage" class="calib-stage"></div>
+    <div id="calibOverlay" class="calib-panel" aria-live="polite">
+      <div class="calib-head">
+        <span class="calib-kicker">Calibratge</span>
+        <button id="calibClose" class="ghost calib-close" title="Tanca">✕</button>
+      </div>
+      <h3 id="calibTitle"></h3>
+      <p id="calibBody"></p>
+      <div id="calibPrompt" class="calib-prompt" hidden></div>
+      <div id="calibFeedback" class="calib-feedback" hidden></div>
+      <div id="calibDots" class="calib-dots"></div>
+      <div id="calibResult" class="calib-result" hidden></div>
+      <div class="row calib-actions">
+        <button id="calibSave" class="btn-gold" hidden>Desa per a aquest perfil</button>
+        <button id="calibDiscard" class="ghost" hidden>Descarta i torna als valors per defecte</button>
+      </div>
+    </div>
+    </div>
+    <!-- What's in force for this profile on this camera, and the way back to defaults -->
+    <div class="calib-meta">
+      <div id="calibStatus" class="calib-status"></div>
+      <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
+    </div>
+  </div>
+</section>
 
 <!-- ================= VS SPLASH ================= -->
 <div id="vsSplash" class="overlay" aria-hidden="true">

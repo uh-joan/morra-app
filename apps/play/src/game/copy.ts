@@ -91,6 +91,15 @@ export const TRAINING_PANEL_TEXT = {
   coachEvidence: (hits: number, n: number) => `${hits} de ${n} vegades`,
   liveExploit: (pct: number) => `El Rei et llegeix el ${pct}% — 20% és una moneda.`,
   liveExploitNone: "El Rei encara no té prou tirs per llegir-te.",
+  // L'Espill headline: the one number — El Rei's replayed read, out of 20
+  espillHeadlineBefore: "El Rei t'endevinaria ",
+  espillHeadlineAfter: " de cada 20 tirades.",
+  espillHeadlineNone: "El Rei encara no té prou tirs per llegir-te — tira i torna.",
+  // Seqüència: the strongest chain, in words (same bar as the order-1 tell)
+  sequenceHeadline: (a: number, b: number, pct: number) => `Després d'un ${a}, tires un ${b} el ${pct}% de les vegades — la teva cadena més previsible.`,
+  sequenceHeadlineNone: "Encara cap cadena clara — les cel·les s'encenen quan un número en crida un altre.",
+  // scope fallback: an explicit "Aquesta sessió" with too few rows shows all-time instead
+  sessionThin: (s: number, all: number) => `Sessió curta (${s} tir${s === 1 ? "" : "s"}) — mostrant tot el temps (${all}).`,
   // Entrenament strip head, by partner
   trainingHeadSolo: "Entrenament — sol, davant l'espill",
   trainingHeadSparring: (name: string) => `Entrenament amb ${name} — sense punts, amb mirall`,

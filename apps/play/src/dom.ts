@@ -64,6 +64,8 @@ function buildEl() {
     gHistogram: g("gHistogram"),
     topCallsList: g("topCallsList"),
     tellsList: g("tellsList"),
+    espillHeadline: g("espillHeadline"),
+    bigramHeadline: g("bigramHeadline"),
     trendStrip: g("trendStrip"),
     // L'Espill screen (coach card) + the Entrenament live strip
     coachLabel: g("coachLabel"),
@@ -71,8 +73,6 @@ function buildEl() {
     coachPrice: g("coachPrice"),
     coachEvidence: g("coachEvidence"),
     coachCounter: g("coachCounter"),
-    btnPractica: g("btnPractica") as HTMLButtonElement,
-    btnMoreTells: g("btnMoreTells") as HTMLButtonElement,
     liveTopTell: g("liveTopTell"),
     trainingHead: g("trainingHead"),
     readingBox: g("readingBox"),
