@@ -129,6 +129,14 @@ function chooseRival(p: Pirate): void {
   if (vsTitle) vsTitle.textContent = p.title;
   if (vsStage) vsStage.textContent = p.stageName;
   if (vsPortrait) vsPortrait.innerHTML = artWithUniqueIds(PIRATE_ART[p.levelId] ?? "", "vs");
+  // Your name, sized to fit whatever its length: short names get the full
+  // drama, long ones shrink so the vertical splash never overflows.
+  const vsYou = byId("vsYouMark");
+  if (vsYou) {
+    const name = getActiveProfileName();
+    vsYou.textContent = name;
+    vsYou.style.fontSize = `min(72px, ${Math.round(880 / Math.max(4, name.length)) / 10}vw)`;
+  }
   document.body.classList.add("vs-on");
   if (splashTimer) clearTimeout(splashTimer);
   splashTimer = setTimeout(() => {
@@ -226,6 +234,13 @@ export function installScreens(): void {
   installPirateChoreography();
   installOnboarding();
   installFirstRun();
+
+  // Els rivals guaiten: mount the peeking corsaris' art once — CSS owns
+  // their rare, slow timing.
+  const peekNino = byId("peekNino");
+  if (peekNino) peekNino.innerHTML = artWithUniqueIds(PIRATE_ART["L1"] ?? "", "peek-nino");
+  const peekBru = byId("peekBru");
+  if (peekBru) peekBru.innerHTML = artWithUniqueIds(PIRATE_ART["L2"] ?? "", "peek-bru");
 
   // Boot: reflect the level game.ts restored, land on the title screen.
   setPirate(el.selAiLevel.value || "L1");
