@@ -1244,7 +1244,7 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   .big-number-wrap .big-number-label { font-size: 9px; }
   /* the mic badge sheds its big desktop chrome inside the card */
   .shout-wrap .shout-badge {
-    font-size: 11px; padding: 3px 6px; letter-spacing: .02em; border-width: 1px;
+    font-size: 10px; padding: 3px 6px; letter-spacing: .02em; border-width: 1px;
     min-width: 0; max-width: 100%; box-sizing: border-box;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
