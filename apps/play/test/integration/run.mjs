@@ -421,9 +421,9 @@ r.check("uncalibrated status reads defaults", /Sense calibrar|per defecte/.test(
 // 2026-08-20: calibratge left the Entrenament strip — status + Restableix live on its own page
 r.check("no calibratge section in the Entrenament strip; status + reset on the Calibratge page", await page.evaluate(() =>
   !document.querySelector("#trainingPanel .calib-section") && !!document.querySelector("#screenCalib #calibStatus") && !!document.querySelector("#screenCalib #calibReset")));
-r.check("the tripulant chip's menu opens with rename, export and reset", await page.evaluate(() => {
+r.check("the tripulant chip's menu opens with rename and reset (no export)", await page.evaluate(() => {
   document.getElementById("btnProfileMenu").click();
-  const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnRenameProfile") && !!document.querySelector("#profileMenu #btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
+  const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnRenameProfile") && !document.getElementById("btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
   document.body.click();
   return open && document.getElementById("profileMenu").hidden;
 }));

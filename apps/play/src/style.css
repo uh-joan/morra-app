@@ -103,11 +103,13 @@ body[data-screen="espill"] #screenEspill { display: block; }
 body[data-screen="calib"]  #screenCalib  { display: flex; }
 #topBar { display: none; }
 body[data-screen="select"] #topBar, body[data-screen="fight"] #topBar, body[data-screen="espill"] #topBar { display: flex; }
-/* the rival chip: who you fight — on the fight screen only */
+/* the rival chip: who you fight — on the fight screen only. Same quiet
+   language as the tripulant signature: a name, no icon, no border. */
 #btnRivalHud { display: none; }
-body[data-screen="fight"] #btnRivalHud { display: inline-flex; align-items: center; gap: 5px; }
-.rival-hud { font-family: var(--serif); font-weight: 700; }
-.rival-hud #rivalHudName { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body[data-screen="fight"] #btnRivalHud { display: inline-flex; align-items: center; }
+.rival-hud { background: none; border: 0; padding: 8px 6px; font-family: var(--serif); font-weight: 700; font-size: 16px; color: var(--foam); }
+.rival-hud #rivalHudName { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rival-hud:hover #rivalHudName { text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(191,227,224,.5); }
 .overlay { display: none; }
 body[data-onboarding="on"] #onboardOverlay { display: flex; }
 body.vs-on #vsSplash { display: flex; }
@@ -128,13 +130,27 @@ body.vs-on #vsSplash { display: flex; }
 .select-modes { justify-content: center; margin: 2px 0 14px; }
 .bar-modes button { font-family: var(--serif); font-weight: 700; padding: 8px 18px; }
 .bar-modes button.primary { background: var(--gold); border-color: var(--gold); color: #2a1c04; }
-/* The tripulant chip: who's aboard — top right, on every screen. */
+/* The tripulant chip: who's aboard — a quiet gold signature, top right on
+   every screen. No icon, no border: a name, tappable. */
 .bar-tripulant { position: relative; }
-.tripulant-chip { font-weight: 700; }
-.tripulant-chip #tripulantName { color: var(--gold); }
-.profile-menu { position: absolute; top: calc(100% + 6px); right: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--ink-2); border: 1px solid rgba(147,160,184,.35); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.5); z-index: 30; min-width: 190px; }
+.tripulant-chip { background: none; border: 0; padding: 8px 6px; font-family: var(--serif); font-weight: 700; font-size: 16px; }
+.tripulant-chip #tripulantName { color: var(--gold); max-width: 140px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.tripulant-chip:hover #tripulantName, .tripulant-chip[aria-expanded="true"] #tripulantName { color: var(--gold-2); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(224,182,79,.5); }
+/* …and its menu: a parchment slip, dropped in — the app's paper language */
+.profile-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 224px;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: linear-gradient(180deg, var(--parchment), var(--parchment-2));
+  color: var(--parchment-ink); border: 2px solid var(--rope); border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0,0,0,.55);
+  animation: menu-drop .16s cubic-bezier(.2,.9,.3,1.2) both;
+}
+@keyframes menu-drop { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
 .profile-menu[hidden] { display: none; }
-.profile-menu button { text-align: left; }
+.profile-menu button { background: none; border: 0; text-align: left; padding: 11px 12px; border-radius: 8px; color: var(--parchment-ink); font-size: 14.5px; }
+.profile-menu button:hover, .profile-menu button:active { background: rgba(58,44,20,.09); }
+.profile-menu button.danger { color: #a3232d; border: 0; background: none; }
+.profile-menu button.danger:hover, .profile-menu button.danger:active { background: rgba(163,35,45,.08); }
 
 /* ----------------------------------------------------------- title */
 #screenTitle {

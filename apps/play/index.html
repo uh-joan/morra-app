@@ -20,14 +20,13 @@
      the tripulants screen, where the choice actually happens. -->
 <header id="topBar">
   <button id="btnToTitle" class="bar-logo" title="Torna al port"><strong>Morra</strong></button>
-  <button id="btnRivalHud" class="ghost rival-hud" title="Canvia de rival">⚔ <span id="rivalHudName">—</span> ▾</button>
+  <button id="btnRivalHud" class="rival-hud" title="Canvia de rival"><span id="rivalHudName">—</span></button>
   <!-- One tripulant per vessel: the chip is the whole account system —
        top right on every screen; the rare actions live in its menu. -->
   <div class="bar-tripulant" id="profileControls">
-    <button id="btnProfileMenu" class="ghost tripulant-chip" aria-haspopup="true" aria-expanded="false">⚓ <span id="tripulantName">—</span></button>
+    <button id="btnProfileMenu" class="tripulant-chip" aria-haspopup="true" aria-expanded="false"><span id="tripulantName">—</span></button>
     <div id="profileMenu" class="profile-menu" hidden>
       <button id="btnRenameProfile">Canvia el nom</button>
-      <button id="btnExportProfile">Exporta la llibreta (JSON)</button>
       <button id="btnResetProfile" class="danger">Torna a començar</button>
     </div>
   </div>

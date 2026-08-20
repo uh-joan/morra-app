@@ -11,7 +11,6 @@ import { clearPlayerModel } from "./profile.js";
 import { getLastTopTell, renderTrainingPanel, type MirrorScope } from "./render/training.js";
 import { isSoloTraining } from "./rivalState.js";
 import { PIRATES } from "./pirate/cast.js";
-import { download } from "./export.js";
 import { TRAINING_PANEL_TEXT } from "./game/copy.js";
 
 // Deliberate deviation from the spike (which defaulted to "session"): the
@@ -241,10 +240,6 @@ export function installTraining(): void {
   const closeMenu = () => { el.profileMenu.hidden = true; el.btnProfileMenu.setAttribute("aria-expanded", "false"); };
   el.btnProfileMenu.addEventListener("click", (ev) => { ev.stopPropagation(); const open = el.profileMenu.hidden; el.profileMenu.hidden = !open; el.btnProfileMenu.setAttribute("aria-expanded", String(open)); });
   document.addEventListener("click", (ev) => { if (!el.profileMenu.hidden && !el.profileMenu.contains(ev.target as Node)) closeMenu(); });
-  el.btnExportProfile.addEventListener("click", () => {
-    closeMenu();
-    download("morra-player-profile.json", JSON.stringify(getPlayerModel(), null, 2), "application/json");
-  });
   el.btnResetProfile.addEventListener("click", () => {
     closeMenu();
     if (!confirm(TRAINING_PANEL_TEXT.resetConfirm)) return;

@@ -110,7 +110,6 @@ function buildEl() {
     readGBelief: g("readGBelief"),
     readSelfWatch: g("readSelfWatch"),
     bigramHeatmap: g("bigramHeatmap"),
-    btnExportProfile: g("btnExportProfile") as HTMLButtonElement,
     btnProfileMenu: g("btnProfileMenu") as HTMLButtonElement,
     profileMenu: g("profileMenu"),
     btnResetProfile: g("btnResetProfile") as HTMLButtonElement,
