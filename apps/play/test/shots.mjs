@@ -35,13 +35,9 @@ await page.waitForFunction(() => document.body.dataset.calibrating === "on", { t
 await page.click("#calibClose");
 await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 3000 });
 
-// 1 · the port
+// 1 · the tripulants
 await page.evaluate(() => { location.hash = "#/"; });
 await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
-await sleep(1200);
-await page.screenshot({ path: join(OUT, "port.png") });
-
-// 2 · the tripulants
 await page.evaluate(() => { document.body.dataset.screen = "select"; });
 await sleep(400);
 await page.screenshot({ path: join(OUT, "tripulants.png") });
@@ -61,6 +57,6 @@ await page.evaluate(() => { document.body.dataset.screen = "espill"; window.scro
 await sleep(400);
 await page.screenshot({ path: join(OUT, "espill.png") });
 
-console.log("saved port / tripulants / fight / espill to docs/screenshots/");
+console.log("saved tripulants / fight / espill to docs/screenshots/");
 await browser.close();
 srv.close();
