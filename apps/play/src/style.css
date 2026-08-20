@@ -824,6 +824,20 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
   .bar-logo { order: 1; }
   .bar-tripulant { order: 2; margin-left: auto; }
   .bar-modes { order: 3; flex-basis: 100%; justify-content: center; }
+  /* The port, phone-sized: the image breathes, Juga is a plank, the doors
+     are pills, the prep row is honestly tappable. */
+  #screenTitle { justify-content: center; padding-top: 0; }
+  .title-inner.home { gap: 24px; padding: 0 16px 96px; }
+  .home .title-wordmark { width: 96vw; }
+  .home-cta { width: min(340px, 88vw); padding: 15px 0; font-size: 30px; margin-top: 0; }
+  .home-links { gap: 10px; margin-top: 0; }
+  .home-dot { display: none; }
+  .home-links button.link {
+    font-size: 15px; padding: 11px 14px; text-decoration: none;
+    border: 1px solid rgba(224,182,79,.4); border-radius: 999px; background: rgba(224,182,79,.07);
+  }
+  .title-prep { margin-top: 2px; row-gap: 8px; }
+  .title-prep button { font-size: 12.5px; padding: 8px 12px; border-radius: 999px; }
   .score-strip { gap: 6px; padding: 6px 10px; margin-bottom: 8px; max-width: 100%; }
   .score-strip .ss-label { display: none; } /* your coins left, theirs right — the words don't fit and don't add */
   .coin { width: 8px; height: 8px; border-width: 1.5px; }
