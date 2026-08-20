@@ -1,0 +1,53 @@
+name: deploy morra.joans.cat
+
+# Build the static app and rsync it to the Hetzner box that runs Caddy.
+# Manual by default; flip the `push` trigger on once the first manual deploy
+# is verified. Requires three repo secrets:
+#   DEPLOY_SSH_KEY   a private key whose public half is in the box's
+#                    authorized_keys for DEPLOY_USER
+#   DEPLOY_HOST      178.105.134.73   (or set as a secret/var)
+#   DEPLOY_USER      e.g. root or a dedicated deploy user
+on:
+  workflow_dispatch: {}
+  # push:
+  #   branches: [main]
+  #   paths: ["apps/play/**", "packages/**", "deploy/**"]
+
+concurrency:
+  group: deploy-morra
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # the 42 MB Catalan vosk model is gitignored — cache it across runs
+      - name: Cache vosk model
+        uses: actions/cache@v4
+        with:
+          path: spikes/models/vosk-model-small-ca-0.4.zip
+          key: vosk-ca-model-0.4
+
+      - name: Fetch vosk model (cache miss)
+        run: test -f spikes/models/vosk-model-small-ca-0.4.zip || ./spikes/models/fetch-ca-model.sh
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir apps/play build
+
+      - name: Rsync dist to the box
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          install -m 600 /dev/stdin ~/deploy_key <<< "${{ secrets.DEPLOY_SSH_KEY }}"
+          mkdir -p ~/.ssh && ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /srv/morra"
+          rsync -avz --delete -e "ssh -i ~/deploy_key" apps/play/dist/ "$DEPLOY_USER@$DEPLOY_HOST:/srv/morra/"
