@@ -129,25 +129,29 @@
           <span id="handIndicator" class="hand-indicator"><span class="dot"></span><span id="handIndicatorText">cap mà</span></span>
           <div id="framingHint" class="framing-hint" hidden></div>
         </div>
-        <div class="big-number-wrap">
-          <div class="big-duo">
-            <div class="big-item">
-              <div id="bigNumber" class="big-number">–</div>
-              <div id="bigNumberLabel" class="big-number-label">cap mà</div>
-            </div>
-            <div class="big-item">
-              <div id="bigWord" class="big-word">–</div>
-              <div id="bigWordLabel" class="big-number-label">veu apagada</div>
+        <!-- your readouts: display:contents on desktop (children keep their old
+             flow); on phones this becomes YOUR card — the rival PiP's twin -->
+        <div class="you-hud" id="youHud">
+          <div class="big-number-wrap">
+            <div class="big-duo">
+              <div class="big-item">
+                <div id="bigNumber" class="big-number">–</div>
+                <div id="bigNumberLabel" class="big-number-label">cap mà</div>
+              </div>
+              <div class="big-item">
+                <div id="bigWord" class="big-word">–</div>
+                <div id="bigWordLabel" class="big-number-label">veu apagada</div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="shout-wrap">
-          <div id="shoutBadge" class="shout-badge idle">mic apagat</div>
-          <div class="voice-meter" id="voiceMeter">
-            <div id="voiceMeterFill" class="fill"></div>
-            <div id="voiceThreshMark" class="thresh-mark"></div>
+          <div class="shout-wrap">
+            <div id="shoutBadge" class="shout-badge idle">mic apagat</div>
+            <div class="voice-meter" id="voiceMeter">
+              <div id="voiceMeterFill" class="fill"></div>
+              <div id="voiceThreshMark" class="thresh-mark"></div>
+            </div>
+            <div id="clipWarn" class="clip-warn" hidden>Massa fort! El micròfon satura — crida una mica més fluix</div>
           </div>
-          <div id="clipWarn" class="clip-warn" hidden>Massa fort! El micròfon satura — crida una mica més fluix</div>
         </div>
       </div>
 
