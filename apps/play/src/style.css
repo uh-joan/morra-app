@@ -219,6 +219,19 @@ body.vs-on #vsSplash { display: flex; }
 .card-flavor { font-size: 12px; color: var(--dim); min-height: 44px; padding: 4px 2px 0; }
 .card-stage { font-size: 11.5px; color: var(--foam); opacity: .85; }
 .card-core { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); opacity: .7; margin-top: 3px; }
+/* Phones: the cards become full-width rows — portrait left, words right,
+   every row a fat tap target; all the tripulants in about one screen. */
+@media (max-width: 560px) {
+  .select-grid { grid-template-columns: 1fr; gap: 10px; }
+  .pirate-card { display: grid; grid-template-columns: 84px 1fr; column-gap: 14px; row-gap: 0; align-items: center; text-align: left; padding: 10px 14px; }
+  .pirate-card > * { grid-column: 2; }
+  .pirate-card .card-portrait { grid-column: 1; grid-row: 1 / span 5; width: 84px; height: 98px; }
+  .pirate-card .card-rank { position: absolute; top: 12px; right: 14px; }
+  .pirate-card:hover, .pirate-card:focus-visible { transform: none; }
+  .card-name { font-size: 19px; }
+  .card-flavor { min-height: 0; padding: 2px 0 0; }
+  .select-head { font-size: 22px; }
+}
 
 /* --------------------------------------------------------- VS splash */
 #vsSplash {
@@ -284,7 +297,25 @@ body[data-stage="abissal"] .wave-a { fill: #02161c; } body[data-stage="abissal"]
 /* --------------------------------------------------------- arena */
 .arena { position: relative; z-index: 2; max-width: 1240px; margin: 0 auto; padding: 18px 18px 0; }
 .face-off { display: grid; grid-template-columns: minmax(300px, 5fr) minmax(300px, 4fr); gap: 22px; align-items: start; }
-@media (max-width: 900px) { .face-off { grid-template-columns: 1fr; } }
+/* Stacked (phones + narrow tablets): the duel in one screen — the rival
+   compact ON TOP so the seal and the reveal stay in view, your video the
+   hero right under it, the round column after. */
+@media (max-width: 900px) {
+  .face-off { grid-template-columns: 1fr; gap: 12px; }
+  .arena { padding: 10px 12px 0; }
+  .hero-video { max-width: none; }
+  .face-off .rival-side { order: -1; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 4px; align-items: center; justify-items: start; }
+  .rival-side > * { grid-column: 2; }
+  .rival-side .side-nameplate { grid-column: 1 / -1; justify-self: center; }
+  .rival-side .rival-figure-frame { grid-column: 1; grid-row: 2 / span 2; width: 96px; }
+  .rival-side .rival-hand-wrap { padding: 6px 12px; gap: 10px; }
+  .rival-side .hand-svg { width: 60px; height: 78px; }
+  .rival-side .rival-hand-digit { font-size: 40px; }
+  .rival-side .big-word { font-size: 24px; }
+  .rival-side .rival-commit-status { font-size: 10px; }
+  .rival-side .taunt { top: 42px; right: 6px; max-width: 62vw; }
+  .beat-wrap { margin-top: 10px; }
+}
 
 .side-nameplate {
   font-family: var(--serif); font-size: 20px; font-weight: 800; letter-spacing: .05em;
@@ -507,6 +538,7 @@ body.match-lost #gameEndBanner { background: radial-gradient(800px 500px at 50% 
   animation: end-drop .5s cubic-bezier(.2,.9,.3,1.25) both;
 }
 @keyframes end-drop { from { transform: translateY(-40px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 700px) { .end-card { padding: 20px 16px; max-height: 92dvh; overflow-y: auto; } .end-headline { font-size: 26px; } }
 .end-headline { font-family: var(--serif); font-size: 34px; font-weight: 900; text-align: center; }
 body.match-won .end-headline { color: #7a5a16; }
 body.match-lost .end-headline { color: #6e2b30; }
@@ -625,7 +657,7 @@ body[data-firstrun="on"] #firstrunOverlay { display: flex; }
 .firstrun-note { margin-top: 2px; }
 
 #veuMini {
-  position: fixed; right: 14px; bottom: 14px; z-index: 60;
+  position: fixed; right: 14px; bottom: 14px; z-index: 60; pointer-events: none; /* a status banner never eats clicks */
   background: rgba(13,18,32,.92); color: var(--foam); border: 1px solid var(--border);
   border-radius: 10px; padding: 8px 12px; font-size: 11.5px; font-variant-numeric: tabular-nums;
   box-shadow: 0 10px 30px rgba(0,0,0,.5);
@@ -691,11 +723,15 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
 @media (max-width: 900px) {
   .rival-figure-frame { width: min(260px, 70vw); }
   .big-number { font-size: 92px; }
-  .vs-you-mark { font-size: 70px; }
-  .vs-mark { font-size: 84px; }
+  .vs-you-mark { font-size: min(70px, 18vw); }
+  .vs-mark { font-size: min(84px, 21vw); }
   .vs-name { font-size: 30px; }
   .vs-portrait { width: 170px; height: 200px; }
-  #topBar { flex-wrap: wrap; }
+  /* the bar may wrap to two rows — let it grow instead of spilling over
+     the score strip (it is sticky but in-flow, so content shifts down) */
+  #topBar { flex-wrap: wrap; height: auto; min-height: var(--topbar-h); padding: 6px 10px; row-gap: 2px; }
+  .bar-modes { gap: 6px; }
+  .bar-modes button { font-size: 12.5px; padding: 6px 10px; }
 }
 
 /* --------------------------------------------------- reduced motion */
@@ -711,6 +747,7 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
 .entorn-suggest {
   position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%);
   display: flex; gap: 10px; align-items: center; padding: 10px 14px;
+  width: max-content; max-width: 94vw; flex-wrap: wrap; justify-content: center;
   border-radius: 10px; background: rgba(20, 14, 8, 0.92); z-index: 30;
 }
 /* the hidden attribute must win over the display:flex above */
@@ -753,6 +790,12 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
   background: rgba(147,160,184,.10); color: var(--dim); border: 1px solid var(--border);
 }
 .calib-hand-tabs button.on { background: rgba(224,182,79,.18); color: var(--gold); border-color: var(--gold); }
+/* Phones: the hand choice is the page's one pre-step decision — thumb-size */
+@media (max-width: 700px) {
+  .calib-hand-tabs button { font-size: 15px; padding: 12px 22px; }
+  .calib-panel { padding: 12px 14px 14px; }
+  .calib-welcome { font-size: clamp(22px, 6.5vw, 30px); }
+}
 .calib-cols { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; justify-content: center; width: 100%; }
 .calib-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: center; }
 .calib-meta .calib-status { margin-top: 0; color: var(--dim); }
@@ -794,8 +837,11 @@ body[data-calibrating="on"] .calib-panel { display: flex; flex-direction: column
 .calib-actions { margin-top: 4px; }
 .calib-panel .btn-gold { font-size: 14px; padding: 8px 14px; }
 @media (max-width: 900px) {
-  /* stacked: camera above the steps, whichever the hand */
+  /* stacked: camera above the steps, whichever the hand. flex-basis is
+     vertical in a column — reset it or it becomes phantom height. */
   .calib-cols, body[data-ma="dreta"] .calib-cols { flex-direction: column; align-items: center; }
+  .calib-stage, .calib-panel { flex: 0 0 auto; }
+  .calib-stage { width: 100%; }
   .calib-panel { width: 100%; max-width: 560px; }
 }
 .calib-feedback { font-size: 13px; padding: 6px 10px; border-radius: 8px; min-height: 1.4em; }
@@ -889,6 +935,12 @@ body.tecnic #roundResultCard { display: block; }
 .espill-wrap { max-width: 860px; margin: 0 auto; background: linear-gradient(180deg, var(--parchment), var(--parchment-2)); color: var(--parchment-ink); border: 3px solid var(--rope); border-radius: 16px; padding: 22px 26px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
 .espill-wrap button { background: rgba(58,44,20,.08); border-color: rgba(138,101,64,.5); color: var(--parchment-ink); }
 .espill-wrap button.primary { background: var(--gold); border-color: #a87c22; color: #2a1c04; }
+/* Phones: the parchment loses its wide margins so the numbers get the room */
+@media (max-width: 700px) {
+  .espill-wrap { padding: 16px 12px 14px; border-radius: 12px; }
+  .training-trends { grid-template-columns: repeat(2, 1fr); }
+  .espill-head { align-items: flex-start; flex-direction: column; }
+}
 .espill-wrap button.danger { color: #a3232d; border-color: rgba(163,35,45,.5); background: transparent; }
 .espill-wrap button.ghost { background: transparent; border-color: rgba(138,101,64,.4); color: #6b5636; }
 .espill-wrap .btn-gold { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: #2a1c04; border-color: #a87c22; }

@@ -566,7 +566,7 @@ export function installGame(): void {
 
   // Partida is the default session mode: game + rival panels visible.
   el.gamePanel.style.display = "flex";
-  el.rivalSide.style.display = "flex";
+  el.rivalSide.style.display = ""; // the stylesheet decides (flex, or the stacked grid on phones)
   renderScoreboard(0, 0);
   renderGameRoundPending();
   commitAiMove();

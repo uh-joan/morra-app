@@ -38,7 +38,7 @@ export function applyModeLayout(): void {
   el.btnModePartida.classList.toggle("primary", mode === "partida");
   el.btnModeEntrenament.classList.toggle("primary", mode === "entrenament");
   el.gamePanel.style.display = vs ? "flex" : "none";
-  el.rivalSide.style.display = vs ? "flex" : "none";
+  el.rivalSide.style.display = vs ? "" : "none"; // "": the stylesheet decides (flex, or the stacked grid on phones)
   el.trainingPanel.style.display = mode === "entrenament" ? "block" : "none";
   document.body.dataset.sparring = mode === "entrenament" && vs ? "on" : "off";
 
