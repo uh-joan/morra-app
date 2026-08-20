@@ -1,4 +1,8 @@
-# Morra
+<p align="center">
+  <img src="docs/screenshots/port.png" alt="Morra — the port" width="300">
+</p>
+
+<h1 align="center">Morra</h1>
 
 Play [morra](https://en.wikipedia.org/wiki/Morra_(game)) — the Mediterranean
 finger-and-shout game — against an AI corsair, in the browser. You throw
@@ -15,6 +19,16 @@ simultaneity is the whole game, and it's what the pipeline is built around.
 > Skin: **ux-pirates** — four corsairs (Nino, Bru, Mercè, El Rei del Fons)
 > mapped onto the engine's four AI levels. The names are presentation only;
 > the difficulty comes from the engine.
+
+## The game, screen by screen
+
+| The tripulants | The duel | L'Espill |
+|:---:|:---:|:---:|
+| ![Choose your rival](docs/screenshots/tripulants.png) | ![The duel](docs/screenshots/fight.png) | ![L'Espill — the mirror](docs/screenshots/espill.png) |
+| Pick one of four corsairs — the ladder runs from the tavern to the drowned deep. | The rival's move is sealed above; your hand and shout land together below. | The mirror: what a sharp rival reads in you, and the habit that costs you most. |
+
+<sub>Captured on a phone viewport (the app is built mobile-first). The camera
+feed — where your own hand shows — is blanked in these shots.</sub>
 
 ## Quick start
 
@@ -81,10 +95,12 @@ pnpm lint
 cd apps/play
 pnpm test:integration         # headless smoke over the built dist (needs Chrome)
 pnpm test:parity              # live spike vs app, identical scenarios
+node test/shots.mjs           # regenerate docs/screenshots from the built dist
 ```
 
-Full-gate expectation on a clean tree today: unit **483**, conformance
-**105/105**, integration **57/57**, parity **18/18**.
+Full-gate expectation on a clean tree today: unit **540** (core 285 ·
+recognition 96 · platform-web 55 · app 104), conformance **105/105**,
+`apps/play` integration **118/118**, parity **18/18**.
 
 ## Requirements
 
