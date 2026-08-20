@@ -7,7 +7,8 @@
   "scripts": {
     "predev": "node scripts/prepare-assets.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/prepare-assets.mjs",
+    "prebuild": "node scripts/prepare-assets.mjs && node scripts/check-origins.mjs",
+    "check:origins": "node scripts/check-origins.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
