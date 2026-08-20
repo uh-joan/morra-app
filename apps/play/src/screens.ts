@@ -15,7 +15,6 @@ import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
 import { installFirstRun, maybeStartFirstRun, setFirstRunNamedHook } from "./firstrun.js";
 import { renderProfileControls } from "./profiles.js";
-import { installPort } from "./port.js";
 import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, isCalibrationDeclined, markCalibrationDeclined, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
 import { getActiveProfileName } from "./profile.js";
 import { renderEspillScreen } from "./training.js";
@@ -235,7 +234,13 @@ export function installScreens(): void {
   installPirateChoreography();
   installOnboarding();
   installFirstRun();
-  installPort();
+
+  // Els rivals guaiten: mount the peeking corsaris' art once — CSS owns
+  // their rare, slow timing.
+  const peekNino = byId("peekNino");
+  if (peekNino) peekNino.innerHTML = artWithUniqueIds(PIRATE_ART["L1"] ?? "", "peek-nino");
+  const peekBru = byId("peekBru");
+  if (peekBru) peekBru.innerHTML = artWithUniqueIds(PIRATE_ART["L2"] ?? "", "peek-bru");
 
   // Boot: reflect the level game.ts restored, land on the title screen.
   setPirate(el.selAiLevel.value || "L1");
