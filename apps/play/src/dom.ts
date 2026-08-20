@@ -25,9 +25,8 @@ function buildEl() {
     btnLoadVosk: g("btnLoadVosk") as HTMLButtonElement,
     syncCoOccurrenceMs: g("syncCoOccurrenceMs") as HTMLInputElement,
     btnExportDebug: g("btnExportDebug") as HTMLButtonElement,
-    selProfile: g("selProfile") as HTMLSelectElement,
-    btnNewProfile: g("btnNewProfile") as HTMLButtonElement,
-    btnDeleteProfile: g("btnDeleteProfile") as HTMLButtonElement,
+    tripulantName: g("tripulantName"),
+    btnRenameProfile: g("btnRenameProfile") as HTMLButtonElement,
     voskStatus: g("voskStatus"),
     // player side
     camPreview: g("camPreview") as HTMLVideoElement,
