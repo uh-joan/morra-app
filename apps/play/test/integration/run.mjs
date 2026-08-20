@@ -77,9 +77,9 @@ await page.click("#doorEspill");
 await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
 const espill = await page.evaluate(() => {
   const tab = document.querySelector('#espillTabs button[data-tab="numeros"]'); tab.click();
-  return { screen: document.body.dataset.screen, coach: document.getElementById("coachSentence").textContent, label: document.getElementById("coachLabel").textContent, pane: document.getElementById("espillPanes").dataset.tab, tilesVisible: getComputedStyle(document.getElementById("trainingTiles")).display !== "none", modeBarHidden: getComputedStyle(document.querySelector(".bar-modes")).visibility === "hidden" };
+  return { screen: document.body.dataset.screen, coach: document.getElementById("coachSentence").textContent, label: document.getElementById("coachLabel").textContent, pane: document.getElementById("espillPanes").dataset.tab, tilesVisible: getComputedStyle(document.getElementById("trainingTiles")).display !== "none", modeBarInHeader: !!document.querySelector("#topBar .bar-modes") };
 });
-r.check("L'Espill opens as its own screen from the title", espill.screen === "espill" && espill.modeBarHidden, JSON.stringify(espill));
+r.check("L'Espill opens as its own screen from the title (mode pills live on the tripulants, not the header)", espill.screen === "espill" && !espill.modeBarInHeader, JSON.stringify(espill));
 r.check("coach card speaks with an empty profile", /encara no puc dir res|Cap punt feble|costum/i.test(espill.coach + espill.label), JSON.stringify(espill));
 r.check("L'Espill tabs switch panes", espill.pane === "numeros" && espill.tilesVisible, JSON.stringify(espill));
 r.check("L'Espill route reflects the tab", (await page.evaluate(() => location.hash)) === "#/espill?tab=numeros");
@@ -329,8 +329,9 @@ await page.waitForFunction(() =>
   }),
   { timeout: 10000 });
 
-// Entrenament switch renders L'Espill from real history
-await page.click("#btnModeEntrenament");
+// Entrenament switch renders L'Espill from real history. (2026-08-20: the
+// pills live on the tripulants screen — trigger the mode via its listener.)
+await page.evaluate(() => document.getElementById("btnModeEntrenament").click());
 r.check("training panel visible", (await page.$eval("#trainingPanel", (n) => n.style.display)) === "block");
 r.check("heatmap renders 25 cells", (await page.$$eval("#bigramHeatmap .hm-cell", (n) => n.length)) === 25);
 r.check("sample count rendered", /tir/.test(await page.$eval("#trainingSampleCount", (n) => n.textContent)));
@@ -420,9 +421,9 @@ r.check("uncalibrated status reads defaults", /Sense calibrar|per defecte/.test(
 // 2026-08-20: calibratge left the Entrenament strip — status + Restableix live on its own page
 r.check("no calibratge section in the Entrenament strip; status + reset on the Calibratge page", await page.evaluate(() =>
   !document.querySelector("#trainingPanel .calib-section") && !!document.querySelector("#screenCalib #calibStatus") && !!document.querySelector("#screenCalib #calibReset")));
-r.check("the tripulant chip's menu opens with rename, export and reset", await page.evaluate(() => {
+r.check("the tripulant chip's menu opens with rename and reset (no export)", await page.evaluate(() => {
   document.getElementById("btnProfileMenu").click();
-  const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnRenameProfile") && !!document.querySelector("#profileMenu #btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
+  const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnRenameProfile") && !document.getElementById("btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
   document.body.click();
   return open && document.getElementById("profileMenu").hidden;
 }));
