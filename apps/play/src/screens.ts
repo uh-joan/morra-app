@@ -28,8 +28,15 @@ export type Screen = "title" | "select" | "fight" | "espill" | "calib";
 
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
+  if (s === "fight") renderRivalHud(); // the header chip says who you fight
   logEvent("screen_change", { screen: s });
   reflectRoute(s, getSessionMode(), routeParamsFor(s), "push", currentRivalSlug());
+}
+/** The header's rival chip: the partner at the table (or the mirror). */
+function renderRivalHud(): void {
+  const name = byId("rivalHudName");
+  if (!name) return;
+  name.textContent = isSoloTraining() && getSessionMode() === "entrenament" ? "Sol" : PIRATES.find((p) => p.levelId === (el.selAiLevel.value || "L1"))?.name ?? "—";
 }
 /** The path segment for the fight routes: the rival, or "sol" when sparring nobody. */
 export function currentRivalSlug(): string {
@@ -351,8 +358,8 @@ export function installScreens(): void {
   });
 
   // Level changed from anywhere else (tècnic select, seam): keep the
-  // figure in sync.
-  el.selAiLevel.addEventListener("change", () => setPirate(el.selAiLevel.value));
+  // figure and the header chip in sync.
+  el.selAiLevel.addEventListener("change", () => { setPirate(el.selAiLevel.value); renderRivalHud(); });
 
   // Routes (router.ts): back/forward, reload and deep links. A route that
   // needs the sensors (duel, entrena, tripulants) and doesn't have them

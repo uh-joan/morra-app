@@ -15,13 +15,12 @@
 <!-- ============================================================ -->
 
 <!-- Shared top bar (select + fight screens) -->
+<!-- One slim row everywhere: the header describes state (who you fight,
+     who you are); decisions live on the pages — the mode pills moved to
+     the tripulants screen, where the choice actually happens. -->
 <header id="topBar">
   <button id="btnToTitle" class="bar-logo" title="Torna al port"><strong>Morra</strong></button>
-  <nav class="bar-modes">
-    <button id="btnModePartida" class="primary">El duel</button>
-    <button id="btnModeEntrenament">Entrenament</button>
-    <button id="btnRivalHud" class="ghost">Canvia de rival</button>
-  </nav>
+  <button id="btnRivalHud" class="ghost rival-hud" title="Canvia de rival">⚔ <span id="rivalHudName">—</span> ▾</button>
   <!-- One tripulant per vessel: the chip is the whole account system —
        top right on every screen; the rare actions live in its menu. -->
   <div class="bar-tripulant" id="profileControls">
@@ -80,6 +79,10 @@
 
 <!-- ================= CHARACTER SELECT ================= -->
 <section id="screenSelect" class="screen">
+  <nav class="bar-modes select-modes" aria-label="Mode">
+    <button id="btnModePartida" class="primary">El duel</button>
+    <button id="btnModeEntrenament">Entrenament</button>
+  </nav>
   <h2 class="select-head select-duel">Tria el teu rival</h2>
   <p class="select-sub select-duel">Quatre corsaris guarden la taula de morra. Comença per la taverna… si vols arribar viu al fons.</p>
   <h2 class="select-head select-entrena">Amb qui entrenes?</h2>

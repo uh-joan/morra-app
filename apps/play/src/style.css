@@ -103,7 +103,11 @@ body[data-screen="espill"] #screenEspill { display: block; }
 body[data-screen="calib"]  #screenCalib  { display: flex; }
 #topBar { display: none; }
 body[data-screen="select"] #topBar, body[data-screen="fight"] #topBar, body[data-screen="espill"] #topBar { display: flex; }
-body[data-screen="select"] #btnRivalHud, body[data-screen="espill"] #btnRivalHud { display: none; }
+/* the rival chip: who you fight — on the fight screen only */
+#btnRivalHud { display: none; }
+body[data-screen="fight"] #btnRivalHud { display: inline-flex; align-items: center; gap: 5px; }
+.rival-hud { font-family: var(--serif); font-weight: 700; }
+.rival-hud #rivalHudName { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .overlay { display: none; }
 body[data-onboarding="on"] #onboardOverlay { display: flex; }
 body.vs-on #vsSplash { display: flex; }
@@ -119,8 +123,10 @@ body.vs-on #vsSplash { display: flex; }
 }
 .bar-logo { background: none; border: none; font-family: var(--serif); font-size: 17px; color: var(--gold); padding: 4px 8px; }
 .bar-logo:hover { border: none; text-shadow: 0 0 14px rgba(224,182,79,.6); }
+/* the mode pills live on the tripulants screen — the decision's page */
 .bar-modes { display: flex; gap: 8px; align-items: center; }
-.bar-modes button { font-family: var(--serif); font-weight: 700; }
+.select-modes { justify-content: center; margin: 2px 0 14px; }
+.bar-modes button { font-family: var(--serif); font-weight: 700; padding: 8px 18px; }
 .bar-modes button.primary { background: var(--gold); border-color: var(--gold); color: #2a1c04; }
 /* The tripulant chip: who's aboard — top right, on every screen. */
 .bar-tripulant { position: relative; }
@@ -782,8 +788,6 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
   /* the bar may wrap to two rows — let it grow instead of spilling over
      the score strip (it is sticky but in-flow, so content shifts down) */
   #topBar { flex-wrap: wrap; height: auto; min-height: var(--topbar-h); padding: 6px 10px; row-gap: 2px; }
-  .bar-modes { gap: 6px; }
-  .bar-modes button { font-size: 12.5px; padding: 6px 10px; }
 }
 
 /* ------------------------------------------- stacked / phone layout
@@ -817,8 +821,8 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
    (ten coins a side must fit) */
 @media (max-width: 640px) {
   .bar-logo { order: 1; }
-  .bar-tripulant { order: 2; margin-left: auto; }
-  .bar-modes { order: 3; flex-basis: 100%; justify-content: center; }
+  .bar-tripulant { order: 3; margin-left: auto; }
+  #btnRivalHud { order: 2; }
   /* The port, phone-sized: the image breathes, Juga is a plank, the doors
      are pills, the prep row is honestly tappable. */
   #screenTitle { justify-content: center; padding-top: 0; }
@@ -1122,7 +1126,6 @@ body[data-sparring="on"] #shadowRival { display: none; }
 .coach-actions .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 5px 0 #7a5a16; }
 .coach-actions .btn-parchment, .espill-foot .btn-parchment { font-size: 14px; padding: 9px 14px; }
 /* on the L'Espill screen the bar's mode buttons make no sense — the sheet has its own footer */
-body[data-screen="espill"] .bar-modes { visibility: hidden; }
 
 /* ================= sparring / solo (2026-08-17) ================= */
 body[data-mode="partida"] #pirateCard-sol { display: none; }
@@ -1139,7 +1142,6 @@ body[data-sparring="on"] .face-off #trainingPanel { grid-column: 2; }
    bubble — the mirror's read in his mouth, or his greeting. Two quiet text
    links. No icons: a control is text, or an icon, never both. */
 body[data-screen="title"] #topBar { display: flex; }
-body[data-screen="title"] .bar-modes { display: none; }
 @media (max-width: 640px) { body[data-screen="title"] .bar-logo { display: none; } body[data-screen="title"] #topBar { justify-content: flex-end; } }
 #screenTitle { min-height: calc(100vh - var(--topbar-h, 55px)); justify-content: flex-start; padding-top: 3vh; }
 .title-inner.home { gap: 10px; padding-top: 2vh; }
