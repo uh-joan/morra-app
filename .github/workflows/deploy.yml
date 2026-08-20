@@ -1,17 +1,17 @@
 name: deploy morra.joans.cat
 
 # Build the static app and rsync it to the Hetzner box that runs Caddy.
-# Manual by default; flip the `push` trigger on once the first manual deploy
-# is verified. Requires three repo secrets:
+# Runs on every push to main (incl. merged PRs) that touches the app, and
+# stays manually triggerable via workflow_dispatch. Requires three repo secrets:
 #   DEPLOY_SSH_KEY   a private key whose public half is in the box's
 #                    authorized_keys for DEPLOY_USER
 #   DEPLOY_HOST      178.105.134.73   (or set as a secret/var)
 #   DEPLOY_USER      e.g. root or a dedicated deploy user
 on:
   workflow_dispatch: {}
-  # push:
-  #   branches: [main]
-  #   paths: ["apps/play/**", "packages/**", "deploy/**"]
+  push:
+    branches: [main]
+    paths: ["apps/play/**", "packages/**", "deploy/**"]
 
 concurrency:
   group: deploy-morra
@@ -40,7 +40,8 @@ jobs:
         run: test -f spikes/models/vosk-model-small-ca-0.4.zip || ./spikes/models/fetch-ca-model.sh
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --dir apps/play build
+      # root build: pnpm -r builds packages/* first (apps/play imports their dist/)
+      - run: pnpm run build
 
       - name: Rsync dist to the box
         env:
