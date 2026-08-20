@@ -52,16 +52,24 @@ tampering user themselves — there is no other party to defend against.
 
 ## Notes
 
-- **The EvalError under CSP is benign.** The vosk Emscripten worker emits one
-  `EvalError` at init. A control test (CSP with vs. without `'unsafe-eval'`)
-  showed **identical** behaviour, so it is a caught capability-probe, not a
-  fatal block; `'unsafe-eval'` was **not** added (it would have weakened the
-  policy for no gain). Camera/mic/MediaPipe are confirmed working under the
-  strict policy; full **voice-recognition load could not be exercised
-  headless** (the 43 MB model does not finish unzipping in the harness — the
-  same reason the integration suite stalls vosk on purpose). **Verify voice on
-  a real device** after this change; the evidence says the CSP does not affect
-  it.
+- **CSP vs. vosk (2026-08-21 correction).** The initial strict CSP **broke
+  voice recognition** in production — my earlier "benign EvalError" call was
+  wrong. The mistake: headless, the 41 MB model never finished downloading, so
+  vosk never reached its eval-dependent init, so a with/without-`'unsafe-eval'`
+  control looked identical. On the deployed site (full model) the truth
+  surfaced: vosk-browser@0.0.8's `RecognizerWorker` **both** `fetch()`es its
+  inlined WASM from a base64 `data:` URI + a `blob:` URL **and** calls
+  `new Function` (Emscripten `createNamedFunction`) during recognizer init.
+  Under the strict policy the fetch was blocked (`connect-src`) and the eval
+  blocked (no `'unsafe-eval'`), so the model downloaded and then voice hung
+  forever. **Fix:** `connect-src 'self' blob: data:` + `'unsafe-eval'` in
+  `script-src`. Verified against the full model (browser, not headless): vosk
+  reaches `loaded` in ~1.5 s, console clean. Both concessions are **bounded** —
+  `script-src 'self'` (no foreign JS) and no cross-**origin** connect are kept
+  (`data:`/`blob:` are self-contained, no egress), and `'unsafe-eval'` is only
+  reachable via an XSS vector, which is verified clean (name only via
+  `textContent`). **Lesson:** always exercise the full model in a real browser,
+  not headless, when validating a CSP against WASM/worker libraries.
 - **Client-side trust, framed:** the commit-reveal protects against code-level
   peeking, not a user with devtools — that is inherent to a single-player
   client game and not a vulnerability.
