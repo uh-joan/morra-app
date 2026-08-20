@@ -31,6 +31,15 @@ const r = makeReporter("apps/play integration");
 const srv = await serve(DIST);
 const browser = await launchWithFakeDevices(chrome);
 const page = await browser.newPage();
+// The whole suite exercises the no-vosk regime (words are injected via the
+// seam; maybeResolveGameRound waits for recognition when voskLoaded()). The
+// first-run flow clicks the Veu gate and the model IS served locally — stall
+// that request forever so voskLoaded() stays false, like the original design.
+await page.setRequestInterception(true);
+page.on("request", (req) => {
+  if (req.url().includes("vosk-model")) return; // never answered — "carregant…" forever
+  req.continue().catch(() => {});
+});
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 let promptText = null; // what the next prompt() dialog answers with
@@ -45,6 +54,24 @@ r.check("commitment minted at boot", /Opponent committed: [0-9a-f]{8}/.test(awai
 r.check("boots on the title screen", (await page.evaluate(() => document.body.dataset.screen)) === "title");
 // Routes (2026-08-17): the hash mirrors screen+mode; back/forward and deep links apply
 r.check("boot lands on #/", (await page.evaluate(() => location.hash)) === "#/");
+
+// First run (2026-08-20): a fresh browser is gated behind the sign-on card.
+// Naming yourself claims the default profile and chains: sensors (fake ones
+// here) → the Calibratge page; any way out lands a jugar — the tripulants.
+r.check("first-run gate is up on a fresh browser", (await page.evaluate(() => document.body.dataset.firstrun)) === "on");
+await page.type("#firstrunName", "Grumet");
+await page.click("#firstrunGo");
+await page.waitForFunction(() => document.body.dataset.calibrating === "on", { timeout: 8000 });
+r.check("first run: name → sensors → the Calibratge page", await page.evaluate(() => document.body.dataset.screen === "calib" && location.hash === "#/calibratge" && !!document.querySelector("#calibStage .video-wrap")));
+r.check("first-run save button says where the flow goes", (await page.$eval("#calibSave", (n) => n.textContent)) === "Desa i a jugar");
+await page.click("#calibClose");
+await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 3000 });
+r.check("first run ends a jugar: the tripulants in Partida", await page.evaluate(() => document.body.dataset.mode === "partida" && location.hash === "#/tripulants?per=duel"));
+r.check("the default profile carries the name from the card", await page.evaluate(() => window.__play.profiles.find((p) => p.id === "default").name === "Grumet"));
+r.check("save button label restored after first run", (await page.$eval("#calibSave", (n) => n.textContent)) === "Desa per a aquest perfil");
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+
 // L'Espill is its own screen (2026-08-17): opens from the title without sensors, shows the coach card, tabs switch, back returns to port
 await page.click("#doorEspill");
 await page.waitForFunction(() => document.body.dataset.screen === "espill", { timeout: 3000 });
@@ -112,14 +139,24 @@ r.check("home mounts the wordmark image", (await page.evaluate(() => document.qu
 await page.click("#btnJuga");
 await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 5000 });
 r.check("Juga goes to the tripulants with the duel intent", (await page.evaluate(() => location.hash)) === "#/tripulants?per=duel" && (await page.evaluate(() => document.body.dataset.mode)) === "partida");
-// Calibratge from the home: with the sensors up it lands on the solo Entrenament table with the calibration open
+// Calibratge from the home: with the sensors up it opens its own page (#/calibratge) with the session running
 await page.evaluate(() => { location.hash = "#/"; });
 await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
 await page.click("#doorCalibra");
 await page.waitForFunction(() => document.body.dataset.calibrating === "on", { timeout: 5000 });
-r.check("home's Calibratge opens the calibration on the solo Entrenament table", await page.evaluate(() => document.body.dataset.screen === "fight" && document.body.dataset.mode === "entrenament" && document.body.dataset.solo === "on" && location.hash === "#/entrena/sol"));
+r.check("home's Calibratge opens its own page with the live camera on stage", await page.evaluate(() => document.body.dataset.screen === "calib" && location.hash === "#/calibratge" && !!document.querySelector("#calibStage .video-wrap")));
+r.check("the page hails the player by name", /Grumet/.test(await page.$eval("#calibWelcome", (n) => n.textContent)));
+// Hand tabs (2026-08-20): right-hand layout by default (columns mirrored), left flips back, choice persists
+r.check("hand tabs: right by default, left flips, persisted", await page.evaluate(() => {
+  const dretaOn = document.body.dataset.ma === "dreta" && document.getElementById("maDreta").classList.contains("on");
+  document.getElementById("maEsquerra").click();
+  const flipped = document.body.dataset.ma === "esquerra" && localStorage.getItem("morra_ma") === "esquerra";
+  document.getElementById("maDreta").click();
+  return dretaOn && flipped && document.body.dataset.ma === "dreta";
+}));
 await page.click("#calibClose");
 await page.waitForFunction(() => document.body.dataset.calibrating === undefined, { timeout: 3000 });
+r.check("closing the calibration returns to the port and the camera to the player side", await page.evaluate(() => document.body.dataset.screen === "title" && !!document.querySelector(".hero-video .video-wrap")));
 await page.evaluate(() => { location.hash = "#/"; });
 await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
 await page.click("#btnJuga");
@@ -239,7 +276,7 @@ const oneRule = await page.evaluate(async () => {
     // itself can't be asserted here: the fake camera has no hand, so the
     // very next frame's null count re-arms it — the spike's own hand-gone
     // rule. At a real camera the thumb stays in view and the pill holds.)
-    return { revealed, outcome: t.outcome, lastThrown: P.lastThrownFingerCount, card };
+    return { revealed, outcome: t.outcome, lastThrown: P.lastThrownFingerCount, card, dbg: { active: P.calibration.active, screen: document.body.dataset.screen, mode: document.body.dataset.mode, pending: P.syncPendingAnalysisCount } };
   };
   return {
     fromFist0: await fire(1, 0),
@@ -261,7 +298,7 @@ const oneRule = await page.evaluate(async () => {
 r.check("an incomplete (never revealed) does NOT feed the player model", oneRule.modelAfter === oneRule.modelBefore && oneRule.incomplete.outcome !== "reset", `${oneRule.modelBefore}→${oneRule.modelAfter} (${oneRule.incomplete.outcome})`);
 r.check("a 1 coming down from a held 3 WITH a voice onset is still a reset (was voice-early)", oneRule.fromHeld3WithVoice.outcome === "reset", oneRule.fromHeld3WithVoice.outcome);
 r.check("a 0 coming down from a held 4 WITH a voice onset is still a reset", oneRule.fromHeld4WithVoice.outcome === "reset", oneRule.fromHeld4WithVoice.outcome);
-r.check("neither retraction resolved anything (lastThrownFingerCount unchanged)", oneRule.fromHeld3WithVoice.lastThrown === oneRule.fromFist1.lastThrown && oneRule.fromHeld4WithVoice.lastThrown === oneRule.fromFist1.lastThrown);
+r.check("neither retraction resolved anything (lastThrownFingerCount unchanged)", oneRule.fromHeld3WithVoice.lastThrown === oneRule.fromFist1.lastThrown && oneRule.fromHeld4WithVoice.lastThrown === oneRule.fromFist1.lastThrown, JSON.stringify(oneRule));
 r.check("throw of ONE from a fist (pre-onset 0) reveals", oneRule.fromFist0.revealed);
 r.check("throw of ONE from a fist that reads 1 reveals", oneRule.fromFist1.revealed);
 r.check("a 1 coming down from a held 3 is a retraction — no reveal", !oneRule.fromHeld3.revealed);
@@ -320,12 +357,16 @@ const v2panel = await page.evaluate(() => {
   const tooEarly = document.getElementById("trendStrip").textContent;
   const long = []; for (let i = 0; i < 70; i++) { const f = i % 2 ? 4 : 2; long.push(H(f, f + 2, 1 + (i % 5), 1 + (i % 5) + 3, "parata")); }
   window.__play.renderTrainingPanel(long, "session");
-  return { tooEarly, tiles: document.querySelectorAll("#trendStrip .trend").length, coach: document.getElementById("coachSentence").textContent, price: document.getElementById("coachPrice").textContent, evidence: document.getElementById("coachEvidence").textContent, counter: document.getElementById("coachCounter").textContent, others: document.querySelectorAll("#tellsList li").length, live: document.getElementById("liveTopTell").textContent };
+  return { tooEarly, tiles: document.querySelectorAll("#trendStrip .trend").length, coach: document.getElementById("coachSentence").textContent, price: document.getElementById("coachPrice").textContent, evidence: document.getElementById("coachEvidence").textContent, counter: document.getElementById("coachCounter").textContent, others: document.querySelectorAll("#tellsList li").length, live: document.getElementById("liveTopTell").textContent, headline: document.getElementById("espillHeadline").textContent, bigram: document.getElementById("bigramHeadline").textContent, thinRows: document.querySelectorAll("#bigramHeatmap .hm-thin").length, rowCounts: document.querySelectorAll("#bigramHeatmap .hm-label small").length };
 });
 r.check("trends strip says too early under 60 rows", /60 tirs/.test(v2panel.tooEarly));
 r.check("trends strip shows four tiles on 70 rows", v2panel.tiles === 4, JSON.stringify(v2panel));
 r.check("coach card names the #1 weakness with price, evidence and the rival's counter-move", /Després de tirar un [24], tires un [24]/.test(v2panel.coach) && /punts cada 100/.test(v2panel.price) && /\d+ de \d+/.test(v2panel.evidence) && /^El Rei: /.test(v2panel.counter) && v2panel.live === v2panel.coach, JSON.stringify(v2panel));
 r.check("the read names what El Rei sees", /apostaria que tiraràs [1-5] \(\d+%\)|cap costum clar/.test(readShown.headline) && readShown.fBars === 5 && readShown.gBars === 5 && /%/.test(readShown.drivers) && readShown.self.length > 0, JSON.stringify(readShown));
+// 2026-08-20: the one number promoted; Seqüència speaks; heatmap rows carry their counts
+r.check("espill headline counts El Rei's hits out of 20", /El Rei t'endevinaria \d+ de cada 20 tirades/.test(v2panel.headline), v2panel.headline);
+r.check("Seqüència names the strongest chain in words", /Després d'un [24], tires un [24] el \d+%.*cadena/.test(v2panel.bigram), v2panel.bigram);
+r.check("heatmap rows show their sample counts (alternator: two rows have data)", v2panel.rowCounts === 2, String(v2panel.rowCounts));
 // The shadow rival (2026-08-17): in Entrenament, El Rei's bet is frozen before each throw and scored after;
 // 12 seam throws (alternating 2/4): the first ones say "too early", then the meter fills and the last line speaks.
 const shadow = await page.evaluate(async () => {
@@ -375,19 +416,18 @@ r.check("break-pattern mission on the alternator: feedback per throw, verdict at
 // guided steps can't run end-to-end here; what CAN be checked: the section,
 // the panel open/close, the seam-driven apply/save into the live sliders,
 // and that the fit persists per profile and per device.
-r.check("calibratge section in L'Espill, uncalibrated status", /Sense calibrar|per defecte/.test(await page.$eval("#calibStatus", (n) => n.textContent)));
-// L'Espill v2 (2026-08-17): calibratge lives in the Entrenament strip, next to the camera it calibrates; export/reset under ⚙ by the Tripulant selector
-r.check("calibratge section sits in the Entrenament strip", await page.evaluate(() => {
-  const sec = document.querySelector("#trainingPanel .calib-section");
-  return !!sec && !!sec.querySelector("#btnCalibrate") && getComputedStyle(sec).display !== "none";
-}));
+r.check("uncalibrated status reads defaults", /Sense calibrar|per defecte/.test(await page.$eval("#calibStatus", (n) => n.textContent)));
+// 2026-08-20: calibratge left the Entrenament strip — status + Restableix live on its own page
+r.check("no calibratge section in the Entrenament strip; status + reset on the Calibratge page", await page.evaluate(() =>
+  !document.querySelector("#trainingPanel .calib-section") && !!document.querySelector("#screenCalib #calibStatus") && !!document.querySelector("#screenCalib #calibReset")));
 r.check("profile menu (⚙) opens with export and reset", await page.evaluate(() => {
   document.getElementById("btnProfileMenu").click();
   const open = !document.getElementById("profileMenu").hidden && !!document.querySelector("#profileMenu #btnExportProfile") && !!document.querySelector("#profileMenu #btnResetProfile");
   document.body.click();
   return open && document.getElementById("profileMenu").hidden;
 }));
-await page.click("#btnCalibrate");
+await page.evaluate(() => { location.hash = "#/calibratge"; });
+await page.waitForFunction(() => document.body.dataset.calibrating === "on", { timeout: 5000 });
 r.check("calibratge opens on 'Enquadra' with the ghost hand on", await page.evaluate(() =>
   document.body.dataset.calibrating === "on" && document.body.dataset.calib === "frame" && window.__play.calibration.active));
 r.check("framing reports no hand (fake camera)", await page.evaluate(() => window.__play.framing.hint === "no-hand"));
@@ -440,12 +480,30 @@ r.check("stale (v1) record is re-fit from its samples on apply: HIGH_V under the
   const rec = JSON.parse(localStorage.getItem(key)).byDevice[window.__play.calibration.deviceKey];
   return hv < 0.576 * 0.8 && hv > 0.3 && vm < 12 && vm > 4 && rec.fitVersion === 2;
 }), await page.evaluate(() => document.getElementById("tuneHighV").value + "/" + document.getElementById("tuneVadMult").value));
+// Restableix lives on the Calibratge page now — entering it starts a
+// session; the reset mid-session applies defaults and closes back to port
+await page.evaluate(() => { location.hash = "#/calibratge"; });
+await page.waitForFunction(() => document.body.dataset.calibrating === "on", { timeout: 5000 });
 await page.click("#calibReset");
+await page.waitForFunction(() => document.body.dataset.calibrating === undefined, { timeout: 3000 });
 r.check("Restableix returns the sliders to the app defaults and clears the record", await page.evaluate(() =>
   document.getElementById("tuneHighV").value === "0.5" && document.getElementById("tuneVadMult").value === "6" && /Sense calibrar/.test(document.getElementById("calibStatus").textContent)));
 r.check("(sliders were at defaults before too)", before.highV === 0.5 && before.vadMult === 6, JSON.stringify(before));
 
 // Profiles: default = legacy key; create/switch/delete isolate histories
+// First flush the analysis queue: seam throws from earlier sections are still
+// awaiting their audio window, and a late drain would record into whichever
+// profile is active by then — poisoning the fresh-model checks below.
+await page.evaluate(() => window.__play.drainPendingAnalysis(performance.now() + 60000));
+await page.waitForFunction(() => window.__play.syncPendingAnalysisCount === 0, { timeout: 5000 });
+// …and the drained extractions finalize async: wait for the model to go quiet
+await page.evaluate(async () => {
+  let last = -1;
+  for (let i = 0; i < 20 && last !== window.__play.playerModel.throws.length; i++) {
+    last = window.__play.playerModel.throws.length;
+    await new Promise((r2) => setTimeout(r2, 250));
+  }
+});
 r.check("boots with the default profile only", await page.evaluate(() =>
   window.__play.activeProfileId === "default" && window.__play.profiles.length === 1));
 r.check("delete disabled for the default profile", await page.$eval("#btnDeleteProfile", (n) => n.disabled));
@@ -460,7 +518,8 @@ promptText = "Bea";
 await page.click("#btnNewProfile");
 promptText = null;
 r.check("new profile activates with a fresh empty model", await page.evaluate(() =>
-  window.__play.activeProfileId !== "default" && window.__play.playerModel.throws.length === 0));
+  window.__play.activeProfileId !== "default" && window.__play.playerModel.throws.length === 0),
+await page.evaluate(() => JSON.stringify({ active: window.__play.activeProfileId, throws: window.__play.playerModel.throws, syncCount: window.__play.syncThrows.length, pending: window.__play.syncPendingAnalysisCount })));
 r.check("new profile gets the app-default sensor values, not the default profile's fit", await page.evaluate(() =>
   document.getElementById("tuneHighV").value === "0.5" && document.getElementById("tuneVadMult").value === "6"));
 r.check("select shows both profiles", (await page.$$eval("#selProfile option", (n) => n.length)) === 2);

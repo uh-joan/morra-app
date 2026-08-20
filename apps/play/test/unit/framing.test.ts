@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeFraming, DEFAULT_FRAMING_TARGET, FRAMING_COPY, NO_HAND } from "../../src/framing.js";
+import { computeFraming, DEFAULT_FRAMING_TARGET, drawFramingGuide, FRAMING_COPY, NO_HAND } from "../../src/framing.js";
 import type { Landmark } from "@morra/recognition";
 
 // A hand as a 21-point cloud filling the box [x0,x0+w] × [y0,y0+h]
@@ -50,5 +50,26 @@ describe("framing: computeFraming", () => {
   it("every hint has player-facing copy; in-zone has none", () => {
     for (const k of ["closer", "farther", "center", "clipped", "no-hand"] as const) expect(FRAMING_COPY[k].length).toBeGreaterThan(0);
     expect(FRAMING_COPY.none).toBe("");
+  });
+  it("drawFramingGuide mirrors the ghost's x for the right hand (mirror=true)", () => {
+    // A stub 2-D context that records the path points; only what draw uses.
+    const capture = () => {
+      const pts: [number, number][] = [];
+      const noop = () => {};
+      const ctx = {
+        save: noop, restore: noop, beginPath: noop, closePath: noop, fill: noop, stroke: noop,
+        setLineDash: noop, moveTo: (x: number, y: number) => pts.push([x, y]), lineTo: (x: number, y: number) => pts.push([x, y]),
+        lineWidth: 0, strokeStyle: "", fillStyle: "",
+      } as unknown as CanvasRenderingContext2D;
+      return { ctx, pts };
+    };
+    const a = capture(), b = capture();
+    drawFramingGuide(a.ctx, 100, 100, NO_HAND, false);
+    drawFramingGuide(b.ctx, 100, 100, NO_HAND, true);
+    expect(b.pts.length).toBe(a.pts.length);
+    for (let i = 0; i < a.pts.length; i++) {
+      expect(b.pts[i]![0]).toBeCloseTo(100 - a.pts[i]![0], 6); // x mirrored around the frame center
+      expect(b.pts[i]![1]).toBe(a.pts[i]![1]); // y untouched
+    }
   });
 });

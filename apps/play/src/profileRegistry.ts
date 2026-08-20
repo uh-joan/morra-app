@@ -89,6 +89,26 @@ export function deleteProfile(reg: ProfileRegistry, id: string): ProfileRegistry
   };
 }
 
+/** First-run gate: only the default profile exists and it still wears the
+ * out-of-the-box name — an untouched "Principal" counts as "no profile
+ * created yet". Once the player names themselves (renameProfile below) or
+ * creates any extra profile, the gate stays closed forever. */
+export function needsFirstRun(reg: ProfileRegistry, defaultName: string): boolean {
+  return reg.profiles.length === 1 && reg.profiles[0]!.id === DEFAULT_PROFILE_ID && reg.profiles[0]!.name === defaultName;
+}
+
+/** Never mutates; rejects blank names and unknown ids. Renaming is how the
+ * first-run flow claims the default profile: the id — and with it the
+ * legacy storage key and any accumulated history — stays put, only the
+ * name changes. Same-name renames return the same object (no-op). */
+export function renameProfile(reg: ProfileRegistry, id: string, name: string): ProfileRegistry | null {
+  const trimmed = name.trim();
+  const existing = reg.profiles.find((p) => p.id === id);
+  if (!trimmed || !existing) return null;
+  if (existing.name === trimmed) return reg;
+  return { ...reg, profiles: reg.profiles.map((p) => (p.id === id ? { ...p, name: trimmed } : p)) };
+}
+
 /** Never mutates; unknown ids are rejected. */
 export function setActiveProfile(reg: ProfileRegistry, id: string): ProfileRegistry | null {
   if (!reg.profiles.some((p) => p.id === id)) return null;

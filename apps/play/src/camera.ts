@@ -189,7 +189,9 @@ function drawHandOverlay(lm: Landmark[] | null, settled: boolean): void {
   const w = el.handOverlay.width;
   const h = el.handOverlay.height;
   overlayCtx.clearRect(0, 0, w, h);
-  if (framingGuideOn) drawFramingGuide(overlayCtx, w, h, lastFraming);
+  // body[data-ma] is the hand choice from the Calibratge tabs (right by
+  // default): the ghost is authored as a left hand, so mirror it for dreta.
+  if (framingGuideOn) drawFramingGuide(overlayCtx, w, h, lastFraming, document.body.dataset.ma === "dreta");
   if (!lm) return;
   overlayCtx.lineWidth = 2;
   overlayCtx.strokeStyle = settled ? "#2ea043" : "#d29922";

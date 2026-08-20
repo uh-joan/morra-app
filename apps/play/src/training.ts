@@ -30,19 +30,34 @@ export function setMirrorScope(scope: MirrorScope): void {
   renderTrainingPanelIfActive();
 }
 
-function trainingHistorySource() {
+/** Under this many session rows, "Aquesta sessió" shows the all-time
+ * picture instead (with a note): the mirror always says something. The
+ * choice sticks — once the session reaches the bar, the slice is honored. */
+const SESSION_MIN_ROWS = 20;
+
+function renderMirror(): void {
   const all = toHistoryArray(getPlayerModel());
-  return mirrorScope === "session" ? all.filter((h) => h.sessionId === LOG_SESSION_ID) : all;
+  if (mirrorScope === "session") {
+    const session = all.filter((h) => h.sessionId === LOG_SESSION_ID);
+    if (session.length < SESSION_MIN_ROWS && all.length > session.length) {
+      renderTrainingPanel(all, "allTime");
+      el.trainingSampleCount.textContent = TRAINING_PANEL_TEXT.sessionThin(session.length, all.length);
+      return;
+    }
+    renderTrainingPanel(session, "session");
+    return;
+  }
+  renderTrainingPanel(all, "allTime");
 }
 
 export function renderTrainingPanelIfActive(): void {
   if (getSessionMode() !== "entrenament" && document.body.dataset.screen !== "espill") return;
-  renderTrainingPanel(trainingHistorySource(), mirrorScope);
+  renderMirror();
 }
 /** The L'Espill screen renders on open regardless of mode (it needs no
  * sensors — it reads the profile). Same renderer, same ids. */
 export function renderEspillScreen(): void {
-  renderTrainingPanel(trainingHistorySource(), mirrorScope);
+  renderMirror();
 }
 
 // ------------------------------------------------------------ the shadow rival

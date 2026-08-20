@@ -43,6 +43,15 @@ export function isCalibrating(): boolean {
   return calibrating;
 }
 
+/** How a calibration session ended: Desa, Descarta/Restableix, or the ✕.
+ * The hook fires once per session, AFTER cleanup — screens.ts owns what
+ * happens next (leave the Calibratge page; first-run: "a jugar"). */
+export type CalibrationEndOutcome = "saved" | "reset" | "closed";
+let onEnd: ((outcome: CalibrationEndOutcome) => void) | null = null;
+export function setCalibrationEndHook(hook: (outcome: CalibrationEndOutcome) => void): void {
+  onEnd = hook;
+}
+
 export function currentValues(): CalibrationValues {
   return {
     highV: parseFloat(el.tuneHighV.value),
@@ -85,6 +94,34 @@ export function refitIfStale(pid: string, rec: CalibrationRecord): CalibrationRe
   saveBlob(pid, withRecord(loadBlob(pid), cameraDeviceKey, next));
   logEvent("calibration_refit", { profileId: pid, deviceKey: cameraDeviceKey, from: rec.fitVersion ?? 1, to: FIT_VERSION, before: rec.values, values });
   return next;
+}
+
+// ------------------------------------------------------------------ hand
+// Which hand throws (right by default): pure presentation — the Calibratge
+// page mirrors so the camera sits on the throwing-hand side and the steps
+// on the free-hand side. Persisted like the entorn choice.
+
+export type Ma = "dreta" | "esquerra";
+const MA_KEY = "morra_ma";
+
+function applyMa(ma: Ma): void {
+  document.body.dataset.ma = ma;
+  document.getElementById("maDreta")?.classList.toggle("on", ma === "dreta");
+  document.getElementById("maEsquerra")?.classList.toggle("on", ma === "esquerra");
+}
+
+function installMa(): void {
+  let stored: string | null = null;
+  try { stored = localStorage.getItem(MA_KEY); } catch { /* private browsing */ }
+  applyMa(stored === "esquerra" ? "esquerra" : "dreta");
+  for (const id of ["maDreta", "maEsquerra"] as const) {
+    document.getElementById(id)?.addEventListener("click", (ev) => {
+      const ma = (ev.currentTarget as HTMLElement).dataset.ma as Ma;
+      applyMa(ma);
+      try { localStorage.setItem(MA_KEY, ma); } catch { /* session-only then */ }
+      logEvent("setting_change", { setting: "ma", value: ma });
+    });
+  }
 }
 
 // ------------------------------------------------------------------ flow
@@ -136,7 +173,6 @@ function ui() {
     reset: g("calibReset") as HTMLButtonElement | null,
     close: g("calibClose") as HTMLButtonElement | null,
     status: g("calibStatus"),
-    btnOpen: g("btnCalibrate") as HTMLButtonElement | null,
   };
 }
 
@@ -386,7 +422,7 @@ function save(): void {
   applyValues(rec.values, "calibration");
   logEvent("calibration_saved", { profileId: pid, deviceKey: cameraDeviceKey, values: rec.values });
   reflectStatus(rec);
-  stop();
+  stop("saved");
 }
 
 function resetToDefaults(): void {
@@ -395,7 +431,7 @@ function resetToDefaults(): void {
   applyValues(APP_DEFAULTS, "reset");
   logEvent("calibration_reset", { profileId: pid, deviceKey: cameraDeviceKey });
   reflectStatus(null);
-  stop();
+  stop("reset");
 }
 
 export function start(): void {
@@ -415,8 +451,8 @@ export function start(): void {
   rafId = requestAnimationFrame(tick);
 }
 
-export function stop(): void {
-  if (!S) return;
+export function stop(outcome: CalibrationEndOutcome = "closed"): void {
+  if (!S) return; // no session, no end: a "Restableix" outside a session never fires the hook
   if (rafId != null) cancelAnimationFrame(rafId);
   rafId = null;
   unobserve?.();
@@ -425,14 +461,17 @@ export function stop(): void {
   calibrating = false;
   delete document.body.dataset.calibrating;
   delete document.body.dataset.calib;
-  logEvent("calibration_stop", { step: S.step, throws: S.prompts.length });
+  logEvent("calibration_stop", { step: S.step, throws: S.prompts.length, outcome });
   S = null;
+  onEnd?.(outcome);
 }
 
 export function installCalibration(): void {
   const u = ui();
-  u.btnOpen?.addEventListener("click", start);
-  u.close?.addEventListener("click", stop); // ✕ mid-flow: abort, keep whatever was in force
+  installMa();
+  // btnCalibrate navigates to the Calibratge page (screens.ts) — the page
+  // starts the session; this module only runs it.
+  u.close?.addEventListener("click", () => stop()); // ✕ mid-flow: abort, keep whatever was in force
   u.discard?.addEventListener("click", resetToDefaults); // Descarta: throw this fit AND the stored one away → app defaults
   u.save?.addEventListener("click", save);
   u.reset?.addEventListener("click", resetToDefaults);

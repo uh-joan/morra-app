@@ -63,13 +63,19 @@ function topWordsList(topWords: readonly TopWord[]): HTMLLIElement[] {
   });
 }
 
-// low -> high probability, reusing the page's existing --good scale
+// low -> high probability, reusing the page's existing --good scale. Text
+// flips with the background: light on the dark buckets, ink on the bright.
 const HEATMAP_COLORS = ["#1f242c", "#2a3a2f", "#356148", "#2ea043", "#35d07f"];
-function heatmapColorFor(p: number | null): string | null {
+const HEATMAP_INK_FROM = 3; // buckets below this get light text
+function heatmapBucketFor(p: number | null): number | null {
   if (p == null) return null;
-  return HEATMAP_COLORS[Math.min(HEATMAP_COLORS.length - 1, Math.floor(p * HEATMAP_COLORS.length))]!;
+  return Math.min(HEATMAP_COLORS.length - 1, Math.floor(p * HEATMAP_COLORS.length));
 }
 
+// A row's evidence is its context count ("after an X" happened n times);
+// under this the percentages are noise, so the row renders dimmed. Same bar
+// as the order-1 tell (tells2).
+const HEATMAP_MIN_ROW_N = 6;
 function heatmapGrid(heatmap: ReturnType<typeof computeBigramHeatmap>): HTMLElement[] {
   const cells: HTMLElement[] = [];
   const label = (text: string) => {
@@ -81,15 +87,23 @@ function heatmapGrid(heatmap: ReturnType<typeof computeBigramHeatmap>): HTMLElem
   cells.push(label(""));
   for (const to of [1, 2, 3, 4, 5]) cells.push(label(String(to)));
   for (const from of [1, 2, 3, 4, 5] as const) {
-    cells.push(label(String(from)));
+    const rowN = heatmap.rowTotals[from] ?? 0;
+    const rowLabel = label(String(from));
+    if (rowN > 0) {
+      const count = document.createElement("small");
+      count.textContent = `×${rowN}`;
+      rowLabel.append(count);
+    }
+    cells.push(rowLabel);
     for (const to of [1, 2, 3, 4, 5] as const) {
       const p = heatmap.probabilities[from]![to]!;
-      const color = heatmapColorFor(p);
+      const bucket = heatmapBucketFor(p);
       const cell = document.createElement("div");
-      cell.title = `${from}→${to}: ${p != null ? (p * 100).toFixed(0) + "%" : "no data"}`;
-      if (color != null && p != null) {
-        cell.className = "hm-cell";
-        cell.style.background = color;
+      cell.title = `${from}→${to}: ${p != null ? `${(p * 100).toFixed(0)}% (${rowN} cops després del ${from})` : "no data"}`;
+      if (bucket != null && p != null) {
+        cell.className = "hm-cell" + (rowN < HEATMAP_MIN_ROW_N ? " hm-thin" : "");
+        cell.style.background = HEATMAP_COLORS[bucket]!;
+        cell.style.color = bucket >= HEATMAP_INK_FROM ? "#06131f" : "rgba(232,236,226,.92)";
         cell.textContent = (p * 100).toFixed(0);
       } else {
         cell.className = "hm-cell hm-empty";
@@ -101,6 +115,23 @@ function heatmapGrid(heatmap: ReturnType<typeof computeBigramHeatmap>): HTMLElem
   return cells;
 }
 
+/** The heatmap's strongest chain, in words — same evidence bar and tiebreak
+ * as the order-1 tell, so the sentence and the coach card never disagree. */
+function strongestBigram(heatmap: ReturnType<typeof computeBigramHeatmap>): { a: number; b: number; p: number } | null {
+  let best: { a: number; b: number; p: number; score: number } | null = null;
+  for (const a of [1, 2, 3, 4, 5] as const) {
+    const n = heatmap.rowTotals[a] ?? 0;
+    if (n < HEATMAP_MIN_ROW_N) continue;
+    for (const b of [1, 2, 3, 4, 5] as const) {
+      const p = heatmap.probabilities[a]![b];
+      if (p == null || p < 0.4) continue;
+      const score = p * Math.min(1, n / 12);
+      if (!best || score > best.score) best = { a, b, p, score };
+    }
+  }
+  return best;
+}
+
 export function renderTrainingPanel(history: readonly HistoryEntry[], scope: MirrorScope): void {
   const exploit = computeExploitabilityV2(history); // El Rei's read (v2), not the spike's
   const randomness = computeRandomnessScore(history);
@@ -110,6 +141,14 @@ export function renderTrainingPanel(history: readonly HistoryEntry[], scope: Mir
 
   el.tileExploitability.textContent = exploit.rate != null ? `${(exploit.rate * 100).toFixed(0)}%` : "—";
   el.liveExploit.textContent = exploit.rate != null ? TRAINING_PANEL_TEXT.liveExploit(Number((exploit.rate * 100).toFixed(0))) : TRAINING_PANEL_TEXT.liveExploitNone;
+  // the one number, promoted: the same replayed read, said as hits out of 20
+  if (exploit.rate != null) {
+    const strong = document.createElement("strong");
+    strong.textContent = String(Math.round(exploit.rate * 20));
+    el.espillHeadline.replaceChildren(TRAINING_PANEL_TEXT.espillHeadlineBefore, strong, TRAINING_PANEL_TEXT.espillHeadlineAfter);
+  } else {
+    el.espillHeadline.textContent = TRAINING_PANEL_TEXT.espillHeadlineNone;
+  }
   el.tileRandomness.textContent = randomness ? `${randomness.redundancyPct.toFixed(1)}%` : "—";
   el.tileSyncRate.textContent = syncStats.syncRate != null ? `${(syncStats.syncRate * 100).toFixed(0)}%` : "—";
   el.tileMedianDelta.textContent = syncStats.medianAbsDeltaMs != null ? `${syncStats.medianAbsDeltaMs.toFixed(0)}ms` : "—";
@@ -121,6 +160,10 @@ export function renderTrainingPanel(history: readonly HistoryEntry[], scope: Mir
   renderTells(history, scope);
   renderTrends(history);
 
+  const chain = strongestBigram(heatmap);
+  el.bigramHeadline.textContent = chain
+    ? TRAINING_PANEL_TEXT.sequenceHeadline(chain.a, chain.b, Number((chain.p * 100).toFixed(0)))
+    : TRAINING_PANEL_TEXT.sequenceHeadlineNone;
   el.bigramHeatmap.replaceChildren(...heatmapGrid(heatmap));
   renderRead(history);
 
@@ -223,13 +266,12 @@ function renderTells(history: readonly HistoryEntry[], scope: MirrorScope): void
     el.coachPrice.textContent = ""; el.coachEvidence.textContent = ""; el.coachCounter.textContent = "";
     el.liveTopTell.textContent = rounds < 20 ? TRAINING_PANEL_TEXT.coachNoneTooEarly(rounds) : TRAINING_PANEL_TEXT.coachNone;
   }
-  // the others, collapsed under the card
+  // the others, in view under the card
   const rest = tells.slice(1, 7);
-  el.btnMoreTells.hidden = rest.length === 0;
   if (rest.length) { el.tellsList.replaceChildren(...rest.map((t) => tellItem(t, true))); return; }
   // the older, cheaper tells trigger on fewer rows — keep them as the early voice
   const early = computeTopTells(history);
-  if (early.length && !top) { el.coachLabel.textContent = TRAINING_PANEL_TEXT.coachLabel; el.coachSentence.textContent = early[0]!.sentence; el.liveTopTell.textContent = early[0]!.sentence; el.tellsList.replaceChildren(...early.slice(1).map((t) => tellItem({ sentence: t.sentence, pointsPer100: null, evidence: { hits: 0, n: 0 }, counterMove: "" }, false))); el.btnMoreTells.hidden = early.length < 2; return; }
+  if (early.length && !top) { el.coachLabel.textContent = TRAINING_PANEL_TEXT.coachLabel; el.coachSentence.textContent = early[0]!.sentence; el.liveTopTell.textContent = early[0]!.sentence; el.tellsList.replaceChildren(...early.slice(1).map((t) => tellItem({ sentence: t.sentence, pointsPer100: null, evidence: { hits: 0, n: 0 }, counterMove: "" }, false))); return; }
   el.tellsList.replaceChildren();
 }
 

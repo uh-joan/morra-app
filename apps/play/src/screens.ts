@@ -13,16 +13,17 @@ import { PIRATES, type Pirate } from "./pirate/cast.js";
 import { artWithUniqueIds, PIRATE_ART, WORDMARK_SVG } from "./pirate/art.js";
 import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
-import { queueMission, renderEspillScreen } from "./training.js";
+import { installFirstRun, maybeStartFirstRun, setFirstRunNamedHook } from "./firstrun.js";
+import { isCalibrating, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
+import { getActiveProfileName } from "./profile.js";
+import { renderEspillScreen } from "./training.js";
 import { getSessionMode } from "./game.js";
 import { syncReady } from "./analysis.js";
 import { installRouter, reflectRoute, type Route, type RouteParams } from "./router.js";
 import { isSoloTraining, levelForSlug, setSoloTraining, slugForLevel, SOLO_SLUG } from "./rivalState.js";
 import { applyModeLayout } from "./modes.js";
-import { getLastTopTell } from "./render/training.js";
-import { missionForTell } from "@morra/core";
 
-export type Screen = "title" | "select" | "fight" | "espill";
+export type Screen = "title" | "select" | "fight" | "espill" | "calib";
 
 export function setScreen(s: Screen): void {
   document.body.dataset.screen = s;
@@ -139,12 +140,55 @@ function chooseRival(p: Pirate): void {
   applyModeLayout(); // partner changed inside the same mode: panels + loop + route
 }
 let pendingCalibration = false;
+/** The first-run journey (name → sensors → calibration → a jugar) is in
+ * flight: the calibration end hands off to the tripulants instead of the
+ * port. */
+let firstRunFlow = false;
 function chooseSolo(): void {
   setSoloTraining(true);
   logEvent("rival_chosen", { level: null, solo: true });
   setSessionMode("entrenament");
   setScreen("fight");
   applyModeLayout();
+}
+
+// ------------------------------------------------------ Calibratge (page)
+// One live camera pipeline, two homes: the fight screen's .video-wrap is
+// reparented into the Calibratge page's stage while the page is up, and put
+// back exactly where it was when the session ends. The <video> keeps
+// playing across the move (srcObject survives reparenting).
+let videoHome: { parent: HTMLElement; next: Node | null } | null = null;
+function moveVideoToStage(): void {
+  const wrap = document.querySelector<HTMLElement>(".video-wrap");
+  const stage = byId("calibStage");
+  if (!wrap || !stage || wrap.parentElement === stage) return;
+  videoHome = { parent: wrap.parentElement!, next: wrap.nextSibling };
+  stage.appendChild(wrap);
+}
+function moveVideoBack(): void {
+  const wrap = document.querySelector<HTMLElement>(".video-wrap");
+  if (!wrap || !videoHome) return;
+  videoHome.parent.insertBefore(wrap, videoHome.next);
+  videoHome = null;
+}
+/** Open the Calibratge page and start the session. Callers guarantee the
+ * sensors are up (the onboarding gate / syncReady). */
+function enterCalibration(): void {
+  // The hail, by name (textContent-built — a name is player input).
+  const welcome = byId("calibWelcome");
+  if (welcome) {
+    const name = document.createElement("b");
+    name.textContent = getActiveProfileName();
+    welcome.replaceChildren("A coberta, tripulant ", name, "!");
+  }
+  moveVideoToStage();
+  setScreen("calib");
+  startCalibration();
+  if (!isCalibrating()) {
+    // sensors dropped between the gate and here — nothing to run
+    moveVideoBack();
+    setScreen("title");
+  }
 }
 
 // ----------------------------------------------------------------- wiring
@@ -162,19 +206,52 @@ export function installScreens(): void {
   buildSelectGrid();
   installPirateChoreography();
   installOnboarding();
+  installFirstRun();
 
   // Boot: reflect the level game.ts restored, land on the title screen.
   setPirate(el.selAiLevel.value || "L1");
   document.body.dataset.mode = "partida";
   setScreen("title");
+  // First run (factory-fresh registry): the sign-on card over the title.
+  maybeStartFirstRun();
+  // Naming yourself flows straight on: same gesture through the sensor
+  // gates, then onto the solo table with the calibration open — the exact
+  // path the home's Calibratge link takes.
+  setFirstRunNamedHook(() => {
+    firstRunFlow = true;
+    pendingCalibration = true;
+    startOnboarding("entrenament");
+  });
+  // When a calibration session ends — Desa, Descarta or the ✕, all valid
+  // ways in — the Calibratge page closes: back to the port, or, on the
+  // first run, into the game (the tripulants in Partida, sensors warm, one
+  // tap from the first duel).
+  const calibSave = byId("calibSave");
+  const calibSaveLabel = calibSave?.textContent ?? "";
+  setCalibrationEndHook((outcome) => {
+    moveVideoBack();
+    if (firstRunFlow) {
+      firstRunFlow = false;
+      if (calibSave) calibSave.textContent = calibSaveLabel;
+      logEvent("firstrun_done", { outcome, calibrated: outcome === "saved" });
+      setSessionMode("partida");
+      syncModeDataset("partida");
+      setScreen("select");
+      return;
+    }
+    // Only navigate if the page is still up (a route change that stopped
+    // the session is already navigating somewhere).
+    if (document.body.dataset.screen === "calib") setScreen("title");
+  });
 
   // The home. Juga and Entrenament go through the sensor onboarding to the
   // tripulants with that intent; L'Espill opens directly (no sensors).
   // Juga → the sensor onboarding → the tripulants (choose whom to duel).
   byId("btnJuga")?.addEventListener("click", () => startOnboarding("partida"));
   byId("doorEntrena")?.addEventListener("click", () => startOnboarding("entrenament"));
-  // Calibratge from the home: it needs the camera, so through the onboarding,
-  // then straight onto the solo Entrenament table with the calibration open.
+  // Calibratge from the home: it needs the camera, so through the
+  // onboarding (which auto-passes when the sensors are already up), then
+  // onto its own page with the session running.
   byId("doorCalibra")?.addEventListener("click", () => { pendingCalibration = true; startOnboarding("entrenament"); });
   const openEspill = () => { renderEspillScreen(); setScreen("espill"); };
   byId("doorEspill")?.addEventListener("click", openEspill);
@@ -183,13 +260,6 @@ export function installScreens(): void {
   el.btnEspillBack.addEventListener("click", () => setScreen("title"));
   const toTraining = () => startOnboarding("entrenament");
   el.btnEspillTrain.addEventListener("click", toTraining);
-  // "Practica-ho": queue the mission for the coach card's tell, then Entrenament
-  el.btnPractica.addEventListener("click", () => { queueMission(missionForTell(getLastTopTell())); toTraining(); });
-  el.btnMoreTells.addEventListener("click", () => {
-    const open = el.tellsList.hasAttribute("hidden");
-    el.tellsList.toggleAttribute("hidden", !open);
-    el.btnMoreTells.textContent = open ? "Els altres defectes ▴" : "Els altres defectes ▾";
-  });
   el.espillTabs.addEventListener("click", (ev) => {
     const b = (ev.target as HTMLElement).closest("button[data-tab]") as HTMLButtonElement | null;
     if (!b || !b.dataset.tab) return;
@@ -201,8 +271,10 @@ export function installScreens(): void {
     syncModeDataset(t);
     if (pendingCalibration) {
       pendingCalibration = false;
-      chooseSolo();
-      byId("btnCalibrate")?.click();
+      // First run: they don't know what a profile is yet — the save button
+      // says where the flow goes instead. Restored by the end hook.
+      if (firstRunFlow && calibSave) calibSave.textContent = "Desa i a jugar";
+      enterCalibration();
       return;
     }
     // Both intents pass through the tripulants: choose whom to duel, or
@@ -239,6 +311,16 @@ export function installScreens(): void {
   // opens the onboarding with that target — the same card "Juga" opens.
   installRouter({
     apply: (route: Route, params: RouteParams, rival: string | null) => {
+      // Nobody has signed on yet: swallow the deep link — first-run has one
+      // fixed path (name → sensors → calibration), it can't land anywhere.
+      if (maybeStartFirstRun()) {
+        setScreen("title"); // reflectRoute is a no-op mid-apply…
+        history.replaceState(null, "", "#/"); // …so normalize the hash by hand
+        return;
+      }
+      // Navigating away from the Calibratge page mid-session (browser back,
+      // a typed hash) aborts the session first — ✕ semantics.
+      if (route !== "calib" && isCalibrating()) stopCalibration();
       const pickRival = (slug: string | null) => {
         if (slug === SOLO_SLUG) { setSoloTraining(true); return; }
         const level = slug ? levelForSlug(slug) : null;
@@ -266,9 +348,25 @@ export function installScreens(): void {
           if (params.tab) selectEspillTab(params.tab);
           setScreen("espill");
           break;
+        case "calib":
+          if (isCalibrating()) break; // already on the page, mid-session
+          if (syncReady()) enterCalibration();
+          else { pendingCalibration = true; startOnboarding("entrenament"); }
+          break;
       }
     },
   });
-  // Backing out of the onboarding card leaves the URL on the title.
-  byId("obBack")?.addEventListener("click", () => reflectRoute("title", getSessionMode(), {}, "replace"));
+  // Backing out of the onboarding card leaves the URL on the title — and
+  // drops any calibration still pending behind it, so the next "Juga"
+  // doesn't detour onto the solo table.
+  byId("obBack")?.addEventListener("click", () => {
+    pendingCalibration = false;
+    if (firstRunFlow) {
+      // Signed on but stepped off the gangplank before calibrating (a
+      // denied camera, cold feet): the port is theirs anyway.
+      firstRunFlow = false;
+      logEvent("firstrun_done", { outcome: "backed-out", calibrated: false });
+    }
+    reflectRoute("title", getSessionMode(), {}, "replace");
+  });
 }
