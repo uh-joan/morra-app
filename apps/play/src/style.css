@@ -193,6 +193,28 @@ body.vs-on #vsSplash { display: flex; }
   opacity: 0; animation: deep-glow 12s ease-in-out infinite;
 }
 @keyframes deep-glow { 0%, 55%, 100% { opacity: 0; } 72% { opacity: .8; } 82% { opacity: .35; } 88% { opacity: .65; } }
+/* Els rivals guaiten: El Rei's eyes surface, blink once, sink. Base
+   opacity 0 — reduced-motion keeps the water empty. The 21s period drifts
+   against the 12s deep-glow, so sometimes the water glows AND watches. */
+.rei-eyes {
+  position: absolute; left: 69%; bottom: 14px; width: 30px; height: 9px; pointer-events: none;
+  background:
+    radial-gradient(4.5px 4.5px at 7px 4.5px, #7df5e9 30%, rgba(61,223,210,.4) 65%, transparent),
+    radial-gradient(4.5px 4.5px at 23px 4.5px, #7df5e9 30%, rgba(61,223,210,.4) 65%, transparent);
+  filter: drop-shadow(0 0 7px rgba(61,223,210,.85));
+  opacity: 0; animation: rei-guaita 21s ease-in-out infinite 5s;
+}
+@media (max-width: 640px) { .rei-eyes { left: 30%; } }
+@keyframes rei-guaita {
+  0%, 58% { opacity: 0; transform: translateY(7px); }
+  63% { opacity: .95; transform: translateY(0); }
+  66.5% { opacity: .95; }
+  67.5% { opacity: .08; } /* the blink */
+  68.7% { opacity: .95; }
+  73% { opacity: .9; transform: translateY(0); }
+  77% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 0; }
+}
 .tw-k {
   fill: none; stroke: #1f6d8f; stroke-width: 4; stroke-linecap: round; opacity: .7;
   transform-box: fill-box; transform-origin: bottom center; animation: kelp-sway 4.6s ease-in-out infinite;
