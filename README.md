@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="docs/screenshots/port.png" alt="Morra — the port" width="300">
+  <img src="docs/hero.png" alt="Morra" width="720">
 </p>
-
-<h1 align="center">Morra</h1>
 
 Play [morra](https://en.wikipedia.org/wiki/Morra_(game)) — the Mediterranean
 finger-and-shout game — against an AI corsair, in the browser. You throw
