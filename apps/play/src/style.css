@@ -297,25 +297,8 @@ body[data-stage="abissal"] .wave-a { fill: #02161c; } body[data-stage="abissal"]
 /* --------------------------------------------------------- arena */
 .arena { position: relative; z-index: 2; max-width: 1240px; margin: 0 auto; padding: 18px 18px 0; }
 .face-off { display: grid; grid-template-columns: minmax(300px, 5fr) minmax(300px, 4fr); gap: 22px; align-items: start; }
-/* Stacked (phones + narrow tablets): the duel in one screen — the rival
-   compact ON TOP so the seal and the reveal stay in view, your video the
-   hero right under it, the round column after. */
-@media (max-width: 900px) {
-  .face-off { grid-template-columns: 1fr; gap: 12px; }
-  .arena { padding: 10px 12px 0; }
-  .hero-video { max-width: none; }
-  .face-off .rival-side { order: -1; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 4px; align-items: center; justify-items: start; }
-  .rival-side > * { grid-column: 2; }
-  .rival-side .side-nameplate { grid-column: 1 / -1; justify-self: center; }
-  .rival-side .rival-figure-frame { grid-column: 1; grid-row: 2 / span 2; width: 96px; }
-  .rival-side .rival-hand-wrap { padding: 6px 12px; gap: 10px; }
-  .rival-side .hand-svg { width: 60px; height: 78px; }
-  .rival-side .rival-hand-digit { font-size: 40px; }
-  .rival-side .big-word { font-size: 24px; }
-  .rival-side .rival-commit-status { font-size: 10px; }
-  .rival-side .taunt { top: 42px; right: 6px; max-width: 62vw; }
-  .beat-wrap { margin-top: 10px; }
-}
+/* (the stacked phone layout lives at the END of the file — it must come
+   after every base rule it overrides) */
 
 .side-nameplate {
   font-family: var(--serif); font-size: 20px; font-weight: 800; letter-spacing: .05em;
@@ -732,6 +715,47 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
   #topBar { flex-wrap: wrap; height: auto; min-height: var(--topbar-h); padding: 6px 10px; row-gap: 2px; }
   .bar-modes { gap: 6px; }
   .bar-modes button { font-size: 12.5px; padding: 6px 10px; }
+}
+
+/* ------------------------------------------- stacked / phone layout
+   Kept LAST: same-specificity overrides of base rules anywhere above. */
+/* Phones + narrow tablets: the duel in one screen — the rival compact ON
+   TOP so the seal and the reveal stay in view, your video the hero right
+   under it, the round column after. */
+@media (max-width: 900px) {
+  .face-off { grid-template-columns: 1fr; gap: 12px; }
+  .arena { padding: 10px 12px 0; }
+  .hero-video { max-width: none; }
+  .face-off .rival-side { order: -1; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 4px; align-items: center; justify-items: start; }
+  .rival-side > * { grid-column: 2; }
+  .rival-side .side-nameplate { grid-column: 1 / -1; justify-self: center; }
+  .rival-side .rival-figure-frame { grid-column: 1; grid-row: 2 / span 2; width: 96px; }
+  .rival-side .rival-hand-wrap { padding: 6px 12px; gap: 10px; }
+  .rival-side .hand-svg { width: 60px; height: 78px; }
+  .rival-side .rival-hand-digit { font-size: 40px; }
+  .rival-side .big-word { font-size: 24px; }
+  .rival-side .rival-commit-status { font-size: 10px; }
+  /* the bubble sits on the NAMEPLATE row and grows UPWARD (over the score
+     strip if long) — never down onto the hand card */
+  /* an abs-positioned grid child resolves against its grid AREA: pin it to
+     the full-width nameplate row, sit on its bottom and grow upward */
+  .rival-side .taunt { grid-column: 1 / -1; grid-row: 1 / 2; bottom: 0; top: auto; left: 0; right: 0; width: max-content; max-width: 94%; margin: 0 auto; border-radius: 12px; }
+  /* "TU" above your own camera says nothing on a phone */
+  .player-side .side-nameplate.you { display: none; }
+  .beat-wrap { margin-top: 10px; }
+}
+/* Small phones: bar = port row + pills row; the score strip goes compact
+   (ten coins a side must fit) */
+@media (max-width: 640px) {
+  .bar-logo { order: 1; }
+  .bar-tripulant { order: 2; margin-left: auto; }
+  .bar-modes { order: 3; flex-basis: 100%; justify-content: center; }
+  .score-strip { gap: 6px; padding: 6px 10px; margin-bottom: 8px; max-width: 100%; }
+  .score-strip .ss-label { display: none; } /* your coins left, theirs right — the words don't fit and don't add */
+  .coin { width: 8px; height: 8px; border-width: 1.5px; }
+  .coins { gap: 2px; }
+  .ss-score { font-size: 22px; gap: 6px; }
+  .ss-dash { font-size: 15px; }
 }
 
 /* --------------------------------------------------- reduced motion */
