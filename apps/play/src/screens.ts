@@ -225,6 +225,42 @@ function enterCalibration(): void {
   }
 }
 
+// ------------------------------------------------------ the rival PiP drag
+// Stacked layout only: the rival's corner card drags sideways and docks to
+// whichever side you fling it toward (call-app behavior); the side sticks
+// across sessions. CSS owns the resting positions via [data-dock]; the drag
+// itself is a transient translateX.
+const PIP_DOCK_KEY = "morra_pip_dock";
+function installPipDrag(): void {
+  const pip = el.rivalSide;
+  try { if (localStorage.getItem(PIP_DOCK_KEY) === "left") pip.dataset.dock = "left"; } catch { /* session-only */ }
+  let dragging = false;
+  let startX = 0;
+  pip.addEventListener("pointerdown", (ev) => {
+    if (!window.matchMedia("(max-width: 900px)").matches) return;
+    dragging = true;
+    startX = ev.clientX;
+    try { pip.setPointerCapture(ev.pointerId); } catch { /* synthetic pointers have no capture */ }
+  });
+  pip.addEventListener("pointermove", (ev) => {
+    if (!dragging) return;
+    pip.style.transform = `translateX(${ev.clientX - startX}px)`;
+  });
+  const drop = (ev: PointerEvent) => {
+    if (!dragging) return;
+    dragging = false;
+    const r = pip.getBoundingClientRect(); // with the drag transform still applied
+    const dock = r.left + r.width / 2 < window.innerWidth / 2 ? "left" : "right";
+    pip.style.transform = "";
+    if (dock === "left") pip.dataset.dock = "left";
+    else delete pip.dataset.dock;
+    try { localStorage.setItem(PIP_DOCK_KEY, dock); } catch { /* session-only */ }
+    logEvent("pip_dock", { dock, x: Math.round(ev.clientX) });
+  };
+  pip.addEventListener("pointerup", drop);
+  pip.addEventListener("pointercancel", drop);
+}
+
 // ----------------------------------------------------------------- wiring
 
 function syncModeDataset(mode: "partida" | "entrenament"): void {
@@ -241,6 +277,7 @@ export function installScreens(): void {
   installPirateChoreography();
   installOnboarding();
   installFirstRun();
+  installPipDrag();
 
   // Els rivals guaiten: mount the peeking corsaris' art once — CSS owns
   // their rare, slow timing.
