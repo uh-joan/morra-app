@@ -129,6 +129,14 @@ function chooseRival(p: Pirate): void {
   if (vsTitle) vsTitle.textContent = p.title;
   if (vsStage) vsStage.textContent = p.stageName;
   if (vsPortrait) vsPortrait.innerHTML = artWithUniqueIds(PIRATE_ART[p.levelId] ?? "", "vs");
+  // Your name, sized to fit whatever its length: short names get the full
+  // drama, long ones shrink so the vertical splash never overflows.
+  const vsYou = byId("vsYouMark");
+  if (vsYou) {
+    const name = getActiveProfileName();
+    vsYou.textContent = name;
+    vsYou.style.fontSize = `min(72px, ${Math.round(880 / Math.max(4, name.length)) / 10}vw)`;
+  }
   document.body.classList.add("vs-on");
   if (splashTimer) clearTimeout(splashTimer);
   splashTimer = setTimeout(() => {

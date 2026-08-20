@@ -12,8 +12,16 @@ import { logEvent } from "./telemetry.js";
 import { getActiveProfileId, getActiveProfileName, renameProfileById } from "./profile.js";
 import { openRenameCard } from "./firstrun.js";
 
+/** The name, everywhere it stands in for "TU": the chip, the fight
+ * nameplate, the score strip's left label. (The sr-only scoreboard keeps
+ * its "Tu N — M Rival" format — the harness and telemetry parse it.) */
 export function renderProfileControls(): void {
-  el.tripulantName.textContent = getActiveProfileName();
+  const name = getActiveProfileName();
+  el.tripulantName.textContent = name;
+  const nameplate = document.getElementById("youNameplate");
+  if (nameplate) nameplate.textContent = name;
+  const ssLabel = document.getElementById("ssLabelYou");
+  if (ssLabel) ssLabel.textContent = name;
 }
 
 export function installProfiles(): void {

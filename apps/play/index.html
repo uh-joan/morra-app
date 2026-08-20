@@ -87,7 +87,7 @@
          grow toward each other. #scoreboard keeps its id/format (harness +
          telemetry read "Tu N — M Rival"); it's the visually-hidden caption. -->
     <div id="scoreStrip" class="score-strip" data-matchpoint="">
-      <span class="ss-label you">TU</span>
+      <span class="ss-label you" id="ssLabelYou">TU</span>
       <div id="coinsPlayer" class="coins"></div>
       <div class="ss-score"><span id="scoreYou">0</span><span class="ss-dash">—</span><span id="scoreRival">0</span></div>
       <div id="coinsRival" class="coins rival"></div>
@@ -98,7 +98,7 @@
 
       <!-- Player side -->
       <div class="player-side">
-        <div class="side-nameplate you">TU</div>
+        <div class="side-nameplate you" id="youNameplate">TU</div>
         <div class="hero-video">
           <div class="video-wrap">
             <video id="camPreview" autoplay muted playsinline></video>
@@ -377,7 +377,7 @@
   <form id="firstrunForm" class="ob-card firstrun-card">
     <h2 id="firstrunTitle">Puja a bord</h2>
     <p class="ob-sub" id="firstrunSub">Cada corsari deixa la seva marca a la taula de morra. Com et dius?</p>
-    <input id="firstrunName" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="El teu nom" aria-label="El teu nom">
+    <input id="firstrunName" type="text" maxlength="12" autocomplete="off" spellcheck="false" placeholder="El teu nom" aria-label="El teu nom">
     <button id="firstrunGo" class="btn-gold" type="submit" disabled>Embarca</button>
     <button id="firstrunCancel" class="ghost" type="button" hidden>Ara no</button>
     <p class="ob-sub firstrun-note" id="firstrunNote">Després et mirarem la mà i el crit — mig minut — i a jugar.</p>
@@ -426,7 +426,7 @@
 
 <!-- ================= VS SPLASH ================= -->
 <div id="vsSplash" class="overlay" aria-hidden="true">
-  <div class="vs-side vs-you"><div class="vs-you-mark">TU</div></div>
+  <div class="vs-side vs-you"><div class="vs-you-mark" id="vsYouMark">TU</div></div>
   <div class="vs-mark">VS</div>
   <div class="vs-side vs-rival">
     <div id="vsPortrait" class="vs-portrait"></div>
