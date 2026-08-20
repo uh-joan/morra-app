@@ -185,6 +185,31 @@ body.vs-on #vsSplash { display: flex; }
 .title-waves svg { width: 100%; height: 100%; }
 .tw-a { fill: #14263c; animation: wave-scroll 9s linear infinite; }
 .tw-b { fill: #1b5f86; opacity: .5; animation: wave-scroll 14s linear infinite reverse; }
+/* Mar de fons — the shallows live a little. Deep glow: something is down
+   there (base opacity 0: reduced-motion leaves the sea dark and still). */
+.title-waves::before {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 160px; pointer-events: none;
+  background: radial-gradient(340px 100px at 68% 100%, rgba(61,223,210,.22), transparent 70%);
+  opacity: 0; animation: deep-glow 12s ease-in-out infinite;
+}
+@keyframes deep-glow { 0%, 55%, 100% { opacity: 0; } 72% { opacity: .8; } 82% { opacity: .35; } 88% { opacity: .65; } }
+.tw-k {
+  fill: none; stroke: #1f6d8f; stroke-width: 4; stroke-linecap: round; opacity: .7;
+  transform-box: fill-box; transform-origin: bottom center; animation: kelp-sway 4.6s ease-in-out infinite;
+}
+.tw-k2 { stroke-width: 3; opacity: .5; animation-duration: 3.8s; animation-direction: reverse; }
+.tw-k3 { animation-duration: 5.4s; }
+.tw-fish { fill: #2e7ea6; opacity: 0; transform: translate(-60px, 66px); animation: tw-swim 26s linear infinite 3s; }
+@keyframes tw-swim {
+  0% { transform: translate(-60px, 66px); opacity: 0; }
+  4% { opacity: .55; }
+  48% { transform: translate(620px, 60px); }
+  96% { opacity: .55; }
+  100% { transform: translate(1260px, 68px); opacity: 0; }
+}
+/* the wordmark rides at anchor: the entrance plays once, then a slow bob */
+.home .title-wordmark { animation: wordmark-in .8s ease-out both, wordmark-bob 6.5s ease-in-out 1.2s infinite; }
+@keyframes wordmark-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
 @keyframes wave-scroll { from { transform: translateX(0); } to { transform: translateX(-1200px); } }
 
 /* ------------------------------------------------ character select */
