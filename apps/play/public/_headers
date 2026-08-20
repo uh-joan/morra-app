@@ -1,0 +1,15 @@
+# Edge security headers (security audit 2026-08-20). Vite copies this file
+# verbatim into dist/. It is the Netlify / Cloudflare Pages convention and is
+# inert on hosts that don't read it — for nginx/Apache set the equivalents by
+# hand (documented in docs/security-audit-2026-08-20.md).
+#
+# These cover the header-ONLY directives a meta CSP cannot express
+# (frame-ancestors, X-Frame-Options, nosniff, Permissions-Policy). The full
+# Content-Security-Policy is still shipped as a <meta> in index.html so the
+# baseline applies on any host, header support or not.
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+  Content-Security-Policy: frame-ancestors 'none'

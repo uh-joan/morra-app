@@ -24,6 +24,7 @@ tampering user themselves — there is no other party to defend against.
 | A2 | LOW | Tripulant NAME sent to telemetry (`profileName` in `firstrun_named` / `profile_active` / `profile_change` → POST `/log`) | **ACCEPTED (by design)**: this is the project's deliberate field-logging (see the app/field-logging work). Production ships no `/log` collector, so the POST fails gracefully — no live leak. **Deploy gate**: if a collector is ever stood up, apply prior **H3** (Origin check, `sessionId` regex, byte cap) and decide whether to hash/omit the name. |
 | A3 | INFO | Vendored-bundle self-containment relies on the build step | **FIXED**: added `scripts/check-origins.mjs`, wired into `prebuild`, asserting the runtime loader URLs (`VOSK_*`, `MEDIAPIPE_*`) stay same-origin. A stray edit pointing a loader back at a CDN now fails the build. |
 | A4 | INFO | Git history rewrite still pending (prior **M8**) | **DEFERRED (needs owner action)**: `.omc/state` was tracked in early history. `git filter-repo` before any public push — a destructive shared-history operation, not run autonomously. |
+| A5 | LOW | Header-only hardening a meta CSP can't express (`frame-ancestors`, `X-Frame-Options`, `X-Content-Type-Options`, `Permissions-Policy`) | **FIXED (host-portable)**: `apps/play/public/_headers` → `dist/_headers` sets them on Netlify / Cloudflare Pages (inert elsewhere), including `Permissions-Policy: camera=(self), microphone=(self)` locking capture to same-origin. nginx/Apache equivalents below for other hosts. |
 
 ## Verified clean
 
@@ -83,19 +84,22 @@ base-uri 'self';
 ```
 
 `frame-ancestors` / clickjacking protection is **HTTP-header-only** (ignored in
-a meta CSP). Set at the edge/deploy layer:
+a meta CSP). Shipped via `apps/play/public/_headers` (Netlify / Cloudflare
+Pages; copied to `dist/_headers`). For nginx, the equivalent:
 
-```
-Content-Security-Policy: frame-ancestors 'none';
-X-Frame-Options: DENY
-X-Content-Type-Options: nosniff
+```nginx
+add_header X-Frame-Options "DENY" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "no-referrer" always;
+add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()" always;
+add_header Content-Security-Policy "frame-ancestors 'none'" always;
 ```
 
 ## Pre-public checklist (carried forward)
 
 - [ ] `git filter-repo` to drop the early `.omc/state` blobs (A4 / prior M8).
 - [ ] `/log` collector, if deployed: Origin check + `sessionId` regex + byte cap; decide name handling (A2 / prior H3).
-- [ ] Edge headers: `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`.
+- [x] Edge headers — shipped via `public/_headers` for Netlify/CF Pages (A5); set the nginx/Apache equivalents by hand if hosting elsewhere.
 - [ ] Confirm voice recognition on a real device under the new CSP (expected fine).
 
 ## Posture
