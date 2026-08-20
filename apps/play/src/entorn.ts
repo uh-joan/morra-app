@@ -110,7 +110,16 @@ export function dspEnabledFor(entorn: Entorn, mode: DspMode): boolean {
  * would fight the onset detector's adaptive floor in every configuration. */
 export function micConstraintsFor(entorn: Entorn, mode: DspMode = "auto"): MediaTrackConstraints {
   const dsp = dspEnabledFor(entorn, mode);
-  return { echoCancellation: dsp, noiseSuppression: dsp, autoGainControl: false };
+  // echoCancellation is DECOUPLED from the noiseSuppression bundle and left
+  // ON: it's the browser's AEC, which subtracts the device's OWN audio output
+  // (the rival's spoken clip through the speaker) from the mic while keeping
+  // the player's near-end shout — the exact fix for the speakers-vs-headphones
+  // bleed. noiseSuppression stays under the entorn preset (its DSP flattens
+  // the ambient floor, which calibration depends on). AGC stays off for a
+  // stable RMS threshold. (Real-device A/B pending — headphones-quiet vs
+  // speakers; revert to `echoCancellation: dsp` if it regresses the quiet
+  // case. security/audio note 2026-08-21.)
+  return { echoCancellation: true, noiseSuppression: dsp, autoGainControl: false };
 }
 
 // ------------------------------------------------------------ live state
