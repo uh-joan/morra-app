@@ -621,6 +621,8 @@ body[data-firstrun="on"] #firstrunOverlay { display: flex; }
 .firstrun-card button[type="submit"] { font-size: 16px; padding: 10px 14px; }
 .firstrun-card button[type="submit"]:disabled { opacity: .45; cursor: default; }
 .firstrun-note { margin-top: 2px; }
+.firstrun-actions { display: flex; gap: 10px; }
+.firstrun-actions button { flex: 1; font-size: 15px; padding: 9px 12px; }
 
 #veuMini {
   position: fixed; right: 14px; bottom: 14px; z-index: 60;
@@ -929,6 +931,9 @@ body.tecnic #roundResultCard { display: block; }
 /* Entrenament live strip in the fight screen */
 .training-live { gap: 6px; }
 .shadow { margin-top: 8px; padding: 8px 10px; background: rgba(58,44,20,.06); border: 1px solid rgba(138,101,64,.3); border-radius: 8px; }
+/* Sparring already has a partner reading you — El Rei's shadow belongs to
+   the solo mirror. It keeps scoring underneath (missions, solo view). */
+body[data-sparring="on"] #shadowRival { display: none; }
 .shadow-head { font-size: 12px; color: #6b5636; }
 .shadow-head b { color: #8a2f1e; font-size: 14px; }
 .shadow-dots { display: flex; gap: 3px; margin: 6px 0 4px; }

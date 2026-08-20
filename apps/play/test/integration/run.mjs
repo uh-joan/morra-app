@@ -514,9 +514,15 @@ await page.evaluate(() => window.__play.calibration.save({
   values: { highV: 0.71, lowV: 0.2, vadMult: 3.5 }, fitVersion: 2, measuredAt: new Date().toISOString(),
   samples: { jitterP95: 0.1, throwPeaks: [1, 1, 1, 1], ambientFloor: 0.01, shoutPeaks: [0.2, 0.2, 0.2], prompts: [] },
 }));
-promptText = "Bea";
+// 2026-08-20: "+" opens the sign-on card (no prompt()); create → the card offers Calibra ara / Més tard
 await page.click("#btnNewProfile");
-promptText = null;
+await page.waitForFunction(() => document.body.dataset.firstrun === "on", { timeout: 3000 });
+await page.type("#firstrunName", "Bea");
+await page.click("#firstrunGo");
+r.check("new tripulant card hails and offers Calibra ara / Més tard", await page.evaluate(() =>
+  /A coberta, tripulant Bea!/.test(document.getElementById("firstrunTitle").textContent) && !document.getElementById("firstrunOffer").hidden));
+await page.click("#firstrunLater");
+await page.waitForFunction(() => document.body.dataset.firstrun === "off", { timeout: 3000 });
 r.check("new profile activates with a fresh empty model", await page.evaluate(() =>
   window.__play.activeProfileId !== "default" && window.__play.playerModel.throws.length === 0),
 await page.evaluate(() => JSON.stringify({ active: window.__play.activeProfileId, throws: window.__play.playerModel.throws, syncCount: window.__play.syncThrows.length, pending: window.__play.syncPendingAnalysisCount })));
@@ -525,6 +531,23 @@ r.check("new profile gets the app-default sensor values, not the default profile
 r.check("select shows both profiles", (await page.$$eval("#selProfile option", (n) => n.length)) === 2);
 r.check("match reset for the new player", /Tu 0 — 0 Rival/.test(await page.$eval("#scoreboard", (n) => n.textContent)));
 r.check("delete enabled for a non-default profile", await page.$eval("#btnDeleteProfile", (n) => !n.disabled));
+// The play detour (2026-08-20): Bea has no fit on this camera — heading to
+// play routes through Calibratge first; declining (✕) continues and is
+// remembered for the session.
+await page.evaluate(() => { location.hash = "#/tripulants?per=duel"; });
+await page.waitForFunction(() => document.body.dataset.calibrating === "on", { timeout: 5000 });
+r.check("an uncalibrated tripulant heading to play detours to Calibratge", await page.evaluate(() =>
+  document.body.dataset.screen === "calib" && location.hash === "#/calibratge"));
+await page.click("#calibClose");
+await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 3000 });
+r.check("declining the detour continues to the tripulants", true);
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.evaluate(() => { location.hash = "#/tripulants?per=duel"; });
+await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 3000 });
+r.check("no re-detour after declining this session", await page.evaluate(() => document.body.dataset.calibrating === undefined));
+await page.evaluate(() => { location.hash = "#/"; });
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
 await page.select("#selProfile", "default");
 r.check("switching back restores the default profile's history", await page.evaluate((expected) =>
   window.__play.activeProfileId === "default" && window.__play.playerModel.throws.length === expected, defaultThrows));

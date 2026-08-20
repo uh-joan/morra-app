@@ -68,6 +68,19 @@ function applyValues(v: CalibrationValues, source: string): void {
   logEvent("calibration_apply", { profileId: getActiveProfileId(), deviceKey: cameraDeviceKey, values: v, source });
 }
 
+/** Is there a saved fit for the active profile on the CURRENT camera?
+ * Meaningful once the camera is up (the device key is known) — the play
+ * detour asks exactly then. */
+export function hasCalibrationForCurrentSite(): boolean {
+  return recordFor(loadBlob(getActiveProfileId()), cameraDeviceKey) != null;
+}
+
+/** profile+camera, as one key — what a calibration is FOR (and what a
+ * declined detour is remembered against, per session). */
+export function calibrationSiteKey(): string {
+  return getActiveProfileId() + "|" + (cameraDeviceKey ?? "");
+}
+
 /** Re-apply the stored fit for the active profile on the current camera —
  * or the app defaults if there is none. Called on profile switch and when
  * the camera reports its device key. */

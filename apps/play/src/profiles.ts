@@ -19,6 +19,7 @@ import {
 } from "./profile.js";
 import { DEFAULT_PROFILE_ID } from "./profileRegistry.js";
 import { commitAiMove, playVsOpponent, resetGame, setPlayerModelState } from "./game.js";
+import { openNouTripulant } from "./firstrun.js";
 import { renderTrainingPanelIfActive } from "./training.js";
 import { applyCalibrationForActiveProfile } from "./calibration.js";
 
@@ -52,13 +53,17 @@ export function installProfiles(): void {
     logEvent("profile_change", { action: "switch", profileId: getActiveProfileId(), profileName: getActiveProfileName() });
     afterProfileChange();
   });
+  // The "+": the same card the first run uses — create, then the card
+  // offers Calibra ara / Més tard (a new tripulant is always uncalibrated;
+  // "Més tard" is caught by the play detour anyway).
   el.btnNewProfile.addEventListener("click", () => {
-    const name = prompt(PROFILE_TEXT.newPrompt);
-    if (name == null) return;
-    const id = createAndActivateProfile(name);
-    if (!id) return; // blank name
-    logEvent("profile_change", { action: "create", profileId: id, profileName: getActiveProfileName() });
-    afterProfileChange();
+    openNouTripulant((name) => {
+      const id = createAndActivateProfile(name);
+      if (!id) return false; // blank name — the card stays open
+      logEvent("profile_change", { action: "create", profileId: id, profileName: getActiveProfileName() });
+      afterProfileChange();
+      return true;
+    });
   });
   el.btnDeleteProfile.addEventListener("click", () => {
     const id = getActiveProfileId();

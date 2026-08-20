@@ -13,8 +13,9 @@ import { PIRATES, type Pirate } from "./pirate/cast.js";
 import { artWithUniqueIds, PIRATE_ART, WORDMARK_SVG } from "./pirate/art.js";
 import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
-import { installFirstRun, maybeStartFirstRun, setFirstRunNamedHook } from "./firstrun.js";
-import { isCalibrating, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
+import { installFirstRun, maybeStartFirstRun, setCalibraAraHook, setFirstRunNamedHook } from "./firstrun.js";
+import { renderProfileControls } from "./profiles.js";
+import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
 import { getActiveProfileName } from "./profile.js";
 import { renderEspillScreen } from "./training.js";
 import { getSessionMode } from "./game.js";
@@ -171,6 +172,24 @@ function moveVideoBack(): void {
   videoHome.parent.insertBefore(wrap, videoHome.next);
   videoHome = null;
 }
+// The play detour: nobody plays uncalibrated by ACCIDENT. Heading to play
+// with no saved fit for this profile+camera routes through Calibratge
+// first; Desa — or declining (✕/Descarta) — continues to where they were
+// going. A decline is remembered per profile+camera for THIS session only,
+// so the invitation returns next sitting but never nags within one.
+const calibDeclined = new Set<string>();
+let afterCalibration: (() => void) | null = null;
+function maybeDetourToCalibration(after: () => void): boolean {
+  // callers guarantee the sensors are up, so the device key is known
+  if (hasCalibrationForCurrentSite() || calibDeclined.has(calibrationSiteKey())) return false;
+  logEvent("calibration_detour", { site: calibrationSiteKey() });
+  afterCalibration = after;
+  enterCalibration();
+  // mid-route-apply reflectRoute is suppressed — normalize the hash by hand
+  if (location.hash !== "#/calibratge") history.replaceState(null, "", "#/calibratge");
+  return true;
+}
+
 /** Open the Calibratge page and start the session. Callers guarantee the
  * sensors are up (the onboarding gate / syncReady). */
 function enterCalibration(): void {
@@ -218,7 +237,14 @@ export function installScreens(): void {
   // gates, then onto the solo table with the calibration open — the exact
   // path the home's Calibratge link takes.
   setFirstRunNamedHook(() => {
+    renderProfileControls(); // the bar shows the new name right away
     firstRunFlow = true;
+    pendingCalibration = true;
+    startOnboarding("entrenament");
+  });
+  // "Calibra ara" from the new-tripulant card: the exact Calibratge-from-
+  // home path, in the same click gesture.
+  setCalibraAraHook(() => {
     pendingCalibration = true;
     startOnboarding("entrenament");
   });
@@ -230,13 +256,24 @@ export function installScreens(): void {
   const calibSaveLabel = calibSave?.textContent ?? "";
   setCalibrationEndHook((outcome) => {
     moveVideoBack();
+    // Anything but Desa counts as declining for this profile+camera — the
+    // play detour won't re-ask this session.
+    if (outcome !== "saved") calibDeclined.add(calibrationSiteKey());
     if (firstRunFlow) {
       firstRunFlow = false;
+      afterCalibration = null;
       if (calibSave) calibSave.textContent = calibSaveLabel;
       logEvent("firstrun_done", { outcome, calibrated: outcome === "saved" });
       setSessionMode("partida");
       syncModeDataset("partida");
       setScreen("select");
+      return;
+    }
+    // A detour on the way to play: continue to where they were going.
+    if (afterCalibration) {
+      const go = afterCalibration;
+      afterCalibration = null;
+      go();
       return;
     }
     // Only navigate if the page is still up (a route change that stopped
@@ -278,7 +315,9 @@ export function installScreens(): void {
       return;
     }
     // Both intents pass through the tripulants: choose whom to duel, or
-    // whom to spar with (or "sol"). The pills carry the intent there.
+    // whom to spar with (or "sol"). The pills carry the intent there —
+    // unless this profile+camera has no fit yet: Calibratge first.
+    if (maybeDetourToCalibration(() => setScreen("select"))) return;
     setScreen("select");
   });
 
@@ -332,17 +371,23 @@ export function installScreens(): void {
         case "select": {
           const intent = params.per === "entrena" ? "entrenament" : "partida";
           setSessionMode(intent); syncModeDataset(intent);
-          if (syncReady()) setScreen("select"); else startOnboarding(intent);
+          if (!syncReady()) { startOnboarding(intent); break; }
+          if (maybeDetourToCalibration(() => setScreen("select"))) break;
+          setScreen("select");
           break;
         }
-        case "duel":
-          if (syncReady()) { pickRival(rival); setScreen("fight"); setSessionMode("partida"); syncModeDataset("partida"); applyModeLayout(); }
-          else startOnboarding("partida");
+        case "duel": {
+          if (!syncReady()) { startOnboarding("partida"); break; }
+          const go = () => { pickRival(rival); setScreen("fight"); setSessionMode("partida"); syncModeDataset("partida"); applyModeLayout(); };
+          if (!maybeDetourToCalibration(go)) go();
           break;
-        case "entrena":
-          if (syncReady()) { pickRival(rival); setScreen("fight"); setSessionMode("entrenament"); syncModeDataset("entrenament"); applyModeLayout(); }
-          else startOnboarding("entrenament");
+        }
+        case "entrena": {
+          if (!syncReady()) { startOnboarding("entrenament"); break; }
+          const go = () => { pickRival(rival); setScreen("fight"); setSessionMode("entrenament"); syncModeDataset("entrenament"); applyModeLayout(); };
+          if (!maybeDetourToCalibration(go)) go();
           break;
+        }
         case "espill":
           renderEspillScreen();
           if (params.tab) selectEspillTab(params.tab);
