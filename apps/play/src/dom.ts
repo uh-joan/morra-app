@@ -124,6 +124,7 @@ function buildEl() {
     roundResultDetail: g("roundResultDetail"),
     gameEndBanner: g("gameEndBanner"),
     gameEndText: g("gameEndText"),
+    unlockBanner: g("unlockBanner"),
     postMatchExploitability: g("postMatchExploitability"),
     postMatchRandomness: g("postMatchRandomness"),
     postMatchSyncRate: g("postMatchSyncRate"),

@@ -12,6 +12,9 @@ export interface Pirate {
   levelId: "L1" | "L2" | "L3" | "L4";
   /** display name */
   name: string;
+  /** the name with its personal article, as it reads after a verb — used in
+   * the ladder's requirement copy ("primer, venç {defeatName}"). */
+  defeatName: string;
   /** rank / epithet line under the name */
   title: string;
   /** one-line pitch on the select card */
@@ -30,6 +33,7 @@ export const PIRATES: readonly Pirate[] = [
   {
     levelId: "L1",
     name: "Nino",
+    defeatName: "en Nino",
     title: "el Grumet",
     flavor: "Acabat d'embarcar. Tira fort, pensa poc, riu sempre.",
     stageName: "La Taverna del Port",
@@ -48,6 +52,7 @@ export const PIRATES: readonly Pirate[] = [
   {
     levelId: "L2",
     name: "Bru",
+    defeatName: "en Bru",
     title: "el Contramestre",
     flavor: "Trenta anys solcant la Mediterrània. No repeteix mai dos cops el mateix truc.",
     stageName: "La Coberta del Xebec",
@@ -66,6 +71,7 @@ export const PIRATES: readonly Pirate[] = [
   {
     levelId: "L3",
     name: "Mercè",
+    defeatName: "la Mercè",
     title: "la Vella Corsària",
     flavor: "La llegenda retirada de la costa. Et llegeix els dits abans que els obris.",
     stageName: "La Cala dels Contrabandistes",
@@ -84,6 +90,7 @@ export const PIRATES: readonly Pirate[] = [
   {
     levelId: "L4",
     name: "El Rei del Fons",
+    defeatName: "el Rei del Fons",
     title: "senyor dels ofegats",
     flavor: "El déu que espera sota totes les quilles. Ningú no l'ha vençut dues nits seguides.",
     stageName: "La Mar dels Ofegats",

@@ -40,7 +40,7 @@ import { setGameHooks, type ThrowEvent } from "./analysis.js";
 import { markThrowResolvedForReadyPill, renderReadyPill, resetReadyPillForNewGame } from "./readyPill.js";
 import { setLastRoundAudioEndCtxTime, rivalClipTailGuardS } from "./rivalAudioLog.js";
 import { playRivalCall, preloadRivalVoiceClips } from "./rivalVoice.js";
-import { loadPlayerModel, savePlayerModel } from "./profile.js";
+import { loadPlayerModel, savePlayerModel, recordRivalBeaten } from "./profile.js";
 import { voskLoaded } from "./vosk.js";
 import {
   populateAiLevelSelector,
@@ -58,8 +58,11 @@ import {
   renderGameRoundVoid,
   renderPostMatchCard,
   renderScoreboard,
+  renderUnlockBanner,
   showGameEndBanner,
 } from "./render/gameCards.js";
+import { successorLevel } from "./rivalLadder.js";
+import { pirateForLevel } from "./pirate/cast.js";
 
 export type CommittedAiMove = AiMove & { nonce: string; hashHex: string };
 
@@ -409,7 +412,16 @@ function resolveGameRound(
 
   if (scoring() && (gameScore.player >= GAME_WIN_SCORE || gameScore.ai >= GAME_WIN_SCORE)) {
     gameOver = true;
-    showGameEndBanner(gameScore.player >= GAME_WIN_SCORE ? "player" : "ai", gameScore.player, gameScore.ai);
+    const playerWon = gameScore.player >= GAME_WIN_SCORE;
+    showGameEndBanner(playerWon ? "player" : "ai", gameScore.player, gameScore.ai);
+    // Winning a duel climbs the ladder: record the conquest and, if it's a
+    // fresh one, name the corsair it just opened (or crown the whole climb).
+    if (playerWon && recordRivalBeaten(currentAiLevel)) {
+      const next = successorLevel(currentAiLevel);
+      renderUnlockBanner(next ? { name: pirateForLevel(next).name } : { allConquered: true });
+    } else {
+      renderUnlockBanner(null);
+    }
     renderPostMatchCard(matchHistory);
   } else {
     ensureNextCommitment("recorded");
