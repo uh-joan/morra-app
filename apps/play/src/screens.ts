@@ -19,7 +19,7 @@ import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, isCali
 import { getActiveProfileName, loadBeatenRivals } from "./profile.js";
 import { frontierLevel, isRivalUnlocked, predecessorLevel } from "./rivalLadder.js";
 import { renderEspillScreen } from "./training.js";
-import { renderClassificacioScreen } from "./render/classificacio.js";
+import { renderClassificacioScreen, renderTitleRanking } from "./render/classificacio.js";
 import { getSessionMode } from "./game.js";
 import { syncReady } from "./analysis.js";
 import { installRouter, reflectRoute, type Route, type RouteParams } from "./router.js";
@@ -31,6 +31,7 @@ export type Screen = "title" | "select" | "fight" | "espill" | "calib" | "classi
 export function setScreen(s: Screen): void {
   if (s === "select") buildSelectGrid(); // rebuild so freshly-earned unlocks show
   if (s === "classificacio") renderClassificacioScreen(); // fresh table on entry
+  if (s === "title") renderTitleRanking(); // attract mode: today's top-3
   document.body.dataset.screen = s;
   if (s === "fight") renderRivalHud(); // the header chip says who you fight
   logEvent("screen_change", { screen: s });
@@ -367,6 +368,7 @@ export function installScreens(): void {
   setPirate(el.selAiLevel.value || "L1");
   document.body.dataset.mode = "partida";
   document.body.dataset.screen = "title";
+  renderTitleRanking();
   logEvent("screen_change", { screen: "title" });
   // First run (factory-fresh registry): the sign-on card over the title.
   maybeStartFirstRun();

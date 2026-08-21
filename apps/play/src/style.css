@@ -205,6 +205,23 @@ body.vs-on #vsSplash { display: flex; }
   }
 }
 .title-waves { position: absolute; bottom: 0; left: 0; right: 0; height: 90px; z-index: 1; }
+/* Attract mode: the Classificació's top-3 drift by at the top of the port,
+   one line per 4s slot of a 12s crossfade loop (delays set inline by the
+   renderer). Decorative whisper — small, dim gold, no interaction. */
+.title-ranking { position: absolute; top: 16px; left: 0; right: 0; height: 20px; z-index: 2; pointer-events: none; text-align: center; }
+.tr-row {
+  position: absolute; left: 0; right: 0; opacity: 0;
+  font-family: var(--serif); font-size: 13px; font-weight: 700; letter-spacing: .08em;
+  color: var(--gold); text-shadow: 0 1px 8px rgba(0,0,0,.5);
+  animation: trCycle 12s linear infinite;
+}
+@keyframes trCycle {
+  0% { opacity: 0; } 4% { opacity: .8; } 29% { opacity: .8; } 33% { opacity: 0; } 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tr-row { animation: none; }
+  .tr-row:first-child { opacity: .8; } /* the leader holds the marquee */
+}
 .title-waves svg { width: 100%; height: 100%; }
 .tw-a { fill: #14263c; animation: wave-scroll 9s linear infinite; }
 .tw-b { fill: #1b5f86; opacity: .5; animation: wave-scroll 14s linear infinite reverse; }
