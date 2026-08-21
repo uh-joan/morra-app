@@ -20,10 +20,11 @@ spikes/s05-art/character.blend*
 # live session logs (local only)
 spikes/logs/
 
-# OMC runtime state (session machinery, not project content)
-.omc/state/
-.omc/logs/
+# OMC session machinery + local agent/tool state — never project content.
+# Whole-tree: plans, specs, sessions, project-memory, state, logs, at the
+# root and nested under any package (audit M8/A4 wants this out of git).
+.omc/
+**/.omc/
 
-# nested OMC state anywhere (audit M8)
-**/.omc/state/
-.omc/project-memory.json
+# Claude Code local tooling (preview launch config, session state)
+.claude/
