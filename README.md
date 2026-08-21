@@ -97,9 +97,9 @@ pnpm test:parity              # live spike vs app, identical scenarios
 node test/shots.mjs           # regenerate docs/screenshots from the built dist
 ```
 
-Full-gate expectation on a clean tree today: unit **553** (core 285 ·
-recognition 104 · platform-web 55 · app 109), conformance **105/105**,
-`apps/play` integration **118/118**, parity **18/18**.
+Full-gate expectation on a clean tree today: unit **559** (core 285 ·
+recognition 104 · platform-web 55 · app 115), conformance **105/105**,
+`apps/play` integration **119/119**, parity **18/18**.
 
 ## Deployed at [morra.joans.cat](https://morra.joans.cat)
 
