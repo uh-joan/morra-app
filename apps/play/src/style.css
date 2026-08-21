@@ -371,6 +371,17 @@ body.vs-on #vsSplash { display: flex; }
   color: #1a1108; background: var(--gold); border-radius: 999px;
   box-shadow: 0 0 18px rgba(224,182,79,.5);
 }
+/* The Classificació ceremony pill — inverse of the unlock pill (dark,
+   gold-rimmed) so the two never read as one message; it's a button that
+   opens the table on tap. */
+.ranking-banner {
+  display: block; margin: 8px auto 2px; padding: 6px 16px; max-width: max-content;
+  font-family: var(--serif); font-weight: 800; font-size: 15px;
+  color: var(--gold-2); background: rgba(6,9,18,.85); border: 1.5px solid var(--gold);
+  border-radius: 999px; box-shadow: 0 0 14px rgba(224,182,79,.35); cursor: pointer;
+}
+.ranking-banner:hover { box-shadow: 0 0 22px rgba(224,182,79,.55); }
+.ranking-banner[hidden] { display: none; }
 /* Phones: the cards become full-width rows — portrait left, words right,
    every row a fat tap target; all the tripulants in about one screen. */
 @media (max-width: 560px) {

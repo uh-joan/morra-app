@@ -426,6 +426,8 @@ export function installScreens(): void {
   // Classificació: the vessel's table — no sensors, straight in and out.
   byId("btnClassificacio")?.addEventListener("click", () => setScreen("classificacio"));
   byId("btnClassifBack")?.addEventListener("click", () => setScreen("title"));
+  // The victory-card ceremony banner is the door to your new row.
+  el.rankingBanner.addEventListener("click", () => setScreen("classificacio"));
   el.btnOpenEspill.addEventListener("click", openEspill);
   el.btnGoToTraining.addEventListener("click", openEspill);
   el.btnEspillBack.addEventListener("click", () => setScreen("title"));

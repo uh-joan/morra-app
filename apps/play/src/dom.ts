@@ -125,6 +125,7 @@ function buildEl() {
     gameEndBanner: g("gameEndBanner"),
     gameEndText: g("gameEndText"),
     unlockBanner: g("unlockBanner"),
+    rankingBanner: g("rankingBanner") as HTMLButtonElement,
     postMatchExploitability: g("postMatchExploitability"),
     postMatchRandomness: g("postMatchRandomness"),
     postMatchSyncRate: g("postMatchSyncRate"),

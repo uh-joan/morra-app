@@ -63,6 +63,14 @@ export const GAME_END_TEXT = (winner: "player" | "ai", playerScore: number, aiSc
 export const GO_TO_TRAINING = "Ves a Entrenament per l'anàlisi completa";
 export const PLAY_AGAIN = "Torna a jugar";
 
+/** The Classificació ceremony on the victory card. Catalan ordinals for
+ * the placement; tapping the banner opens the table. (Copy: Jani review.) */
+const CATALAN_ORDINAL = (n: number): string => (n === 1 ? "1r" : n === 2 ? "2n" : n === 3 ? "3r" : n === 4 ? "4t" : `${n}è`);
+export const RANKING_ENTRY_TEXT = (placement: number, scoreText: string): string =>
+  placement === 1
+    ? `Nou 1r lloc de la Classificació! · ${scoreText} punts`
+    : `Has entrat a la Classificació — ${CATALAN_ORDINAL(placement)} lloc · ${scoreText} punts`;
+
 export const AI_COMMIT_STATUS = {
   committed: (hash8: string): string => `Opponent committed: ${hash8}`,
   verified: (hash8: string): string => `Opponent committed: ${hash8} ✓`,
