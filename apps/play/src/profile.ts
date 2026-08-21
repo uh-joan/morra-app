@@ -8,7 +8,7 @@
 // pure functions; this file only does the IO and key resolution.
 
 import { LocalStoragePlayerModelStore } from "@morra/platform-web";
-import { prunePhantomThrows, type PlayerModel } from "@morra/core";
+import { prunePhantomThrows, sha256Hex, type PlayerModel } from "@morra/core";
 import { logEvent } from "./telemetry.js";
 import {
   createProfile,
@@ -77,6 +77,42 @@ export function clearPlayerModel(): boolean {
   return store.clear(activeKey());
 }
 
+// --- rival ladder (per-profile conquest record) ---
+// Keyed off the active profile's model key so every tripulant climbs their
+// own ladder; a distinct suffix keeps it clear of the player-model blob.
+// rivalLadder.ts owns the pure unlock logic; this is only the IO.
+const LADDER_KEY_SUFFIX = "::ladder-v1";
+
+function ladderKey(): string {
+  return activeKey() + LADDER_KEY_SUFFIX;
+}
+
+/** The set of rival level ids the active profile has beaten in a duel. */
+export function loadBeatenRivals(): Set<string> {
+  try {
+    const text = localStorage.getItem(ladderKey());
+    const raw: unknown = text ? JSON.parse(text) : null;
+    return new Set(Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/** Marks a rival beaten. Returns true only when it's a NEW conquest — the
+ * caller uses that to fire the unlock celebration exactly once. */
+export function recordRivalBeaten(levelId: string): boolean {
+  const beaten = loadBeatenRivals();
+  if (beaten.has(levelId)) return false;
+  beaten.add(levelId);
+  try {
+    localStorage.setItem(ladderKey(), JSON.stringify([...beaten]));
+  } catch {
+    // storage unavailable — the win still shows this session, it just
+    // won't persist, matching the model store's graceful degradation.
+  }
+  return true;
+}
+
 // --- registry surface (consumed by profiles.ts and the seam) ---
 
 export function getProfiles(): readonly ProfileEntry[] {
@@ -89,6 +125,18 @@ export function getActiveProfileId(): string {
 
 export function getActiveProfileName(): string {
   return registry.profiles.find((p) => p.id === registry.activeId)?.name ?? registry.activeId;
+}
+
+/** A pseudonymous, stable token for a player NAME — for telemetry only.
+ * Since the one-tripulant-per-device redesign the profileId is almost
+ * always "default", so the name is what tells players apart in the logs;
+ * this lets the logs do that WITHOUT ever carrying the raw name off the
+ * device (privacy gate before strangers play). Case/space-folded so
+ * "Jani" and "jani " map together; sha256, truncated — the logs only need
+ * to group, never to recover the name. */
+export function profileNameHash(name: string): string {
+  const normalized = name.trim().toLocaleLowerCase("ca");
+  return sha256Hex(`morra-profile|${normalized}`).slice(0, 12);
 }
 
 /** True while the registry still looks factory-fresh (only an untouched

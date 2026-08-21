@@ -43,7 +43,10 @@ ssh root@178.105.134.73 "tail -1 /srv/morra-logs/events-$(date -u +%F).ndjson"
 
 - Gameplay never depends on this: if the container is down, Caddy 502s and
   the app console-warns and moves on.
-- `profile_active` events carry the player's chosen name. Fine for
-  friends-and-family; hash or drop it before strangers play.
+- Player names never leave the device: the `profile_active` /
+  `firstrun_named` / `profile_change` events carry a `profileHash` (sha256
+  of the case/space-folded name, truncated — `profile.ts:profileNameHash`),
+  not the raw name. The logs can still group a player's events across
+  sessions; they just can't recover who it is.
 - Rotation: one file per UTC day; at hobby volume this needs no cleanup for
   years. `du -sh /srv/morra-logs` if curious.

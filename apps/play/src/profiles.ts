@@ -9,7 +9,7 @@
 
 import { el } from "./dom.js";
 import { logEvent } from "./telemetry.js";
-import { getActiveProfileId, getActiveProfileName, renameProfileById } from "./profile.js";
+import { getActiveProfileId, getActiveProfileName, profileNameHash, renameProfileById } from "./profile.js";
 import { openRenameCard } from "./firstrun.js";
 
 /** The name, everywhere it stands in for "TU": the chip, the fight
@@ -32,7 +32,7 @@ export function installProfiles(): void {
     openRenameCard(getActiveProfileName(), (name) => {
       if (name === getActiveProfileName()) return true; // unchanged — just close
       if (!renameProfileById(getActiveProfileId(), name)) return false;
-      logEvent("profile_change", { action: "rename", profileId: getActiveProfileId(), profileName: name });
+      logEvent("profile_change", { action: "rename", profileId: getActiveProfileId(), profileHash: profileNameHash(name) });
       renderProfileControls();
       return true;
     });

@@ -21,7 +21,7 @@ import { renderReadyPill, setPillRenderHook, updateReadyPillFromFrame } from "./
 import { resetSyncVerdict } from "./render/syncVerdict.js";
 import { installSeam } from "./seam.js";
 import { getPlayerModel, installGame } from "./game.js";
-import { getActiveProfileId, getActiveProfileName } from "./profile.js";
+import { getActiveProfileId, getActiveProfileName, profileNameHash } from "./profile.js";
 import { installExport } from "./export.js";
 import { installTraining } from "./training.js";
 import { installModes } from "./modes.js";
@@ -106,4 +106,4 @@ logEvent("page_load", { pageVersion: PAGE_VERSION, veudelayActive: RIVAL_VOICE_D
 // Field study (2026-08-18): every session says WHO is playing from the first
 // event — the active profile at boot, not only on a switch — so the logs can
 // be split per player later without guessing.
-logEvent("profile_active", { profileId: getActiveProfileId(), profileName: getActiveProfileName(), throws: getPlayerModel().throws.length });
+logEvent("profile_active", { profileId: getActiveProfileId(), profileHash: profileNameHash(getActiveProfileName()), throws: getPlayerModel().throws.length });
