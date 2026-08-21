@@ -137,6 +137,22 @@ export function hideGameEndBanner(): void {
   el.gameEndBanner.style.display = "none";
 }
 
+// The reward beat: winning a duel opens the next corsair. Called from the
+// game loop right after showGameEndBanner on a player win — `null` clears it
+// (a loss, or a rival already beaten) so the line never lingers stale.
+export function renderUnlockBanner(unlocked: { name: string } | { allConquered: true } | null): void {
+  const b = el.unlockBanner;
+  if (!unlocked) {
+    b.hidden = true;
+    b.textContent = "";
+    return;
+  }
+  b.textContent = "allConquered" in unlocked
+    ? "Has conquerit tots els mars. No queda ningú per vèncer."
+    : `Has desbloquejat ${unlocked.name}!`;
+  b.hidden = false;
+}
+
 // Phase H spec point 4: a compact 3-number card over THIS match's own
 // history (matchHistory — reset per game, unlike the cross-match
 // playerModel the full Entrenament panel reads).

@@ -9,14 +9,15 @@ import { LEVELS } from "@morra/core";
 import { el } from "./dom.js";
 import { logEvent } from "./telemetry.js";
 import { setSessionMode } from "./modes.js";
-import { PIRATES, type Pirate } from "./pirate/cast.js";
+import { PIRATES, pirateForLevel, type Pirate } from "./pirate/cast.js";
 import { artWithUniqueIds, PIRATE_ART, WORDMARK_SVG } from "./pirate/art.js";
 import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
 import { installFirstRun, maybeStartFirstRun, setFirstRunNamedHook } from "./firstrun.js";
 import { renderProfileControls } from "./profiles.js";
 import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, isCalibrationDeclined, markCalibrationDeclined, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
-import { getActiveProfileName } from "./profile.js";
+import { getActiveProfileName, loadBeatenRivals } from "./profile.js";
+import { frontierLevel, isRivalUnlocked, predecessorLevel } from "./rivalLadder.js";
 import { renderEspillScreen } from "./training.js";
 import { getSessionMode } from "./game.js";
 import { syncReady } from "./analysis.js";
@@ -27,6 +28,7 @@ import { applyModeLayout } from "./modes.js";
 export type Screen = "title" | "select" | "fight" | "espill" | "calib";
 
 export function setScreen(s: Screen): void {
+  if (s === "select") buildSelectGrid(); // rebuild so freshly-earned unlocks show
   document.body.dataset.screen = s;
   if (s === "fight") renderRivalHud(); // the header chip says who you fight
   logEvent("screen_change", { screen: s });
@@ -70,32 +72,98 @@ function rankPips(rank: number): HTMLElement {
   return wrap;
 }
 
-function buildCard(p: Pirate): HTMLButtonElement {
+// A small chain-padlock, in the card's own gold-dim — createElementNS-free
+// (a constant authored string, like the corsair art it sits over).
+const LOCK_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>';
+
+function buildCard(p: Pirate, beaten: ReadonlySet<string>, frontier: string | null): HTMLButtonElement {
+  const unlocked = isRivalUnlocked(p.levelId, beaten);
+  const isBeaten = beaten.has(p.levelId);
+  const isNext = unlocked && !isBeaten && p.levelId === frontier;
+  const shroud = !unlocked && p.levelId === "L4"; // the final boss stays a mystery
+
   const card = document.createElement("button");
   card.type = "button";
   card.id = "pirateCard-" + p.levelId;
   card.className = "pirate-card stage-" + p.stageId;
+  // A locked card stays focusable (so the reason is reachable) but announces
+  // itself disabled; the click is intercepted below rather than dead.
+  if (!unlocked) { card.dataset.locked = "on"; card.setAttribute("aria-disabled", "true"); }
+  if (isBeaten) card.dataset.beaten = "on";
+  if (isNext) card.dataset.next = "on";
+  if (shroud) card.dataset.shroud = "on";
+
   const portrait = document.createElement("div");
   portrait.className = "card-portrait";
   portrait.innerHTML = artWithUniqueIds(PIRATE_ART[p.levelId] ?? "", "card-" + p.levelId); // constant authored art
   const name = document.createElement("div");
   name.className = "card-name";
-  name.textContent = p.name;
+  name.textContent = shroud ? "???" : p.name;
   const title = document.createElement("div");
   title.className = "card-title";
   title.textContent = p.title;
   const flavor = document.createElement("div");
   flavor.className = "card-flavor";
-  flavor.textContent = p.flavor;
+  if (unlocked) {
+    flavor.textContent = p.flavor;
+  } else {
+    const predName = pirateForLevel(predecessorLevel(p.levelId) ?? "L1").defeatName;
+    flavor.textContent = shroud
+      ? `Venç ${predName} i el desvetllaràs.`
+      : `Bloquejat — primer, venç ${predName}.`;
+  }
   const stage = document.createElement("div");
   stage.className = "card-stage";
-  stage.textContent = p.stageName;
+  stage.textContent = shroud ? "un mar sense nom" : p.stageName;
   const core = document.createElement("div");
   core.className = "card-core";
   core.textContent = LEVELS[p.levelId]?.name ?? p.levelId;
   card.append(rankPips(p.rank), portrait, name, title, flavor, stage, core);
-  card.addEventListener("click", () => chooseRival(p));
+
+  // Corner badges (absolutely placed by CSS): the padlock, the ✓ medal for
+  // rivals already down, the "el següent" ribbon on the current challenge.
+  if (!unlocked) {
+    const lock = document.createElement("div");
+    lock.className = "card-lock";
+    lock.innerHTML = LOCK_SVG;
+    lock.setAttribute("aria-hidden", "true");
+    card.appendChild(lock);
+  }
+  if (isBeaten) {
+    const medal = document.createElement("div");
+    medal.className = "card-medal";
+    medal.textContent = "✓";
+    medal.setAttribute("aria-hidden", "true");
+    card.appendChild(medal);
+  }
+  if (isNext) {
+    const ribbon = document.createElement("div");
+    ribbon.className = "card-ribbon";
+    ribbon.textContent = "el següent";
+    card.appendChild(ribbon);
+  }
+
+  card.addEventListener("click", () => {
+    if (!unlocked) { nudgeLocked(card, predecessorLevel(p.levelId)); return; }
+    chooseRival(p);
+  });
   return card;
+}
+
+// A locked tap isn't silent: the card rattles its chains and the rival you
+// must beat first pulses — "that one, then me".
+function nudgeLocked(card: HTMLElement, predLevel: string | null): void {
+  card.classList.remove("rattle");
+  void card.offsetWidth; // reflow so the animation restarts on repeat taps
+  card.classList.add("rattle");
+  logEvent("rival_locked_tap", { level: card.id.replace("pirateCard-", "") });
+  const pred = predLevel ? byId("pirateCard-" + predLevel) : null;
+  if (!pred) return;
+  pred.classList.remove("point");
+  void pred.offsetWidth;
+  pred.classList.add("point");
 }
 
 function buildSoloCard(): HTMLButtonElement {
@@ -114,7 +182,10 @@ function buildSoloCard(): HTMLButtonElement {
 function buildSelectGrid(): void {
   const grid = byId("selectGrid");
   if (!grid) return;
-  grid.replaceChildren(...PIRATES.map(buildCard), buildSoloCard()); // the solo card shows in Entrenament only (CSS)
+  const beaten = loadBeatenRivals();
+  const frontier = frontierLevel(beaten);
+  // the solo card shows in Entrenament only (CSS)
+  grid.replaceChildren(...PIRATES.map((p) => buildCard(p, beaten, frontier)), buildSoloCard());
 }
 
 let splashTimer: ReturnType<typeof setTimeout> | null = null;
@@ -419,6 +490,14 @@ export function installScreens(): void {
         if (level) { el.selAiLevel.value = level; el.selAiLevel.dispatchEvent(new Event("change")); setPirate(level); }
         setSoloTraining(false);
       };
+      // The ladder guards the routes too: a deep link to a rival you haven't
+      // earned lands on the tripulants, never in the fight. Solo (and an
+      // absent slug that resolves to an already-open pick) pass through.
+      const routeRivalLocked = (slug: string | null): boolean => {
+        if (slug === SOLO_SLUG) return false;
+        const level = slug ? levelForSlug(slug) : el.selAiLevel.value;
+        return !!level && !isRivalUnlocked(level, loadBeatenRivals());
+      };
       switch (route) {
         case "title": setScreen("title"); break;
         case "select": {
@@ -431,12 +510,14 @@ export function installScreens(): void {
         }
         case "duel": {
           if (!syncReady()) { startOnboarding("partida"); break; }
+          if (routeRivalLocked(rival)) { setSessionMode("partida"); syncModeDataset("partida"); setScreen("select"); break; }
           const go = () => { pickRival(rival); setScreen("fight"); setSessionMode("partida"); syncModeDataset("partida"); applyModeLayout(); };
           if (!maybeDetourToCalibration(go)) go();
           break;
         }
         case "entrena": {
           if (!syncReady()) { startOnboarding("entrenament"); break; }
+          if (routeRivalLocked(rival)) { setSessionMode("entrenament"); syncModeDataset("entrenament"); setScreen("select"); break; }
           const go = () => { pickRival(rival); setScreen("fight"); setSessionMode("entrenament"); syncModeDataset("entrenament"); applyModeLayout(); };
           if (!maybeDetourToCalibration(go)) go();
           break;
