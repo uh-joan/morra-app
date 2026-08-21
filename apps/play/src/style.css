@@ -9,6 +9,9 @@
 /* ---------------------------------------------------------- tokens */
 :root {
   --topbar-h: 55px; /* the sticky top bar; select/fight screens size against it */
+  /* iOS standalone (viewport-fit=cover + black-translucent): the page runs
+     under the system status bar; every top-anchored surface adds this. */
+  --safe-top: env(safe-area-inset-top, 0px);
   color-scheme: dark;
   --ink: #0d1220;
   --ink-2: #161d2c;
@@ -95,7 +98,7 @@ button.ghost:hover { color: var(--text); }
    the page is always exactly one top-bar taller than the window and
    scrolls 55px for nothing (Janis at 100%). */
 .screen { display: none; min-height: 100vh; }
-#screenSelect, #screenFight { min-height: calc(100vh - var(--topbar-h, 55px)); }
+#screenSelect, #screenFight { min-height: calc(100vh - var(--topbar-h, 55px) - var(--safe-top)); }
 body[data-screen="title"]  #screenTitle  { display: flex; }
 body[data-screen="select"] #screenSelect { display: block; }
 body[data-screen="fight"]  #screenFight  { display: block; }
@@ -117,9 +120,9 @@ body.vs-on #vsSplash { display: flex; }
 
 /* --------------------------------------------------------- top bar */
 #topBar {
-  position: sticky; top: 0; z-index: 40; height: var(--topbar-h); box-sizing: border-box;
+  position: sticky; top: 0; z-index: 40; height: calc(var(--topbar-h) + var(--safe-top)); box-sizing: border-box;
   align-items: center; justify-content: space-between; gap: 12px;
-  padding: 8px 16px;
+  padding: calc(8px + var(--safe-top)) 16px 8px;
   background: linear-gradient(180deg, rgba(13,18,32,.96), rgba(13,18,32,.82));
   border-bottom: 2px solid var(--wood-2);
   backdrop-filter: blur(6px);
@@ -213,7 +216,8 @@ body.vs-on #vsSplash { display: flex; }
    only, gone forever on ✕ (installNudge.ts owns the logic). */
 .install-nudge { display: none; }
 body[data-screen="title"][data-install-nudge="on"] .install-nudge {
-  position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%);
+  /* the section already begins below the inset-padded top bar */
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
   width: min(680px, calc(100% - 24px));
   z-index: 30; display: flex; align-items: center; gap: 10px; justify-content: space-between;
   padding: 10px 8px 10px 16px; border-radius: 12px;
@@ -917,7 +921,7 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
   .vs-portrait { width: 170px; height: 200px; }
   /* the bar may wrap to two rows — let it grow instead of spilling over
      the score strip (it is sticky but in-flow, so content shifts down) */
-  #topBar { flex-wrap: wrap; height: auto; min-height: var(--topbar-h); padding: 6px 10px; row-gap: 2px; }
+  #topBar { flex-wrap: wrap; height: auto; min-height: calc(var(--topbar-h) + var(--safe-top)); padding: calc(6px + var(--safe-top)) 10px 6px; row-gap: 2px; }
 }
 
 /* Small phones: bar = port row + pills row; the score strip goes compact
@@ -995,7 +999,8 @@ details.harness-toggle[open] summary { margin-bottom: 10px; }
    the parchment step panel on the other. The panel only has content while
    a session runs (body[data-calibrating]). */
 #screenCalib { align-items: center; justify-content: center; padding: 24px 16px; }
-.calib-page { display: flex; flex-direction: column; gap: 16px; align-items: center; width: min(980px, 96vw); }
+/* no top bar on this screen — the page owns the status-bar inset itself */
+.calib-page { display: flex; flex-direction: column; gap: 16px; align-items: center; width: min(980px, 96vw); padding-top: var(--safe-top); }
 .calib-welcome { font-family: var(--serif); font-size: clamp(28px, 4.5vw, 46px); line-height: 1.15; text-align: center; }
 .calib-welcome b { color: var(--gold); }
 /* Which hand throws (body[data-ma], right by default): the camera sits on
@@ -1168,7 +1173,7 @@ body.tecnic #roundResultCard { display: block; }
   transform: translateY(-1px);
 }
 .home-classif:active { transform: translateY(1px); }
-#screenClassificacio { min-height: calc(100vh - var(--topbar-h, 55px)); background: radial-gradient(900px 500px at 50% -10%, rgba(224,182,79,.12), transparent 60%), linear-gradient(180deg, #0f1730 0%, #0b1224 60%, #070c18 100%); padding: 22px 16px 40px; }
+#screenClassificacio { min-height: calc(100vh - var(--topbar-h, 55px) - var(--safe-top)); background: radial-gradient(900px 500px at 50% -10%, rgba(224,182,79,.12), transparent 60%), linear-gradient(180deg, #0f1730 0%, #0b1224 60%, #070c18 100%); padding: 22px 16px 40px; }
 .classif-wrap { max-width: 680px; margin: 0 auto; }
 .classif-head { text-align: center; margin-bottom: 18px; }
 .classif-title { font-family: var(--serif); font-size: 34px; font-weight: 800; margin: 0; color: var(--gold-2); text-shadow: 0 2px 14px rgba(224,182,79,.35); letter-spacing: .04em; }
@@ -1200,7 +1205,7 @@ body.tecnic #roundResultCard { display: block; }
 /* ================= L'ESPILL — its own screen (2026-08-17) =================
    A parchment sheet on the night sea. One hero (the coach card), one slim
    trend line, the detail behind tabs. The same ids the renderer writes. */
-#screenEspill { min-height: calc(100vh - var(--topbar-h, 55px)); background: radial-gradient(900px 500px at 50% -10%, rgba(224,182,79,.10), transparent 60%), linear-gradient(180deg, #0f1730 0%, #0b1224 60%, #070c18 100%); padding: 22px 16px 40px; }
+#screenEspill { min-height: calc(100vh - var(--topbar-h, 55px) - var(--safe-top)); background: radial-gradient(900px 500px at 50% -10%, rgba(224,182,79,.10), transparent 60%), linear-gradient(180deg, #0f1730 0%, #0b1224 60%, #070c18 100%); padding: 22px 16px 40px; }
 .espill-wrap { max-width: 860px; margin: 0 auto; background: linear-gradient(180deg, var(--parchment), var(--parchment-2)); color: var(--parchment-ink); border: 3px solid var(--rope); border-radius: 16px; padding: 22px 26px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
 .espill-wrap button { background: rgba(58,44,20,.08); border-color: rgba(138,101,64,.5); color: var(--parchment-ink); }
 .espill-wrap button.primary { background: var(--gold); border-color: #a87c22; color: #2a1c04; }
@@ -1242,7 +1247,7 @@ body.tecnic #roundResultCard { display: block; }
 /* tabs */
 .espill-tabs { display: flex; gap: 2px; border-bottom: 2px solid rgba(138,101,64,.45); margin-top: 8px; }
 /* phones: the page is long — the tabs ride along under the top bar */
-@media (max-width: 700px) { .espill-tabs { position: sticky; top: var(--topbar-h, 55px); background: var(--parchment); z-index: 5; } }
+@media (max-width: 700px) { .espill-tabs { position: sticky; top: calc(var(--topbar-h, 55px) + var(--safe-top)); background: var(--parchment); z-index: 5; } }
 .espill-tabs button { border: 0; border-radius: 8px 8px 0 0; background: transparent; padding: 8px 12px; font-size: 13px; color: #6b5636; }
 .espill-tabs button.on { background: rgba(58,44,20,.10); color: #2a1c04; font-weight: 700; }
 .espill-pane { display: none; padding: 12px 2px 4px; }
@@ -1301,7 +1306,7 @@ body[data-sparring="on"] .face-off #trainingPanel { grid-column: 2; }
    links. No icons: a control is text, or an icon, never both. */
 body[data-screen="title"] #topBar { display: flex; }
 @media (max-width: 640px) { body[data-screen="title"] .bar-logo { display: none; } body[data-screen="title"] #topBar { justify-content: flex-end; } }
-#screenTitle { min-height: calc(100vh - var(--topbar-h, 55px)); justify-content: flex-start; padding-top: 3vh; }
+#screenTitle { min-height: calc(100vh - var(--topbar-h, 55px) - var(--safe-top)); justify-content: flex-start; padding-top: 3vh; }
 .title-inner.home { gap: 10px; padding-top: 2vh; }
 .home .title-wordmark { width: min(620px, 92vw); }
 @keyframes portrait-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
@@ -1343,7 +1348,7 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   /* the stage card: camera on top (flex-grown), mic strip at the bottom;
      its data-pill border glow stays the armed/analyzing signal */
   .player-side {
-    position: relative; height: calc(100dvh - var(--topbar-h, 55px) - 76px);
+    position: relative; height: calc(100dvh - var(--topbar-h, 55px) - var(--safe-top) - 76px);
     display: flex; flex-direction: column; gap: 6px;
     max-width: none; padding: 8px; overflow: hidden; border-radius: 16px;
   }
