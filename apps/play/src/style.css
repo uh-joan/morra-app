@@ -218,6 +218,21 @@ body[data-screen="title"][data-install-nudge="on"] .install-nudge {
 }
 .install-nudge b { color: var(--gold-2); font-weight: 700; }
 .install-nudge button { flex: none; font-size: 14px; padding: 6px 10px; }
+/* The Calibratge skip banner — the install nudge's pill language, but
+   IN-FLOW at the foot of the page (next to Restableix, which it mirrors):
+   a fixed strip occluded the panel's own controls on short viewports.
+   Shown only when the page stands between the player and the game
+   (screens.ts sets data-calib-skip on the detour / first-run paths). */
+.calib-skip { display: none; }
+body[data-screen="calib"][data-calib-skip="on"] .calib-skip {
+  display: flex; align-items: center; gap: 12px; justify-content: space-between;
+  width: min(680px, calc(100% - 24px)); margin: 14px auto calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 10px 10px 16px; border-radius: 12px;
+  background: rgba(6,9,18,.92); border: 1.5px solid rgba(224,182,79,.45);
+  color: var(--parchment); font-size: 13.5px; line-height: 1.35;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+}
+.calib-skip .btn-gold { flex: none; font-size: 15px; padding: 8px 18px; border-radius: 10px; box-shadow: 0 3px 0 #7a5a16; }
 .title-waves svg { width: 100%; height: 100%; }
 .tw-a { fill: #14263c; animation: wave-scroll 9s linear infinite; }
 .tw-b { fill: #1b5f86; opacity: .5; animation: wave-scroll 14s linear infinite reverse; }

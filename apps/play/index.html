@@ -472,6 +472,13 @@
       <div id="calibStatus" class="calib-status"></div>
       <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
     </div>
+    <!-- Only when Calibratge stands between the player and the game (the
+         play detour, or the first run): the way straight past it. Sets the
+         forever flag — the detour never asks again for this profile+camera. -->
+    <div id="calibSkipNudge" class="calib-skip" role="note">
+      <span>Ignora-ho i ves directe a jugar — si tens problemes jugant, ja ho faràs més endavant.</span>
+      <button id="calibSkipGo" class="btn-gold">A jugar</button>
+    </div>
   </div>
 </section>
 
