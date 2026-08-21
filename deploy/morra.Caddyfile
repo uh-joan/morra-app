@@ -16,6 +16,10 @@ morra.joans.cat {
   # appends to /srv/morra-logs. If it's down, this 502s and the app drops
   # events silently by design — gameplay never depends on it.
   reverse_proxy /log morra-collector:9310
+  # La Classificació global: the one arcade table for every vessel — GET the
+  # top-10, POST a won match (server-validated). Same collector, same
+  # doctrine: down → 502 → the app falls back to its local board.
+  reverse_proxy /classificacio morra-collector:9310
 
   header {
     X-Frame-Options "DENY"

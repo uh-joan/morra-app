@@ -5,11 +5,25 @@ The app already ships events: `apps/play/src/telemetry.ts` batches NDJSON to
 `spikes/serve.py` catches them; in production nothing did (404, dropped
 silently). This directory is the production sink.
 
-- `collector.mjs` — zero-dependency Node server on :9310. POST /log only,
+- `collector.mjs` — zero-dependency Node server on :9310. POST /log,
   1 MB body cap, 60 req/min per IP, every line must parse as JSON (≤8 KB)
   and is re-serialized with a server timestamp (`rx`) and a day-rotating
   `visitor` hash (sha256 of ip+day, truncated — no addresses stored).
   Appends to `/data/events-<utc-day>.ndjson`.
+
+  Since 2026-08-22 it also serves **la Classificació global** — the one
+  arcade table for every vessel:
+  - `GET /classificacio` → `{ entries }` (top 10, no-store)
+  - `POST /classificacio` with `{ name, levelId, score, you, rival }` →
+    `{ entries, placement|null }`. Validation is the anti-cheat: name
+    sanitized + capped at 12 chars; `you` must be 10; the score must fit the
+    formula's range for (levelId, you, rival) — base × margin × style with
+    style ∈ [1.0, 1.5], the same numbers apps/play's pinned-score tests
+    define (retuning the formula changes both in one PR). The server stamps
+    `at`; ties keep the earlier entry. Persists to `/data/classificacio.json`
+    (same bind mount; reset = edit/delete that file, container restart picks
+    it up).
+  - `node test.mjs` runs the endpoint suite against a temp instance.
 - `compose.yml` — runs it on the buzz stack's docker network
   (`buzz-prod_buzz-net`) so the shared Caddy reaches `morra-collector:9310`.
   Host data dir: `/srv/morra-logs`.
