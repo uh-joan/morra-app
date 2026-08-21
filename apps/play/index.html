@@ -2,8 +2,18 @@
 <html lang="ca">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Morra — el duel dels corsaris</title>
+<meta name="description" content="El joc de la morra contra quatre corsaris: tira els dits, canta el número i guanya't un lloc a la Classificació.">
+<!-- PWA: installable web app (manifest) + the iOS home-screen surfaces.
+     theme-color paints the standalone chrome the night-sea navy. -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b1224">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Morra">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body data-screen="title" data-mode="partida" data-onboarding="off">
 
@@ -61,6 +71,12 @@
       <button data-entorn="sorollos" class="ghost" aria-pressed="false">Local sorollós</button>
     </span>
   </footer>
+  <!-- iOS Safari only (installNudge.ts): the game plays better installed —
+       teach the two taps. Dismisses forever; never shows in the app. -->
+  <div id="installNudge" class="install-nudge" role="note">
+    <span>Morra va millor com a app: toca <b>Compartir</b> i després <b>«Afegeix a la pantalla d'inici»</b>.</span>
+    <button id="installNudgeClose" class="ghost" aria-label="Tanca">✕</button>
+  </div>
   <div id="entornSuggest" class="entorn-suggest" hidden>
     <span>Sembla que hi ha soroll de taverna. Activo el mode <b>Local sorollós</b>?</span>
     <button id="entornSuggestYes" class="btn-gold">Sí, activa'l</button>

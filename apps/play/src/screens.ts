@@ -20,6 +20,7 @@ import { getActiveProfileName, loadBeatenRivals } from "./profile.js";
 import { frontierLevel, isRivalUnlocked, predecessorLevel } from "./rivalLadder.js";
 import { renderEspillScreen } from "./training.js";
 import { renderClassificacioScreen } from "./render/classificacio.js";
+import { installInstallNudge } from "./installNudge.js";
 import { getSessionMode } from "./game.js";
 import { syncReady } from "./analysis.js";
 import { installRouter, reflectRoute, type Route, type RouteParams } from "./router.js";
@@ -351,6 +352,7 @@ export function installScreens(): void {
   installOnboarding();
   installFirstRun();
   installPipDrag();
+  installInstallNudge();
 
   // Els rivals guaiten: mount the peeking corsaris' art once — CSS owns
   // their rare, slow timing.

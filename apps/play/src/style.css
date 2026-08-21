@@ -205,6 +205,19 @@ body.vs-on #vsSplash { display: flex; }
   }
 }
 .title-waves { position: absolute; bottom: 0; left: 0; right: 0; height: 90px; z-index: 1; }
+/* The iOS add-to-home-screen whisper: a slim strip over the waves, title
+   screen only, gone forever on ✕ (installNudge.ts owns the logic). */
+.install-nudge { display: none; }
+body[data-screen="title"][data-install-nudge="on"] .install-nudge {
+  position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  z-index: 30; display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  padding: 10px 8px 10px 16px; border-radius: 12px;
+  background: rgba(6,9,18,.92); border: 1.5px solid rgba(224,182,79,.45);
+  color: var(--parchment); font-size: 13.5px; line-height: 1.35;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+}
+.install-nudge b { color: var(--gold-2); font-weight: 700; }
+.install-nudge button { flex: none; font-size: 14px; padding: 6px 10px; }
 .title-waves svg { width: 100%; height: 100%; }
 .tw-a { fill: #14263c; animation: wave-scroll 9s linear infinite; }
 .tw-b { fill: #1b5f86; opacity: .5; animation: wave-scroll 14s linear infinite reverse; }
