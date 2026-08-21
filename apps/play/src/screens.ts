@@ -15,7 +15,7 @@ import { setPirate, installPirateChoreography } from "./pirate/render.js";
 import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./onboarding.js";
 import { installFirstRun, maybeStartFirstRun, setFirstRunNamedHook } from "./firstrun.js";
 import { renderProfileControls } from "./profiles.js";
-import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, isCalibrationDeclined, markCalibrationDeclined, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
+import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, isCalibrationDeclined, isCalibrationSkippedForever, markCalibrationDeclined, markCalibrationSkippedForever, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
 import { getActiveProfileName, loadBeatenRivals } from "./profile.js";
 import { frontierLevel, isRivalUnlocked, predecessorLevel } from "./rivalLadder.js";
 import { renderEspillScreen } from "./training.js";
@@ -269,8 +269,9 @@ function moveVideoBack(): void {
 // but never nags within one.
 let afterCalibration: (() => void) | null = null;
 function maybeDetourToCalibration(after: () => void): boolean {
-  // callers guarantee the sensors are up, so the device key is known
-  if (hasCalibrationForCurrentSite() || isCalibrationDeclined()) return false;
+  // callers guarantee the sensors are up, so the device key is known.
+  // A forever-skip (the calib page's "A jugar" banner) outranks everything.
+  if (hasCalibrationForCurrentSite() || isCalibrationDeclined() || isCalibrationSkippedForever()) return false;
   logEvent("calibration_detour", { site: calibrationSiteKey() });
   afterCalibration = after;
   enterCalibration();
@@ -289,6 +290,11 @@ function enterCalibration(): void {
     name.textContent = getActiveProfileName();
     welcome.replaceChildren("A coberta, tripulant ", name, "!");
   }
+  // The skip banner shows only when Calibratge stands between the player
+  // and the game — the play detour or the first run. A deliberate visit
+  // from the home has no "a jugar" to skip to.
+  if (afterCalibration || firstRunFlow) document.body.dataset.calibSkip = "on";
+  else delete document.body.dataset.calibSkip;
   moveVideoToStage();
   setScreen("calib");
   startCalibration();
@@ -389,6 +395,7 @@ export function installScreens(): void {
   const calibSaveLabel = calibSave?.textContent ?? "";
   setCalibrationEndHook((outcome) => {
     moveVideoBack();
+    delete document.body.dataset.calibSkip;
     // Anything but Desa counts as declining for this profile+camera — the
     // play detour won't re-ask this session.
     if (outcome !== "saved") markCalibrationDeclined();
@@ -430,6 +437,14 @@ export function installScreens(): void {
   byId("btnClassifBack")?.addEventListener("click", () => setScreen("title"));
   // The victory-card ceremony banner is the door to your new row.
   el.rankingBanner.addEventListener("click", () => setScreen("classificacio"));
+  // The calib page's skip: mark the detour off FOREVER for this
+  // profile+camera, then leave through the ✕ — the same end-hook path
+  // (Descarta semantics) that continues to wherever they were going.
+  byId("calibSkipGo")?.addEventListener("click", () => {
+    markCalibrationSkippedForever();
+    logEvent("calibration_skip_forever", { site: calibrationSiteKey() });
+    byId("calibClose")?.click();
+  });
   el.btnOpenEspill.addEventListener("click", openEspill);
   el.btnGoToTraining.addEventListener("click", openEspill);
   el.btnEspillBack.addEventListener("click", () => setScreen("title"));
