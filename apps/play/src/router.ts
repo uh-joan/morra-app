@@ -11,23 +11,24 @@
 //   #/entrena/:rival      fight, Entrenament — sparring with a rival, or "sol"
 //   #/espill              L'Espill (+ ?tab=rei|numeros|sequencia)
 //   #/calibratge          Calibratge — its own page, not part of training
+//   #/classificacio       Classificació — the vessel's high-score table
 //
 // Query flags (?rival=, ?tecnic=1, ?entorn=, …) are per-load config in
 // location.search and stay untouched. The VS splash, the end-of-match
 // overlay and the onboarding card are not screens and have no route.
 import { logEvent } from "./telemetry.js";
 
-export type Route = "title" | "select" | "duel" | "entrena" | "espill" | "calib";
+export type Route = "title" | "select" | "duel" | "entrena" | "espill" | "calib" | "classificacio";
 export type RouteParams = Record<string, string>;
-export type Screen = "title" | "select" | "fight" | "espill" | "calib";
+export type Screen = "title" | "select" | "fight" | "espill" | "calib" | "classificacio";
 export type Mode = "partida" | "entrenament";
 
-const PATHS: Record<Route, string> = { title: "#/", select: "#/tripulants", duel: "#/duel", entrena: "#/entrena", espill: "#/espill", calib: "#/calibratge" };
+const PATHS: Record<Route, string> = { title: "#/", select: "#/tripulants", duel: "#/duel", entrena: "#/entrena", espill: "#/espill", calib: "#/calibratge", classificacio: "#/classificacio" };
 const BY_PATH = new Map<string, Route>(Object.entries(PATHS).map(([r, p]) => [p, r as Route]));
 
 export function routeFor(screen: Screen, mode: Mode): Route {
   if (screen === "fight") return mode === "entrenament" ? "entrena" : "duel";
-  return screen === "select" ? "select" : screen === "espill" ? "espill" : screen === "calib" ? "calib" : "title";
+  return screen === "select" ? "select" : screen === "espill" ? "espill" : screen === "calib" ? "calib" : screen === "classificacio" ? "classificacio" : "title";
 }
 /** `rival` is the path segment for duel/entrena (nino|bru|merce|rei, or "sol"). */
 export function hashFor(route: Route, params: RouteParams = {}, rival: string | null = null): string {
@@ -86,6 +87,9 @@ export function installRouter(h: RouteHandlers): void {
   const boot = parseHash(location.hash);
   if (!boot) history.replaceState(null, "", "#/");
   else if (boot.route !== "title") applyRoute(boot.route, boot.params, boot.rival);
+  // a bare load (no hash at all) still normalizes to #/ — the boot screen
+  // no longer reflects (it would stomp deep links), so the router does it
+  else if (location.hash === "" || location.hash === "#") history.replaceState(null, "", "#/");
 }
 function applyRoute(route: Route, params: RouteParams, rival: string | null): void {
   if (!handlers) return;

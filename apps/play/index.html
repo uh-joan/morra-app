@@ -38,6 +38,11 @@
   <div class="title-inner home">
     <div id="titleWordmark" class="title-wordmark"><img id="wordmarkImg" src="wordmark.png" alt="Morra — el duel dels corsaris" decoding="async"><!-- SVG fallback injected if the image fails --></div>
     <button id="btnJuga" class="btn-gold home-cta">Juga</button>
+    <!-- The vessel's high-score table: its own quiet tier under the CTA —
+         the same dark gold-rimmed identity as the victory card's ceremony
+         pill. Pure type: never competes with Juga, clearly above the
+         ghost links. -->
+    <button id="btnClassificacio" class="home-classif">Classificació</button>
     <nav class="home-links" aria-label="Més">
       <button id="doorEntrena" class="link">Entrenament</button>
       <span class="home-dot" aria-hidden="true">·</span>
@@ -223,6 +228,9 @@
           <div class="end-card">
             <div id="gameEndText" class="end-headline"></div>
             <div id="unlockBanner" class="unlock-banner" hidden></div>
+            <!-- the Classificació ceremony: shown only when this match made
+                 the table; tapping it opens the board on your new row -->
+            <button id="rankingBanner" class="ranking-banner" hidden></button>
             <div class="end-boty-label">El botí de la partida</div>
             <div id="postMatchCard" class="training-tiles">
               <div class="training-tile"><div class="training-tile-value" id="postMatchExploitability">—</div><div class="training-tile-label">Explotabilitat</div></div>
@@ -351,6 +359,19 @@
     <footer class="espill-foot">
       <button id="btnEspillBack" class="ghost">← Torna al port</button>
       <button id="btnEspillTrain" class="btn-parchment">Entrenament — tira al mirall</button>
+    </footer>
+  </div>
+</section>
+
+<!-- ================= CLASSIFICACIÓ (the vessel's high-score table) ================= -->
+<section id="screenClassificacio" class="screen">
+  <div class="classif-wrap">
+    <header class="classif-head">
+      <h1 class="classif-title">Classificació</h1>
+    </header>
+    <ol id="rankingList" class="rank-list"><!-- rows built by render/classificacio.ts --></ol>
+    <footer class="classif-foot">
+      <button id="btnClassifBack" class="ghost">← Torna al port</button>
     </footer>
   </div>
 </section>

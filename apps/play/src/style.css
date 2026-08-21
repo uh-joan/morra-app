@@ -101,8 +101,9 @@ body[data-screen="select"] #screenSelect { display: block; }
 body[data-screen="fight"]  #screenFight  { display: block; }
 body[data-screen="espill"] #screenEspill { display: block; }
 body[data-screen="calib"]  #screenCalib  { display: flex; }
+body[data-screen="classificacio"] #screenClassificacio { display: block; }
 #topBar { display: none; }
-body[data-screen="select"] #topBar, body[data-screen="fight"] #topBar, body[data-screen="espill"] #topBar { display: flex; }
+body[data-screen="select"] #topBar, body[data-screen="fight"] #topBar, body[data-screen="espill"] #topBar, body[data-screen="classificacio"] #topBar { display: flex; }
 /* the rival chip: who you fight — on the fight screen only. Same quiet
    language as the tripulant signature: a name, no icon, no border. */
 #btnRivalHud { display: none; }
@@ -370,6 +371,17 @@ body.vs-on #vsSplash { display: flex; }
   color: #1a1108; background: var(--gold); border-radius: 999px;
   box-shadow: 0 0 18px rgba(224,182,79,.5);
 }
+/* The Classificació ceremony pill — inverse of the unlock pill (dark,
+   gold-rimmed) so the two never read as one message; it's a button that
+   opens the table on tap. */
+.ranking-banner {
+  display: block; margin: 8px auto 2px; padding: 6px 16px; max-width: max-content;
+  font-family: var(--serif); font-weight: 800; font-size: 15px;
+  color: var(--gold-2); background: rgba(6,9,18,.85); border: 1.5px solid var(--gold);
+  border-radius: 999px; box-shadow: 0 0 14px rgba(224,182,79,.35); cursor: pointer;
+}
+.ranking-banner:hover { box-shadow: 0 0 22px rgba(224,182,79,.55); }
+.ranking-banner[hidden] { display: none; }
 /* Phones: the cards become full-width rows — portrait left, words right,
    every row a fat tap target; all the tripulants in about one screen. */
 @media (max-width: 560px) {
@@ -1101,6 +1113,55 @@ body.tecnic #roundResultCard { display: block; }
   .rival-figure-frame { width: min(300px, 78vw); } /* the rival column was the tall one at 1280x800 */
 }
 
+
+/* ================= CLASSIFICACIÓ — the vessel's high-score table =========
+   The arcade hall of fame in corsair gold: dark sea behind, ten rows of
+   position · name · deed · score. The first row glows. */
+/* The home entry: the Classificació's own identity — the victory card's
+   dark gold-rimmed pill language, pure type. A tier of its own: quieter
+   than Juga's gold slab, weightier than the ghost links below. */
+.home-classif {
+  font-family: var(--serif); font-size: 16px; font-weight: 700; letter-spacing: .06em;
+  font-variant: small-caps; padding: 9px 30px; border-radius: 999px; margin-top: 6px;
+  color: var(--gold-2); background: rgba(6,9,18,.55);
+  border: 1.5px solid rgba(224,182,79,.45);
+  box-shadow: 0 0 12px rgba(224,182,79,.10), inset 0 1px 0 rgba(255,255,255,.05);
+  transition: border-color .15s, box-shadow .15s, transform .12s ease-out;
+}
+.home-classif:hover, .home-classif:focus-visible {
+  border-color: var(--gold); color: var(--gold-2);
+  box-shadow: 0 0 22px rgba(224,182,79,.35);
+  transform: translateY(-1px);
+}
+.home-classif:active { transform: translateY(1px); }
+#screenClassificacio { min-height: calc(100vh - var(--topbar-h, 55px)); background: radial-gradient(900px 500px at 50% -10%, rgba(224,182,79,.12), transparent 60%), linear-gradient(180deg, #0f1730 0%, #0b1224 60%, #070c18 100%); padding: 22px 16px 40px; }
+.classif-wrap { max-width: 680px; margin: 0 auto; }
+.classif-head { text-align: center; margin-bottom: 18px; }
+.classif-title { font-family: var(--serif); font-size: 34px; font-weight: 800; margin: 0; color: var(--gold-2); text-shadow: 0 2px 14px rgba(224,182,79,.35); letter-spacing: .04em; }
+.rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rank-row {
+  display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 14px;
+  padding: 10px 16px; border-radius: 12px;
+  background: rgba(6,9,18,.55); border: 1px solid var(--border);
+}
+.rank-row:first-child { border-color: var(--gold); box-shadow: 0 0 18px rgba(224,182,79,.25); }
+.rank-title { font-family: var(--serif); font-size: 18px; font-weight: 900; color: var(--gold); font-variant-numeric: tabular-nums; text-align: center; }
+.rank-row:first-child .rank-title { color: var(--gold-2); font-size: 22px; }
+.rank-name { font-family: var(--serif); font-size: 18px; font-weight: 800; color: var(--parchment); font-variant: small-caps; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-score { font-family: var(--serif); font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--gold-2); text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+/* Unclaimed rungs: still on the board — zero points, waiting — but clearly
+   nobody's yet. Dimmed all through; no glow even at the top. */
+.rank-row.buida { opacity: .45; }
+.rank-row.buida .rank-name { color: var(--dim); }
+.rank-row.buida:first-child { border-color: var(--border); box-shadow: none; }
+.classif-foot { margin-top: 18px; text-align: center; }
+@media (max-width: 560px) {
+  .rank-row { grid-template-columns: 34px 1fr auto; gap: 8px; padding: 10px; }
+  .rank-title { font-size: 15px; }
+  .rank-row:first-child .rank-title { font-size: 18px; }
+  .rank-name { font-size: 16px; }
+  .rank-score { font-size: 18px; }
+}
 
 /* ================= L'ESPILL — its own screen (2026-08-17) =================
    A parchment sheet on the night sea. One hero (the coach card), one slim

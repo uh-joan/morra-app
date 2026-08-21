@@ -22,6 +22,9 @@ import {
   computeCommitHash,
   verifyCommitment,
   computeMicatioVerdict,
+  computeExploitability,
+  computeRandomnessScore,
+  computeSyncStats,
   wordToNumber,
   shouldRevealPhase1From,
   type AiMove,
@@ -40,7 +43,9 @@ import { setGameHooks, type ThrowEvent } from "./analysis.js";
 import { markThrowResolvedForReadyPill, renderReadyPill, resetReadyPillForNewGame } from "./readyPill.js";
 import { setLastRoundAudioEndCtxTime, rivalClipTailGuardS } from "./rivalAudioLog.js";
 import { playRivalCall, preloadRivalVoiceClips } from "./rivalVoice.js";
-import { loadPlayerModel, savePlayerModel, recordRivalBeaten } from "./profile.js";
+import { loadPlayerModel, savePlayerModel, recordRivalBeaten, getActiveProfileName } from "./profile.js";
+import { computeMatchScore, formatScore, insertEntry } from "./leaderboard.js";
+import { loadRanking, saveRanking } from "./leaderboardStore.js";
 import { voskLoaded } from "./vosk.js";
 import {
   populateAiLevelSelector,
@@ -57,6 +62,7 @@ import {
   renderGameRoundPending,
   renderGameRoundVoid,
   renderPostMatchCard,
+  renderRankingPlacement,
   renderScoreboard,
   renderUnlockBanner,
   showGameEndBanner,
@@ -421,6 +427,30 @@ function resolveGameRound(
       renderUnlockBanner(next ? { name: pirateForLevel(next).name } : { allConquered: true });
     } else {
       renderUnlockBanner(null);
+    }
+    // …and mints a Classificació score: base(rival) × margin × style, the
+    // style read from THIS match's own mirror metrics. Only a top-10 entry
+    // gets saved and celebrated; anything else passes in silence. The
+    // telemetry carries placement/score only — never the name (PR #40).
+    if (playerWon) {
+      const score = computeMatchScore(currentAiLevel, gameScore.player, gameScore.ai, {
+        syncRate: computeSyncStats(matchHistory).syncRate,
+        redundancy: computeRandomnessScore(matchHistory)?.redundancy ?? null,
+        exploitability: computeExploitability(matchHistory).rate,
+      });
+      const { entries, placement } = insertEntry(loadRanking(), {
+        name: getActiveProfileName(),
+        levelId: currentAiLevel,
+        score,
+        you: gameScore.player,
+        rival: gameScore.ai,
+        at: new Date().toISOString(),
+      });
+      if (placement != null) saveRanking(entries);
+      renderRankingPlacement(placement, formatScore(score));
+      logEvent("classificacio_entry", { placement, score, levelId: currentAiLevel });
+    } else {
+      renderRankingPlacement(null, null);
     }
     renderPostMatchCard(matchHistory);
   } else {

@@ -16,7 +16,7 @@ import {
   type HistoryEntry,
 } from "@morra/core";
 import { el } from "../dom.js";
-import { GAME_END_TEXT, AI_COMMIT_STATUS, PARATA_HEADLINE, SYNC_OUTCOME_VOID_REASON, SCOREBOARD_TEXT, ROUND_CARD_TEXT, TIMING_COACH, VERDICT_BANNER } from "../game/copy.js";
+import { GAME_END_TEXT, AI_COMMIT_STATUS, PARATA_HEADLINE, RANKING_ENTRY_TEXT, SYNC_OUTCOME_VOID_REASON, SCOREBOARD_TEXT, ROUND_CARD_TEXT, TIMING_COACH, VERDICT_BANNER } from "../game/copy.js";
 
 // ux-pirates r3: the verdict BANNER — same outcomes as the round card, but
 // big and over the player card (where the eyes are). Shown by the resolve
@@ -150,6 +150,21 @@ export function renderUnlockBanner(unlocked: { name: string } | { allConquered: 
   b.textContent = "allConquered" in unlocked
     ? "Has conquerit tots els mars. No queda ningú per vèncer."
     : `Has desbloquejat ${unlocked.name}!`;
+  b.hidden = false;
+}
+
+// The Classificació ceremony: a won match that made the vessel's top-10
+// announces its placement on the victory card (tapping the banner opens
+// the table — wired in screens.ts). `null` clears it: a loss, or a score
+// below the cut, passes in silence.
+export function renderRankingPlacement(placement: number | null, scoreText: string | null): void {
+  const b = el.rankingBanner;
+  if (placement == null || scoreText == null) {
+    b.hidden = true;
+    b.textContent = "";
+    return;
+  }
+  b.textContent = RANKING_ENTRY_TEXT(placement, scoreText);
   b.hidden = false;
 }
 

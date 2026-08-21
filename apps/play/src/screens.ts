@@ -19,16 +19,18 @@ import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, isCali
 import { getActiveProfileName, loadBeatenRivals } from "./profile.js";
 import { frontierLevel, isRivalUnlocked, predecessorLevel } from "./rivalLadder.js";
 import { renderEspillScreen } from "./training.js";
+import { renderClassificacioScreen } from "./render/classificacio.js";
 import { getSessionMode } from "./game.js";
 import { syncReady } from "./analysis.js";
 import { installRouter, reflectRoute, type Route, type RouteParams } from "./router.js";
 import { isSoloTraining, levelForSlug, setSoloTraining, slugForLevel, SOLO_SLUG } from "./rivalState.js";
 import { applyModeLayout } from "./modes.js";
 
-export type Screen = "title" | "select" | "fight" | "espill" | "calib";
+export type Screen = "title" | "select" | "fight" | "espill" | "calib" | "classificacio";
 
 export function setScreen(s: Screen): void {
   if (s === "select") buildSelectGrid(); // rebuild so freshly-earned unlocks show
+  if (s === "classificacio") renderClassificacioScreen(); // fresh table on entry
   document.body.dataset.screen = s;
   if (s === "fight") renderRivalHud(); // the header chip says who you fight
   logEvent("screen_change", { screen: s });
@@ -358,9 +360,14 @@ export function installScreens(): void {
   if (peekBru) peekBru.innerHTML = artWithUniqueIds(PIRATE_ART["L2"] ?? "", "peek-bru");
 
   // Boot: reflect the level game.ts restored, land on the title screen.
+  // Deliberately NOT setScreen: its route reflection would overwrite a deep
+  // link's hash with "#/" before installRouter (below) gets to read it —
+  // every #/espill-on-reload landed on the title. The router applies any
+  // boot hash right after the screens are mounted.
   setPirate(el.selAiLevel.value || "L1");
   document.body.dataset.mode = "partida";
-  setScreen("title");
+  document.body.dataset.screen = "title";
+  logEvent("screen_change", { screen: "title" });
   // First run (factory-fresh registry): the sign-on card over the title.
   maybeStartFirstRun();
   // Naming yourself flows straight on: same gesture through the sensor
@@ -416,6 +423,11 @@ export function installScreens(): void {
   byId("doorCalibra")?.addEventListener("click", () => { pendingCalibration = true; startOnboarding("entrenament"); });
   const openEspill = () => { renderEspillScreen(); setScreen("espill"); };
   byId("doorEspill")?.addEventListener("click", openEspill);
+  // Classificació: the vessel's table — no sensors, straight in and out.
+  byId("btnClassificacio")?.addEventListener("click", () => setScreen("classificacio"));
+  byId("btnClassifBack")?.addEventListener("click", () => setScreen("title"));
+  // The victory-card ceremony banner is the door to your new row.
+  el.rankingBanner.addEventListener("click", () => setScreen("classificacio"));
   el.btnOpenEspill.addEventListener("click", openEspill);
   el.btnGoToTraining.addEventListener("click", openEspill);
   el.btnEspillBack.addEventListener("click", () => setScreen("title"));
@@ -531,6 +543,9 @@ export function installScreens(): void {
           if (isCalibrating()) break; // already on the page, mid-session
           if (syncReady()) enterCalibration();
           else { pendingCalibration = true; startOnboarding("entrenament"); }
+          break;
+        case "classificacio":
+          setScreen("classificacio"); // renders on entry; no sensors needed
           break;
       }
     },
