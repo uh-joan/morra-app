@@ -47,6 +47,13 @@ Then add the `/log` route to the morra vhost (already in
 replace the morra block in `/opt/buzz/deploy/compose/Caddyfile` with the repo
 file, `caddy validate`, `caddy reload`).
 
+⚠️ That Caddyfile is a SINGLE-FILE bind mount into the caddy container —
+never edit it with `sed -i` (it swaps the inode; the container keeps reading
+the old file while validate/reload "succeed" against it — seen live
+2026-08-22). Edit via `cat > file` / `tee`, or simply
+`docker restart buzz-prod-caddy-1` after the edit to re-resolve the mount
+(a few seconds of downtime for buzz+morra).
+
 ## Verify
 
 ```bash
