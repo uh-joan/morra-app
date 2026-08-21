@@ -96,21 +96,15 @@ describe("insertEntry", () => {
 });
 
 describe("seeds", () => {
-  it("arrive ordered and honestly derivable from the formula's range", () => {
-    const scores = SEED_ENTRIES.map((e) => e.score);
-    expect(scores).toEqual([...scores].sort((a, b) => b - a));
-    for (const s of SEED_ENTRIES) {
-      const floor = computeMatchScore(s.levelId, s.you, s.rival, noStyle);
-      const ceil = computeMatchScore(s.levelId, s.you, s.rival, { syncRate: 1, redundancy: 0, exploitability: 0 });
-      expect(s.score).toBeGreaterThanOrEqual(floor * 0.9);
-      expect(s.score).toBeLessThanOrEqual(ceil);
-    }
+  it("start empty — the board opens with all ten rungs unclaimed", () => {
+    expect(SEED_ENTRIES).toHaveLength(0);
   });
 
-  it("hold their slot on a tie — a real match must strictly outscore a mock row", () => {
-    const top = SEED_ENTRIES[0]!;
-    const { entries } = insertEntry([...SEED_ENTRIES], entry(top.score, "2026-08-21T00:00:00.000Z", "NOU"));
-    expect(entries[0]!.name).toBe(top.name);
+  it("the first real entry takes the top of an empty table", () => {
+    const { entries, placement } = insertEntry([...SEED_ENTRIES], entry(1500, "2026-08-21T00:00:00.000Z", "NOU"));
+    expect(placement).toBe(1);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.name).toBe("NOU");
   });
 });
 

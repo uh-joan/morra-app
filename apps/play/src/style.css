@@ -1138,7 +1138,6 @@ body.tecnic #roundResultCard { display: block; }
 .classif-wrap { max-width: 680px; margin: 0 auto; }
 .classif-head { text-align: center; margin-bottom: 18px; }
 .classif-title { font-family: var(--serif); font-size: 34px; font-weight: 800; margin: 0; color: var(--gold-2); text-shadow: 0 2px 14px rgba(224,182,79,.35); letter-spacing: .04em; }
-.classif-tag { margin: 4px 0 0; color: var(--dim); font-size: 13px; }
 .rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .rank-row {
   display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 14px;

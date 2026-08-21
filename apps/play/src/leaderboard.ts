@@ -84,17 +84,10 @@ export function insertEntry(
   return placement === -1 ? { entries: [...entries], placement: null } : { entries: next, placement: placement + 1 };
 }
 
-/** The default table: a mock crew whose feats were minted honestly by the
- * formula above, so every line is a genuinely comparable target. Early
- * rows fall in a sitting; jani's El Rei line should stand for a while.
- * Ties break earlier-first — a real match must strictly OUTSCORE a mock
- * row to pass it. */
-export const SEED_ENTRIES: readonly RankEntry[] = [
-  { name: "jani", levelId: "L4", score: 16800, you: 10, rival: 6, at: "2026-07-12T18:00:00.000Z", seed: true },
-  { name: "rafa", levelId: "L3", score: 7000, you: 10, rival: 7, at: "2026-07-28T18:00:00.000Z", seed: true },
-  { name: "jordi", levelId: "L2", score: 3200, you: 10, rival: 7, at: "2026-08-05T18:00:00.000Z", seed: true },
-  { name: "tito", levelId: "L1", score: 1200, you: 10, rival: 8, at: "2026-08-14T18:00:00.000Z", seed: true },
-];
+/** The default table starts empty — all ten rungs open, waiting for the
+ * first real gesta. The render fills unclaimed positions with dashes and
+ * zero points. (Mock seeds retired by user call before launch.) */
+export const SEED_ENTRIES: readonly RankEntry[] = [];
 
 /** Score display, ca-ES style: 16800 → "16.800". */
 export function formatScore(score: number): string {
