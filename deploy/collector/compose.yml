@@ -1,0 +1,23 @@
+# morra event collector — joins the buzz stack's network so the shared Caddy
+# can reach it as `morra-collector:9310`. Data lands on the host at
+# /srv/morra-logs (NDJSON, one file per UTC day).
+#
+#   cd /opt/morra-collector && docker compose up -d --build
+services:
+  morra-collector:
+    build: .
+    container_name: morra-collector
+    restart: unless-stopped
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - /srv/morra-logs:/data
+    networks:
+      - buzz-net
+    mem_limit: 128m
+    read_only: true
+
+networks:
+  buzz-net:
+    external: true
+    name: buzz-prod_buzz-net

@@ -1,0 +1,2 @@
+# local rsync copy of the box's event logs (stats.sh)
+.logs/

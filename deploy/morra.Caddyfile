@@ -11,6 +11,12 @@ morra.joans.cat {
   root * /srv/morra
   file_server
 
+  # Telemetry: the app batches NDJSON events to /log (telemetry.ts). The
+  # collector container (deploy/collector/) joins the buzz network and
+  # appends to /srv/morra-logs. If it's down, this 502s and the app drops
+  # events silently by design — gameplay never depends on it.
+  reverse_proxy /log morra-collector:9310
+
   header {
     X-Frame-Options "DENY"
     X-Content-Type-Options "nosniff"
