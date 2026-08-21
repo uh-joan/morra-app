@@ -419,9 +419,6 @@ video#camPreview { width: 100%; display: block; background: #000; transform: sca
 .hand-indicator.on { background: rgba(63,214,143,.16); color: var(--good); }
 .hand-indicator .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
-/* the wrapper is invisible to desktop flow — the STAGE (phone) layout turns
-   it into your PiP-twin card */
-.you-hud { display: contents; }
 .big-number-wrap { display: flex; flex-direction: column; align-items: center; }
 .big-duo { display: flex; align-items: flex-end; gap: 26px; justify-content: center; flex-wrap: wrap; }
 .big-item { display: flex; flex-direction: column; align-items: center; }
@@ -1156,11 +1153,12 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
 .solo-portrait { background: radial-gradient(closest-side, rgba(224,182,79,.35), rgba(224,182,79,.08) 60%, transparent 70%); }
 
 /* ------------------------------------------- stacked fight: the STAGE
-   Phones + narrow tablets: a call-style layout. Your camera fills one tall
-   card (everything needed for play floats on it as glass overlays); the
-   rival is a draggable PiP that docks left or right; your own numbers ride
-   a bar at the bottom. The round-detail card stays below the fold,
-   reachable but never required.
+   Phones + narrow tablets: a call-style layout. The score rides on top in
+   flow; below it ONE tall pirate card holds the camera (not full-bleed —
+   it breathes) with the mic strip at the card's bottom. Your DITS·VEU
+   card and the rival's draggable PiP float over the camera on opposite
+   shoulders and swap sides together. The round-detail card stays below
+   the fold, reachable but never required.
    Lives HERE, at the tail of the file, because it re-positions elements
    whose base rules (r3 ready-pill, verdict banner, framing hint…) are
    declared above at the same specificity — order is the tiebreak.
@@ -1170,15 +1168,21 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   .arena { padding: 8px 8px 0; }
   .face-off { display: block; position: relative; }
 
-  /* the stage: player-side stretches to the viewport (minus header+margins);
-     its data-pill border glow becomes the armed/analyzing signal */
+  /* the score sits ABOVE the stage, in flow, centered */
+  body[data-mode="partida"][data-screen="fight"] .score-strip {
+    width: max-content; max-width: 100%; margin: 0 auto 8px;
+  }
+
+  /* the stage card: camera on top (flex-grown), mic strip at the bottom;
+     its data-pill border glow stays the armed/analyzing signal */
   .player-side {
-    position: relative; height: calc(100dvh - var(--topbar-h, 55px) - 20px);
-    overflow: hidden; border-radius: 16px; display: block; max-width: none;
+    position: relative; height: calc(100dvh - var(--topbar-h, 55px) - 76px);
+    display: flex; flex-direction: column; gap: 6px;
+    max-width: none; padding: 8px; overflow: hidden; border-radius: 16px;
   }
   .player-side .side-nameplate.you { display: none; }
-  .player-side .hero-video { max-width: none; width: 100%; height: 100%; }
-  .player-side .video-wrap { width: 100%; height: 100%; border: 0; border-radius: 16px; box-shadow: none; }
+  .player-side .hero-video { max-width: none; width: 100%; flex: 1 1 0; min-height: 0; position: relative; }
+  .player-side .video-wrap { width: 100%; height: 100%; border-radius: 12px; }
   /* the camera COVERS the card; the skeleton canvas gets the IDENTICAL box,
      intrinsic size (camera.ts sizes it to videoWidth×videoHeight) and
      object-fit, so the crop maps both layers the same and the overlay stays
@@ -1187,22 +1191,16 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
     position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
   }
 
-  /* score floats top-center INSIDE the stage */
-  body[data-mode="partida"][data-screen="fight"] .score-strip {
-    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
-    z-index: 6; width: max-content; max-width: 94%; margin: 0;
-  }
-
   /* the rival PiP: top corner card, draggable left↔right (screens.ts sets
      data-dock; the drag translates, the dock owns the resting side) */
   .face-off .rival-side {
-    position: absolute; z-index: 7; top: 64px; right: 10px; width: 118px;
+    position: absolute; z-index: 7; top: 16px; right: 18px; width: 118px;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
     padding: 8px 6px; border-radius: 14px;
     background: rgba(6,9,18,.72); border: 2px solid var(--wood-2);
     backdrop-filter: blur(4px); touch-action: none; cursor: grab;
   }
-  .face-off .rival-side[data-dock="left"] { right: auto; left: 10px; }
+  .face-off .rival-side[data-dock="left"] { right: auto; left: 18px; }
   .rival-side .side-nameplate { display: none; }         /* the header chip names him */
   .rival-side .rival-figure-frame { width: 44px; }
   .rival-side .rival-hand-wrap { padding: 0; gap: 6px; background: none; border: 0; backdrop-filter: none; }
@@ -1215,49 +1213,43 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   .rival-side .taunt { top: calc(100% + 6px); bottom: auto; left: auto; right: 0; width: max-content; max-width: 62vw; border-radius: 12px 2px 12px 12px; }
   .rival-side[data-dock="left"] .taunt { right: auto; left: 0; border-radius: 2px 12px 12px 12px; }
 
-  /* the round's verdict stamps CENTER stage (score owns the top now);
+  /* the round's verdict stamps CENTER stage;
      absolute-centered without transform so vb-in's keyframes still play */
   .player-side .video-wrap .verdict-banner { top: 0; bottom: 0; margin: auto 10px; height: fit-content; }
 
-  /* YOUR card: the rival PiP's twin under the score, opposite shoulder —
-     you left, rival right (and it swaps sides when the PiP is dragged
-     across, so the pair always reads in one glance) */
-  .player-side .you-hud {
-    position: absolute; z-index: 6; top: 64px; left: 10px; width: 118px;
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    padding: 8px 6px; border-radius: 14px;
+  /* YOUR card: the rival PiP's twin, opposite shoulder — you left, rival
+     right (and it swaps sides when the PiP is dragged across, so the pair
+     always reads in one glance) */
+  .player-side .big-number-wrap {
+    position: absolute; z-index: 6; top: 16px; left: 18px; width: 118px;
+    margin: 0; padding: 8px 6px; border-radius: 14px;
     background: rgba(6,9,18,.72); border: 2px solid var(--wood-2);
     backdrop-filter: blur(4px);
   }
-  .face-off:has(.rival-side[data-dock="left"]) .you-hud { left: auto; right: 10px; }
-  /* the children shed their own chrome — the card is the chrome */
-  .you-hud .big-number-wrap, .you-hud .shout-wrap {
-    position: static; margin: 0; padding: 0; max-width: none; width: 100%;
-    background: none; border: 0; backdrop-filter: none;
-    display: flex; flex-direction: column; align-items: center;
-  }
-  .you-hud .shout-wrap { gap: 4px; }
-  .shout-wrap .voice-meter { width: 100%; max-width: 96px; }
-  .big-number-wrap .big-duo { display: flex; gap: 12px; }
+  .face-off:has(.rival-side[data-dock="left"]) .player-side .big-number-wrap { left: auto; right: 18px; }
+  .big-number-wrap .big-duo { flex-direction: column; gap: 2px; align-items: center; }
   .big-number-wrap .big-number { font-size: 30px; line-height: 1.1; }
   .big-number-wrap .big-word { font-size: 17px; line-height: 1.6; }
   .big-number-wrap .big-number-label { font-size: 9px; }
-  /* the mic badge sheds its big desktop chrome inside the card */
+
+  /* escoltant + the noise meter: the card's bottom strip, under the camera */
+  .player-side .shout-wrap {
+    position: static; width: 100%; max-width: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .shout-wrap .voice-meter { width: min(60%, 220px); }
+  /* the mic badge sheds its big desktop chrome */
   .shout-wrap .shout-badge {
-    font-size: 10px; padding: 3px 6px; letter-spacing: .02em; border-width: 1px;
+    font-size: 12px; padding: 3px 12px; letter-spacing: .04em; border-width: 1px;
     min-width: 0; max-width: 100%; box-sizing: border-box;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .shout-wrap .clip-warn { font-size: 10.5px; }
-  /* the bottom is clear now — the ready pill keeps its bottom-center post */
-  .player-side .video-wrap .ready-pill { bottom: 14px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; z-index: 6; }
-  /* the hand chip tucks top-left, above your card; the framing hint gets
-     the freed bottom edge (the pill sits low too, but the two states barely
-     coexist — and stacked they still read) */
+  /* the ready pill keeps its bottom-center post on the camera */
+  .player-side .video-wrap .ready-pill { bottom: 12px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; z-index: 6; }
   /* the hand chip is redundant on stage — your card's own label (cap mà /
      dits vistos) says the same thing in the same glance */
   .hero-video .hand-indicator { display: none; }
-  .hero-video .framing-hint { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 92%; z-index: 6; margin: 0; }
+  .hero-video .framing-hint { position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 92%; z-index: 6; margin: 0; }
   .beat-wrap { margin-top: 10px; }
 }
 
