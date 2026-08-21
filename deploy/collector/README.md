@@ -21,6 +21,10 @@ silently). This directory is the production sink.
 ```bash
 # from the repo root on your laptop
 rsync -avz deploy/collector/ root@178.105.134.73:/opt/morra-collector/
+# the container runs as uid 1000 (node), so the bind-mount dir must be
+# writable by it — without this the writes hit EACCES and the collector
+# crash-loops while clients still get 204s (silent data loss).
+ssh root@178.105.134.73 "mkdir -p /srv/morra-logs && chown 1000:1000 /srv/morra-logs"
 ssh root@178.105.134.73 "cd /opt/morra-collector && docker compose up -d --build"
 ```
 

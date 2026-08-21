@@ -6,8 +6,8 @@ Play [morra](https://en.wikipedia.org/wiki/Morra_(game)) — the Mediterranean
 finger-and-shout game — against an AI corsair, in the browser. You throw
 fingers and call your guess of the total out loud; the rival's move is
 cryptographically committed *before* you throw and revealed the instant your
-hand settles, so it can never peek. First to 10, `parata` (tie) scores
-nobody.
+hand settles, so it can never peek. First to 10; a tie — both right, or both
+wrong — scores nobody.
 
 Two channels have to land together: the camera counts your fingers
 (MediaPipe HandLandmarker) and the mic hears your number (vosk, Catalan). A
@@ -61,6 +61,7 @@ a port verified against it (see "The spike is the truth" below).
 | `spikes/` | The five Step-0 spikes and their run-sheet ([README](spikes/README.md)). The regression oracle. |
 | `scripts/` | `cross-check-conformance.mjs` (core vs spike), `eval-counting.mjs` (finger-count rule evaluator). |
 | `docs/` | Field playtest analyses, the finger-counting accuracy investigation, AI + UX design, security audit. |
+| `deploy/` | Ship to [morra.joans.cat](https://morra.joans.cat) (static site on the shared Hetzner Caddy) and the `/log` telemetry collector. Its own [README](deploy/README.md) + [collector README](deploy/collector/README.md). |
 
 ## The spike is the truth
 
@@ -96,12 +97,36 @@ pnpm test:parity              # live spike vs app, identical scenarios
 node test/shots.mjs           # regenerate docs/screenshots from the built dist
 ```
 
-Full-gate expectation on a clean tree today: unit **540** (core 285 ·
-recognition 96 · platform-web 55 · app 104), conformance **105/105**,
+Full-gate expectation on a clean tree today: unit **553** (core 285 ·
+recognition 104 · platform-web 55 · app 109), conformance **105/105**,
 `apps/play` integration **118/118**, parity **18/18**.
+
+## Deployed at [morra.joans.cat](https://morra.joans.cat)
+
+Every merge to `main` touching `apps/play/**`, `packages/**`, or `deploy/**`
+auto-deploys ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) —
+a static site on the Hetzner box that also serves buzz, behind one shared
+Caddy. Setup and box-side steps live in [`deploy/README.md`](deploy/README.md).
+
+**Field telemetry.** The app batches ~55 event types (onboarding funnel,
+gameplay, health) as NDJSON to `POST /log`; a small hardened collector on the
+box appends them to `/srv/morra-logs/events-<day>.ndjson` — player names are
+hashed, never stored raw. To pull the logs down and print the report
+(sessions/visitors per day, the onboarding funnel, the voice-model cache-hit
+rate, throw outcomes, errors):
+
+```bash
+deploy/collector/stats.sh
+```
+
+The report is DuckDB over the raw NDJSON, so any ad-hoc query is a one-liner —
+see [`deploy/collector/README.md`](deploy/collector/README.md) for the box-side
+install and query examples.
 
 ## Requirements
 
 Node 20+ · pnpm 11 · a Chromium browser with a camera and mic. The Catalan
-voice model (~47 MB) downloads on first use; MediaPipe/vosk are fetched from
-CDN unless vendored (`apps/play/scripts/prepare-assets.mjs`).
+voice model (~47 MB) downloads on first use, then is cached on-device (Cache
+Storage) so it never re-downloads. In the deployed build MediaPipe and vosk
+are vendored same-origin (`apps/play/scripts/prepare-assets.mjs`), never
+fetched from a CDN at runtime.

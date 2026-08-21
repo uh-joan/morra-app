@@ -53,12 +53,12 @@ deploy/deploy.sh
 rsync only ships changed files, so repeat deploys move ~1 MB (the app JS), not
 the 75 MB of models/wasm.
 
-## Automated deploys (optional)
+## Automated deploys (live)
 
-[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) does the same
-from CI. It's `workflow_dispatch` (manual) until you verify the first run;
-uncomment the `push` trigger to deploy on every merge to `main`. Add three repo
-secrets: `DEPLOY_SSH_KEY` (a deploy key in the box's `authorized_keys`),
+[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) runs the same
+from CI and is **live**: every merge to `main` that touches `apps/play/**`,
+`packages/**`, or `deploy/**` deploys automatically. It authenticates with three
+repo secrets — `DEPLOY_SSH_KEY` (a deploy key in the box's `authorized_keys`),
 `DEPLOY_HOST` (`178.105.134.73`), `DEPLOY_USER`.
 
 ## Notes
@@ -66,10 +66,14 @@ secrets: `DEPLOY_SSH_KEY` (a deploy key in the box's `authorized_keys`),
 - **The vosk model** (42 MB, from alphacephei) is gitignored; `deploy.sh` and
   the CI both fetch it once via `spikes/models/fetch-ca-model.sh`. Consider
   mirroring a copy somewhere you control in case that URL moves.
-- **Telemetry** (`POST /log`) has no collector in production — it 404s and the
-  app no-ops gracefully. To capture real-player field data you'd add a small
-  `/log` service behind Caddy plus the audit's H3 hardening
-  ([docs/security-audit-2026-08-20.md](../docs/security-audit-2026-08-20.md)).
+- **Telemetry** (`POST /log`) is **live**: a hardened collector container
+  ([`deploy/collector/`](collector/)) appends the app's NDJSON events to
+  `/srv/morra-logs/events-<day>.ndjson`, and the Caddy vhost proxies `/log` to
+  it. Player names are hashed, never stored raw. Pull the logs and see the
+  report with [`deploy/collector/stats.sh`](collector/stats.sh); box-side
+  install and the H3 hardening are documented in
+  [`collector/README.md`](collector/README.md). If the container is ever down,
+  `/log` 502s and the app no-ops gracefully — gameplay never depends on it.
 - **Security headers** — the full CSP ships as a `<meta>` in `index.html`
   (works on any host); the header-only extras are in the Caddy block above
   (Caddy doesn't read the Netlify-style `public/_headers`).
