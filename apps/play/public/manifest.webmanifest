@@ -1,0 +1,17 @@
+{
+  "name": "Morra — el duel dels corsaris",
+  "short_name": "Morra",
+  "description": "El joc de la morra contra quatre corsaris: tira els dits, canta el número i guanya't un lloc a la Classificació. Càmera i micròfon, en català.",
+  "lang": "ca",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1224",
+  "theme_color": "#0b1224",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

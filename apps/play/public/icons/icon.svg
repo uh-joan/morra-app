@@ -1,0 +1,71 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#152036"/>
+      <stop offset=".55" stop-color="#0b1224"/>
+      <stop offset="1" stop-color="#070c18"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="42%" r="60%">
+      <stop offset="0" stop-color="#e0b64f" stop-opacity=".22"/>
+      <stop offset=".6" stop-color="#e0b64f" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#e0b64f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#sea)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <!-- a few faint stars -->
+  <g fill="#f0e6cc" opacity=".5">
+    <circle cx="180" cy="150" r="4"/><circle cx="840" cy="120" r="3"/>
+    <circle cx="720" cy="220" r="2.5"/><circle cx="260" cy="260" r="2.5"/>
+    <circle cx="900" cy="330" r="3"/><circle cx="120" cy="380" r="2.5"/>
+  </g>
+
+  <!-- waves along the bottom, the title screen's own silhouette -->
+  <g opacity=".85">
+    <path d="M0 905 Q64 875 128 905 T256 905 T384 905 T512 905 T640 905 T768 905 T896 905 T1024 905 L1024 1024 L0 1024 Z" fill="#13233f"/>
+    <path d="M0 950 Q64 924 128 950 T256 950 T384 950 T512 950 T640 950 T768 950 T896 950 T1024 950 L1024 1024 L0 1024 Z" fill="#0d1830"/>
+  </g>
+
+  <!-- the throw: crossed bones, FIVE and TWO, the skull on top.
+       Geometry lifted from the wordmark's O-group, scaled ~5.2x. -->
+  <g transform="translate(512 470) scale(5.2)">
+    <!-- crossed bones -->
+    <g stroke="#161d2c" stroke-width="16" stroke-linecap="round" opacity=".9">
+      <path d="M-52 34 L52 -34"/>
+      <path d="M52 34 L-52 -34"/>
+    </g>
+    <g stroke="#d8c9a8" stroke-width="11" stroke-linecap="round">
+      <path d="M-52 34 L52 -34"/>
+      <path d="M52 34 L-52 -34"/>
+    </g>
+    <!-- lower ends: bone knobs -->
+    <g fill="#d8c9a8" stroke="#161d2c" stroke-width="2.5">
+      <circle cx="-56" cy="30" r="7"/><circle cx="-49" cy="39" r="7"/>
+      <circle cx="56" cy="30" r="7"/><circle cx="49" cy="39" r="7"/>
+    </g>
+    <!-- upper-left hand: FIVE -->
+    <g transform="translate(-56 -38) rotate(-30)" fill="#d8c9a8" stroke="#161d2c" stroke-width="2">
+      <ellipse rx="13" ry="10.5"/>
+      <g stroke="#d8c9a8" stroke-width="5.5" stroke-linecap="round">
+        <path d="M-7 -8 L-13 -23"/><path d="M-1 -10 L-2 -27"/><path d="M5 -9 L9 -25"/><path d="M10 -5 L18 -17"/><path d="M-11 -2 L-24 -7"/>
+      </g>
+    </g>
+    <!-- upper-right hand: TWO -->
+    <g transform="translate(56 -38) rotate(30)" fill="#d8c9a8" stroke="#161d2c" stroke-width="2">
+      <ellipse rx="13" ry="10.5"/>
+      <g stroke="#d8c9a8" stroke-width="5.5" stroke-linecap="round">
+        <path d="M-4 -10 L-8 -27"/><path d="M4 -10 L8 -27"/>
+      </g>
+    </g>
+    <!-- the skull -->
+    <g transform="translate(0 -4)">
+      <path d="M-30 -6 Q-30 -40 0 -40 Q30 -40 30 -6 Q30 10 19 15 L19 26 Q10 31 0 31 Q-10 31 -19 26 L-19 15 Q-30 10 -30 -6 Z" fill="#f0e6cc" stroke="#161d2c" stroke-width="3"/>
+      <circle cx="-11.5" cy="-7" r="8.2" fill="#161d2c"/>
+      <circle cx="11.5" cy="-7" r="8.2" fill="#161d2c"/>
+      <path d="M0 1 L5 12 L-5 12 Z" fill="#161d2c"/>
+      <path d="M-11 21 L-11 28 M-3.5 23 L-3.5 30 M3.5 23 L3.5 30 M11 21 L11 28" stroke="#161d2c" stroke-width="3" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
