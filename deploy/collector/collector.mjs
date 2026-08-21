@@ -55,6 +55,13 @@ function dayStream() {
   if (day !== streamDay) {
     stream?.end();
     stream = createWriteStream(path.join(DATA_DIR, `events-${day}.ndjson`), { flags: "a" });
+    // An unhandled 'error' event would crash the process (seen in prod:
+    // EACCES on a root-owned bind mount → crash loop, silent data loss).
+    // Log it and force a reopen attempt on the next batch instead.
+    stream.on("error", (err) => {
+      console.error(`write stream error: ${err.message}`);
+      streamDay = "";
+    });
     streamDay = day;
   }
   return stream;

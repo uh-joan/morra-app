@@ -2,6 +2,9 @@
 # can reach it as `morra-collector:9310`. Data lands on the host at
 # /srv/morra-logs (NDJSON, one file per UTC day).
 #
+# The container runs as the image's `node` user (uid 1000), so the host dir
+# must be writable by it — one-time on the box:  chown 1000:1000 /srv/morra-logs
+#
 #   cd /opt/morra-collector && docker compose up -d --build
 services:
   morra-collector:
