@@ -1,17 +1,16 @@
-// render/classificacio.ts — the Classificació screen: the vessel's top-10,
-// arcade-table anatomy at its purest (position · name · score). Pure
-// data→DOM over leaderboardStore's table; names are player input, so all
-// text lands via textContent.
+// render/classificacio.ts — the Classificació screen: the vessel's view of
+// the ONE arcade table. The local shadow renders instantly (no spinner),
+// then the global table swaps in when the fetch lands and becomes the new
+// shadow. Offline (or server down): the shadow stands, with a dim note.
+// Pure data→DOM; names are player input, so all text lands via textContent.
 
-import { formatScore, RANKING_CAP } from "../leaderboard.js";
-import { loadRanking } from "../leaderboardStore.js";
+import { formatScore, RANKING_CAP, type RankEntry } from "../leaderboard.js";
+import { fetchGlobalRanking, loadRanking, saveRanking } from "../leaderboardStore.js";
 
-export function renderClassificacioScreen(): void {
+function renderRows(entries: readonly RankEntry[]): void {
   const list = document.getElementById("rankingList");
   if (!list) return;
-  const entries = loadRanking();
-  // All ten rungs, always — the classic table shows the places still there
-  // for the taking. Unclaimed rows render dim, with dashes.
+  // All ten rungs, always — unclaimed rows render dim, zero points.
   list.replaceChildren(
     ...Array.from({ length: RANKING_CAP }, (_, i) => {
       const e = entries[i];
@@ -30,4 +29,23 @@ export function renderClassificacioScreen(): void {
       return li;
     })
   );
+}
+
+let renderToken = 0; // a stale fetch never paints over a newer entry
+
+export function renderClassificacioScreen(): void {
+  const token = ++renderToken;
+  const offline = document.getElementById("classifOffline");
+  if (offline) offline.hidden = true;
+  renderRows(loadRanking());
+  void fetchGlobalRanking().then((global) => {
+    if (token !== renderToken) return; // superseded by a fresh entry
+    if (document.body.dataset.screen !== "classificacio") return; // navigated away
+    if (global) {
+      saveRanking(global); // the shadow follows the one table
+      renderRows(global);
+    } else if (offline) {
+      offline.hidden = false;
+    }
+  });
 }

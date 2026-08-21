@@ -45,7 +45,7 @@ import { setLastRoundAudioEndCtxTime, rivalClipTailGuardS } from "./rivalAudioLo
 import { playRivalCall, preloadRivalVoiceClips } from "./rivalVoice.js";
 import { loadPlayerModel, savePlayerModel, recordRivalBeaten, getActiveProfileName } from "./profile.js";
 import { computeMatchScore, formatScore, insertEntry } from "./leaderboard.js";
-import { loadRanking, saveRanking } from "./leaderboardStore.js";
+import { loadRanking, saveRanking, submitGlobalEntry } from "./leaderboardStore.js";
 import { voskLoaded } from "./vosk.js";
 import {
   populateAiLevelSelector,
@@ -438,17 +438,28 @@ function resolveGameRound(
         redundancy: computeRandomnessScore(matchHistory)?.redundancy ?? null,
         exploitability: computeExploitability(matchHistory).rate,
       });
-      const { entries, placement } = insertEntry(loadRanking(), {
+      const rankEntry = {
         name: getActiveProfileName(),
         levelId: currentAiLevel,
         score,
         you: gameScore.player,
         rival: gameScore.ai,
         at: new Date().toISOString(),
-      });
+      };
+      const { entries, placement } = insertEntry(loadRanking(), rankEntry);
       if (placement != null) saveRanking(entries);
       renderRankingPlacement(placement, formatScore(score));
       logEvent("classificacio_entry", { placement, score, levelId: currentAiLevel });
+      // …and onto the ONE table (arcade rules: a win just lands there). The
+      // local placement shows immediately; when the server answers, the
+      // banner updates to the GLOBAL truth — including going quiet if the
+      // score misses the world's cut. Offline: the local celebration stands.
+      void submitGlobalEntry(rankEntry).then((res) => {
+        if (!res) return; // server unreachable — the /log doctrine
+        saveRanking(res.entries); // the shadow follows the one table
+        renderRankingPlacement(res.placement, res.placement != null ? formatScore(score) : null);
+        logEvent("classificacio_global", { placement: res.placement, score, levelId: currentAiLevel });
+      });
     } else {
       renderRankingPlacement(null, null);
     }
