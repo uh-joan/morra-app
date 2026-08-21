@@ -105,6 +105,30 @@ r.check("model loaded", /loaded/.test(await page.$eval("#chipModel .detail", (n)
 r.check("mic running", (await page.$eval("#chipMic .detail", (n) => n.textContent)) === "running");
 r.check("audio clock live after gesture", /outputLatency ok|baseLatency/.test(await page.$eval("#chipClock .detail", (n) => n.textContent)));
 
+// The rival ladder (2026-08-21) gates entry: on a fresh profile only Nino
+// (L1) is open; L2–L4 rattle their chains until you beat the one before.
+// First prove a LOCKED card can't open a duel, then unlock the whole board
+// so the rest of the suite — which picks Bru (L2) and deep-links El Rei
+// (L4) — exercises a climbed ladder. The ladder key is the active profile's
+// model key + "::ladder-v1" (the default profile → the legacy model key).
+const LADDER_KEY = "morra-s03-playermodel-v1::ladder-v1";
+await page.evaluate(() => { location.hash = "#/tripulants"; });
+await page.waitForFunction(() => document.body.dataset.screen === "select", { timeout: 3000 });
+const gate = await page.evaluate(() => {
+  const l2 = document.getElementById("pirateCard-L2");
+  const lockedBefore = l2.dataset.locked === "on";
+  l2.click(); // a locked tap must NOT open the fight — it rattles the chains
+  return { lockedBefore, screen: document.body.dataset.screen };
+});
+r.check("a locked rival card does not open a duel (fresh profile: only Nino open)", gate.lockedBefore && gate.screen === "select", JSON.stringify(gate));
+await page.evaluate((key) => {
+  localStorage.setItem(key, JSON.stringify(["L1", "L2", "L3"])); // climbed: all four open
+  location.hash = "#/";
+}, LADDER_KEY);
+await page.waitForFunction(() => document.body.dataset.screen === "title", { timeout: 3000 });
+await page.evaluate(() => { location.hash = "#/tripulants"; });
+await page.waitForFunction(() => document.getElementById("pirateCard-L2")?.dataset.locked !== "on", { timeout: 3000 });
+
 // Enter the fight through the character select (the harness bypassed the
 // "Juga" onboarding by starting the sensors directly, so navigate there).
 await page.evaluate(() => { document.body.dataset.screen = "select"; });
