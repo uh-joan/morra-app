@@ -1,0 +1,127 @@
+import { describe, expect, it } from "vitest";
+import {
+  computeMatchScore,
+  formatScore,
+  insertEntry,
+  RANKING_CAP,
+  SEED_ENTRIES,
+  styleMultiplier,
+  type RankEntry,
+  type StyleMetrics,
+} from "../../src/leaderboard.js";
+
+const noStyle: StyleMetrics = { syncRate: null, redundancy: null, exploitability: null };
+
+function entry(score: number, at = "2026-08-21T12:00:00.000Z", name = "JANI"): RankEntry {
+  return { name, levelId: "L1", score, you: 10, rival: 8, at };
+}
+
+describe("styleMultiplier", () => {
+  it("is 1.0 with no metrics (style never punishes silence)", () => {
+    expect(styleMultiplier(noStyle)).toBe(1);
+  });
+
+  it("caps at 1.5 with perfect play", () => {
+    expect(styleMultiplier({ syncRate: 1, redundancy: 0, exploitability: 0 })).toBe(1.5);
+  });
+
+  it("averages only the available components", () => {
+    // sync alone at 0.5 → 1 + 0.5×0.5 = 1.25
+    expect(styleMultiplier({ syncRate: 0.5, redundancy: null, exploitability: null })).toBe(1.25);
+  });
+
+  it("treats 40%+ exploitability as an open book (component 0)", () => {
+    expect(styleMultiplier({ syncRate: null, redundancy: null, exploitability: 0.4 })).toBe(1);
+    expect(styleMultiplier({ syncRate: null, redundancy: null, exploitability: 0.6 })).toBe(1);
+    // unreadable equilibrium (~0.2) → component 0.5 → ×1.25
+    expect(styleMultiplier({ syncRate: null, redundancy: null, exploitability: 0.2 })).toBe(1.25);
+  });
+});
+
+describe("computeMatchScore", () => {
+  it("weights rivals: El Rei ≈ ten plain Ninos at equal margin", () => {
+    const nino = computeMatchScore("L1", 10, 8, noStyle);
+    const rei = computeMatchScore("L4", 10, 8, noStyle);
+    expect(nino).toBe(1200);
+    expect(rei).toBe(12000);
+  });
+
+  it("margin doubles a perfect game and barely lifts a scrape", () => {
+    expect(computeMatchScore("L1", 10, 0, noStyle)).toBe(2000);
+    expect(computeMatchScore("L1", 10, 9, noStyle)).toBe(1100);
+  });
+
+  it("a perfect Nino win outscores a scraped Bru win — every rung worth playing well", () => {
+    const perfectNino = computeMatchScore("L1", 10, 0, { syncRate: 1, redundancy: 0, exploitability: 0 });
+    const scrapedBru = computeMatchScore("L2", 10, 9, noStyle);
+    expect(perfectNino).toBe(3000);
+    expect(scrapedBru).toBe(2750);
+    expect(perfectNino).toBeGreaterThan(scrapedBru);
+  });
+
+  it("falls back to the L1 base for an unknown level id", () => {
+    expect(computeMatchScore("L9", 10, 8, noStyle)).toBe(1200);
+  });
+});
+
+describe("insertEntry", () => {
+  it("places by score descending", () => {
+    const { entries, placement } = insertEntry([entry(3000), entry(1000, "2026-08-20T00:00:00.000Z")], entry(2000));
+    expect(placement).toBe(2);
+    expect(entries.map((e) => e.score)).toEqual([3000, 2000, 1000]);
+  });
+
+  it("breaks ties earlier-first — the incumbent keeps the slot", () => {
+    const older = entry(2000, "2026-08-01T00:00:00.000Z", "VELL");
+    const { entries, placement } = insertEntry([older], entry(2000, "2026-08-21T00:00:00.000Z", "NOU"));
+    expect(entries[0]!.name).toBe("VELL");
+    expect(placement).toBe(2);
+  });
+
+  it("caps at ten and reports null when the entry misses the cut", () => {
+    const table = Array.from({ length: RANKING_CAP }, (_, i) => entry(10000 - i * 100, `2026-08-0${(i % 9) + 1}T00:00:00.000Z`));
+    const { entries, placement } = insertEntry(table, entry(1));
+    expect(placement).toBeNull();
+    expect(entries).toHaveLength(RANKING_CAP);
+    expect(entries.map((e) => e.score)).toEqual(table.map((e) => e.score));
+  });
+
+  it("dethrones the last row when the newcomer outscores it", () => {
+    const table = Array.from({ length: RANKING_CAP }, (_, i) => entry(10000 - i * 100));
+    const { entries, placement } = insertEntry(table, entry(9950));
+    expect(placement).toBe(2);
+    expect(entries).toHaveLength(RANKING_CAP);
+    expect(entries.some((e) => e.score === 9100)).toBe(false); // old 10th fell off
+  });
+});
+
+describe("seeds", () => {
+  it("arrive ordered and honestly derivable from the formula's range", () => {
+    const scores = SEED_ENTRIES.map((e) => e.score);
+    expect(scores).toEqual([...scores].sort((a, b) => b - a));
+    for (const s of SEED_ENTRIES) {
+      const floor = computeMatchScore(s.levelId, s.you, s.rival, noStyle);
+      const ceil = computeMatchScore(s.levelId, s.you, s.rival, { syncRate: 1, redundancy: 0, exploitability: 0 });
+      expect(s.score).toBeGreaterThanOrEqual(floor * 0.9);
+      expect(s.score).toBeLessThanOrEqual(ceil);
+    }
+  });
+
+  it("hold their slot on a tie — a real match must strictly outscore a mock row", () => {
+    const top = SEED_ENTRIES[0]!;
+    const { entries } = insertEntry([...SEED_ENTRIES], entry(top.score, "2026-08-21T00:00:00.000Z", "NOU"));
+    expect(entries[0]!.name).toBe(top.name);
+  });
+});
+
+describe("display", () => {
+  it("formats scores ca-ES style", () => {
+    expect(formatScore(16800)).toBe("16.800");
+    expect(formatScore(999)).toBe("999");
+    expect(formatScore(1234567)).toBe("1.234.567");
+  });
+
+  it("caps the table at ten rows", () => {
+    expect(RANKING_CAP).toBe(10);
+  });
+});
