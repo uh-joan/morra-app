@@ -236,7 +236,7 @@ r.check("score strip visible on top with numerals mirroring the scoreboard", awa
 }));
 r.check("verdict banner shows the round's headline over the player card", await page.evaluate(() => {
   const b = document.getElementById("verdictBanner");
-  return !b.hidden && /TU GUANYES|RIVAL GUANYA|PARATA/.test(document.getElementById("verdictBannerHead").textContent) &&
+  return !b.hidden && /TU GUANYES|RIVAL GUANYA|EMPAT|PER A NINGÚ/.test(document.getElementById("verdictBannerHead").textContent) &&
     document.getElementById("verdictBannerReason").textContent.length > 5 && !!b.closest(".player-side");
 }));
 r.check("bottom round card stays hidden after a resolved round (renders rewrite its className)", await page.evaluate(() =>

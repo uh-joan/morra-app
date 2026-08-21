@@ -16,7 +16,7 @@ import {
   type HistoryEntry,
 } from "@morra/core";
 import { el } from "../dom.js";
-import { GAME_END_TEXT, AI_COMMIT_STATUS, SYNC_OUTCOME_VOID_REASON, SCOREBOARD_TEXT, ROUND_CARD_TEXT, TIMING_COACH, VERDICT_BANNER } from "../game/copy.js";
+import { GAME_END_TEXT, AI_COMMIT_STATUS, PARATA_HEADLINE, SYNC_OUTCOME_VOID_REASON, SCOREBOARD_TEXT, ROUND_CARD_TEXT, TIMING_COACH, VERDICT_BANNER } from "../game/copy.js";
 
 // ux-pirates r3: the verdict BANNER — same outcomes as the round card, but
 // big and over the player card (where the eyes are). Shown by the resolve
@@ -103,8 +103,11 @@ export function renderGameReveal(
   const aiWord = NUMBER_TO_CATALAN_CALL[move.call] || String(move.call);
   el.roundResultCard.className =
     "verdict-card " + (verdict.winner === "player" ? "hit" : verdict.winner === "ai" ? "miss" : "pending");
+  // Shared tie: winner "parata" means both guessed or neither — and if the
+  // player's call hit the total, the rival's must have too (rules.ts).
+  const bothGuessed = playerCallNumber === verdict.total;
   el.roundResultText.textContent =
-    verdict.winner === "player" ? "TU GUANYES!" : verdict.winner === "ai" ? "RIVAL GUANYA" : "PARATA";
+    verdict.winner === "player" ? "TU GUANYES!" : verdict.winner === "ai" ? "RIVAL GUANYA" : PARATA_HEADLINE(bothGuessed);
   el.roundResultDetail.textContent =
     `tu: ${playerFingers} dits + "${playerWord}"(${playerCallNumber}) · rival: ${move.fingers} dits + ${aiWord}(${move.call}) · total ${verdict.total}` +
     (verified ? ` · ${ROUND_CARD_TEXT.sealOk}` : ` · ${ROUND_CARD_TEXT.sealFailed}`);
@@ -112,7 +115,7 @@ export function renderGameReveal(
   const seal = (verified ? ROUND_CARD_TEXT.sealOk : ROUND_CARD_TEXT.sealFailed) + " · " + move.hashHex.slice(0, 8);
   if (verdict.winner === "player") banner("hit", "TU GUANYES!", VERDICT_BANNER.win(playerFingers, move.fingers, verdict.total, playerWord), seal);
   else if (verdict.winner === "ai") banner("miss", "RIVAL GUANYA", VERDICT_BANNER.loss(playerFingers, move.fingers, verdict.total, aiWord), seal);
-  else banner("parata", "PARATA", VERDICT_BANNER.parata(playerFingers, move.fingers, verdict.total, playerWord, aiWord), seal);
+  else banner("parata", PARATA_HEADLINE(bothGuessed), VERDICT_BANNER.parata(playerFingers, move.fingers, verdict.total, playerWord, aiWord, bothGuessed), seal);
 }
 
 export function renderScoreboard(player: number, ai: number): void {

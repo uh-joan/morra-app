@@ -5,8 +5,13 @@
 // HTML interpolation. ux-pirates: the English remnants inherited from the
 // spike are now Catalan too. FROZEN strings (asserted by the parity/
 // integration harnesses against the untouched spike): "RONDA ANUL·LADA",
-// "TU GUANYES!", "RIVAL GUANYA", "PARATA", the scoreboard format
-// "Tu N — M Rival", and AI_COMMIT_STATUS's "Opponent committed:" line.
+// "TU GUANYES!", "RIVAL GUANYA", the scoreboard format "Tu N — M Rival",
+// and AI_COMMIT_STATUS's "Opponent committed:" line.
+// 2026-08-21 field verdict: the spike's «PARATA» is not living Catalan —
+// nobody at the table says it. The shared-tie round now reads by its case:
+// both guessed the total → «EMPAT!», nobody did → «PER A NINGÚ», and the
+// context-free spots say «CAP PUNT». (The internal verdictWinner value
+// stays "parata" — it is an identifier, wired through core/telemetry.)
 import type { SyncClassification } from "@morra/core";
 
 export type SyncOutcome = SyncClassification["outcome"];
@@ -29,9 +34,13 @@ export function roundResultText(
     case "void": return "RONDA ANUL·LADA";
     case "player": return "TU GUANYES!";
     case "ai": return "RIVAL GUANYA";
-    case "parata": return "PARATA";
+    case "parata": return "CAP PUNT";
   }
 }
+
+/** The shared-tie headline, by its case: both said the total, or nobody did. */
+export const PARATA_HEADLINE = (bothGuessed: boolean): string =>
+  bothGuessed ? "EMPAT!" : "PER A NINGÚ";
 
 // step 8's SYNC_OUTCOME_VOID_REASON — why a round with a phase-1 reveal
 // still got voided.
@@ -220,8 +229,10 @@ export const VERDICT_BANNER = {
     `${pf} + ${af} = ${total} · has dit «${word ?? "?"}»`,
   loss: (pf: number, af: number, total: number, aiWord: string): string =>
     `${pf} + ${af} = ${total} · ell ha dit «${aiWord}»`,
-  parata: (pf: number, af: number, total: number, word: string | null, aiWord: string): string =>
-    `ningú l'ha encertat: ${pf} + ${af} = ${total} (tu «${word ?? "?"}», ell «${aiWord}»)`,
+  parata: (pf: number, af: number, total: number, word: string | null, aiWord: string, bothGuessed: boolean): string =>
+    bothGuessed
+      ? `tots dos l'heu encertat: ${pf} + ${af} = ${total} — cap punt`
+      : `ningú l'ha encertat: ${pf} + ${af} = ${total} (tu «${word ?? "?"}», ell «${aiWord}»)`,
   incompleteHeadline: "INCOMPLETA",
   incompleteTail: "la mateixa aposta segueix en peu",
 } as const;

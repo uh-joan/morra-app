@@ -10,7 +10,9 @@ describe("copy — Catalan strings (ux-pirates: all-Catalan pass over the spike 
     expect(roundResultText("void")).toBe("RONDA ANUL·LADA");
     expect(roundResultText("player")).toBe("TU GUANYES!");
     expect(roundResultText("ai")).toBe("RIVAL GUANYA");
-    expect(roundResultText("parata")).toBe("PARATA");
+    // 2026-08-21 field verdict: «PARATA» is not living Catalan — the
+    // context-free card says CAP PUNT (the banner picks EMPAT!/PER A NINGÚ)
+    expect(roundResultText("parata")).toBe("CAP PUNT");
   });
   it("voidDetail maps outcomes to reasons, with a generic fallback", () => {
     expect(voidDetail("voice-late")).toContain("massa tard");
