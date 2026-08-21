@@ -205,23 +205,6 @@ body.vs-on #vsSplash { display: flex; }
   }
 }
 .title-waves { position: absolute; bottom: 0; left: 0; right: 0; height: 90px; z-index: 1; }
-/* Attract mode: the Classificació's top-3 drift by at the top of the port,
-   one line per 4s slot of a 12s crossfade loop (delays set inline by the
-   renderer). Decorative whisper — small, dim gold, no interaction. */
-.title-ranking { position: absolute; top: 16px; left: 0; right: 0; height: 20px; z-index: 2; pointer-events: none; text-align: center; }
-.tr-row {
-  position: absolute; left: 0; right: 0; opacity: 0;
-  font-family: var(--serif); font-size: 13px; font-weight: 700; letter-spacing: .08em;
-  color: var(--gold); text-shadow: 0 1px 8px rgba(0,0,0,.5);
-  animation: trCycle 12s linear infinite;
-}
-@keyframes trCycle {
-  0% { opacity: 0; } 4% { opacity: .8; } 29% { opacity: .8; } 33% { opacity: 0; } 100% { opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .tr-row { animation: none; }
-  .tr-row:first-child { opacity: .8; } /* the leader holds the marquee */
-}
 .title-waves svg { width: 100%; height: 100%; }
 .tw-a { fill: #14263c; animation: wave-scroll 9s linear infinite; }
 .tw-b { fill: #1b5f86; opacity: .5; animation: wave-scroll 14s linear infinite reverse; }
@@ -1134,7 +1117,23 @@ body.tecnic #roundResultCard { display: block; }
 /* ================= CLASSIFICACIÓ — the vessel's high-score table =========
    The arcade hall of fame in corsair gold: dark sea behind, ten rows of
    position · name · deed · score. The first row glows. */
-.home-cta-sub { margin-top: -2px; font-size: 15px; padding: 8px 22px; opacity: .92; }
+/* The home entry: the Classificació's own identity — the victory card's
+   dark gold-rimmed pill language, pure type. A tier of its own: quieter
+   than Juga's gold slab, weightier than the ghost links below. */
+.home-classif {
+  font-family: var(--serif); font-size: 16px; font-weight: 700; letter-spacing: .06em;
+  font-variant: small-caps; padding: 9px 30px; border-radius: 999px; margin-top: 6px;
+  color: var(--gold-2); background: rgba(6,9,18,.55);
+  border: 1.5px solid rgba(224,182,79,.45);
+  box-shadow: 0 0 12px rgba(224,182,79,.10), inset 0 1px 0 rgba(255,255,255,.05);
+  transition: border-color .15s, box-shadow .15s, transform .12s ease-out;
+}
+.home-classif:hover, .home-classif:focus-visible {
+  border-color: var(--gold); color: var(--gold-2);
+  box-shadow: 0 0 22px rgba(224,182,79,.35);
+  transform: translateY(-1px);
+}
+.home-classif:active { transform: translateY(1px); }
 #screenClassificacio { min-height: calc(100vh - var(--topbar-h, 55px)); background: radial-gradient(900px 500px at 50% -10%, rgba(224,182,79,.12), transparent 60%), linear-gradient(180deg, #0f1730 0%, #0b1224 60%, #070c18 100%); padding: 22px 16px 40px; }
 .classif-wrap { max-width: 680px; margin: 0 auto; }
 .classif-head { text-align: center; margin-bottom: 18px; }
