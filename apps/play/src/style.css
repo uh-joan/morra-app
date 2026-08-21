@@ -710,6 +710,8 @@ body.match-lost .end-headline { color: #6e2b30; }
 .ob-row[data-state="err"] .ob-retry { display: inline-block; }
 .ob-veu-detail { font-size: 11px; color: #6b5636; min-height: 14px; font-variant-numeric: tabular-nums; }
 .ob-hint { font-size: 12px; color: #6b5636; background: rgba(58,44,20,.08); border-radius: 8px; padding: 8px 10px; margin: 0; }
+.ob-tip { font-size: 12px; color: #6b5636; background: rgba(224,182,79,.10); border: 1px solid rgba(224,182,79,.35); border-radius: 8px; padding: 8px 10px; margin: 0; line-height: 1.35; }
+.ob-tip b { color: var(--parchment-ink); }
 .ob-back { align-self: center; margin-top: 4px; color: #6b5636; border-color: rgba(138,101,64,.5); }
 #onboardOverlay .status { font-size: 11px; background: rgba(58,44,20,.07); border: 1px solid rgba(138,101,64,.4); border-radius: 8px; padding: 6px 8px; color: #6b5636; }
 #onboardOverlay .status.err { color: #a3232d; border-color: rgba(163,35,45,.5); }

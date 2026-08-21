@@ -73,14 +73,18 @@ describe("entorn: liveFloorMinFor", () => {
 });
 
 describe("entorn: micConstraintsFor", () => {
-  it("tranquil is spike-verbatim raw capture (all browser DSP off)", () => {
+  // 2026-08-21: echoCancellation is DECOUPLED from the noiseSuppression bundle
+  // and left ON in every preset — it's the browser AEC that cancels the
+  // rival's speaker bleed (speakers-vs-headphones). noiseSuppression still
+  // follows the preset; AGC always off.
+  it("tranquil = noiseSuppression off, but echoCancellation ON (speaker-bleed fix)", () => {
     expect(micConstraintsFor("tranquil")).toEqual({
-      echoCancellation: false,
+      echoCancellation: true,
       noiseSuppression: false,
       autoGainControl: false,
     });
   });
-  it("sorollós turns on noiseSuppression + echoCancellation but NEVER AGC (it would fight the onset detector's adaptive floor)", () => {
+  it("sorollós adds noiseSuppression on top; echoCancellation already on; NEVER AGC (it would fight the onset detector's adaptive floor)", () => {
     expect(micConstraintsFor("sorollos")).toEqual({
       echoCancellation: true,
       noiseSuppression: true,
@@ -104,14 +108,14 @@ describe("entorn: DSP override (iteration-2 fix #4 — A/B the mic constraints)"
     expect(resolveDspMode("off", "banana")).toBe("off");
     expect(resolveDspMode("banana", null)).toBe("auto");
   });
-  it("pinning the DSP on in tranquil changes ONLY the DSP pair — AGC stays off", () => {
+  it("the DSP override moves only noiseSuppression now (echoCancellation is always on; AGC always off)", () => {
     expect(micConstraintsFor("tranquil", "on")).toEqual({
       echoCancellation: true,
       noiseSuppression: true,
       autoGainControl: false,
     });
     expect(micConstraintsFor("sorollos", "off")).toEqual({
-      echoCancellation: false,
+      echoCancellation: true,
       noiseSuppression: false,
       autoGainControl: false,
     });
