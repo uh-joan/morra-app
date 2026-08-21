@@ -87,6 +87,9 @@ export function installRouter(h: RouteHandlers): void {
   const boot = parseHash(location.hash);
   if (!boot) history.replaceState(null, "", "#/");
   else if (boot.route !== "title") applyRoute(boot.route, boot.params, boot.rival);
+  // a bare load (no hash at all) still normalizes to #/ — the boot screen
+  // no longer reflects (it would stomp deep links), so the router does it
+  else if (location.hash === "" || location.hash === "#") history.replaceState(null, "", "#/");
 }
 function applyRoute(route: Route, params: RouteParams, rival: string | null): void {
   if (!handlers) return;
