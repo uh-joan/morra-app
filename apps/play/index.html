@@ -45,6 +45,13 @@
 <!-- ================= TITLE ================= -->
 <section id="screenTitle" class="screen">
   <div class="title-stars" aria-hidden="true"></div>
+  <!-- iOS Safari only (installNudge.ts): the game plays better installed —
+       teach the two taps, up top under the header where the old marquee
+       lived. Dismisses forever; never shows in the app. -->
+  <div id="installNudge" class="install-nudge" role="note">
+    <span>Morra va millor com a app: toca <b>Compartir</b> i després <b>«Afegeix a la pantalla d'inici»</b>.</span>
+    <button id="installNudgeClose" class="ghost" aria-label="Tanca">✕</button>
+  </div>
   <div class="title-inner home">
     <div id="titleWordmark" class="title-wordmark"><img id="wordmarkImg" src="wordmark.png" alt="Morra — el duel dels corsaris" decoding="async"><!-- SVG fallback injected if the image fails --></div>
     <button id="btnJuga" class="btn-gold home-cta">Juga</button>
@@ -71,12 +78,6 @@
       <button data-entorn="sorollos" class="ghost" aria-pressed="false">Local sorollós</button>
     </span>
   </footer>
-  <!-- iOS Safari only (installNudge.ts): the game plays better installed —
-       teach the two taps. Dismisses forever; never shows in the app. -->
-  <div id="installNudge" class="install-nudge" role="note">
-    <span>Morra va millor com a app: toca <b>Compartir</b> i després <b>«Afegeix a la pantalla d'inici»</b>.</span>
-    <button id="installNudgeClose" class="ghost" aria-label="Tanca">✕</button>
-  </div>
   <div id="entornSuggest" class="entorn-suggest" hidden>
     <span>Sembla que hi ha soroll de taverna. Activo el mode <b>Local sorollós</b>?</span>
     <button id="entornSuggestYes" class="btn-gold">Sí, activa'l</button>
@@ -442,6 +443,14 @@
   <div class="calib-page">
     <!-- The hail: filled with the active profile's name on entry (screens.ts) -->
     <div id="calibWelcome" class="calib-welcome"></div>
+    <!-- Only when Calibratge stands between the player and the game (the
+         play detour, or the first run): the way straight past it, up top
+         where a player in a hurry actually looks. Sets the forever flag —
+         the detour never asks again for this profile+camera. -->
+    <div id="calibSkipNudge" class="calib-skip" role="note">
+      <span>Ignora-ho i ves directe a jugar — si tens problemes jugant, ja ho faràs més endavant.</span>
+      <button id="calibSkipGo" class="btn-gold">A jugar</button>
+    </div>
     <!-- Which hand throws: layout mirrors so the steps sit on the free-hand
          side. body[data-ma] drives it (calibration.ts persists the choice). -->
     <div class="calib-hand-tabs" role="tablist" aria-label="Amb quina mà tires?">
@@ -471,13 +480,6 @@
     <div class="calib-meta">
       <div id="calibStatus" class="calib-status"></div>
       <button id="calibReset" class="ghost">Restableix els valors per defecte</button>
-    </div>
-    <!-- Only when Calibratge stands between the player and the game (the
-         play detour, or the first run): the way straight past it. Sets the
-         forever flag — the detour never asks again for this profile+camera. -->
-    <div id="calibSkipNudge" class="calib-skip" role="note">
-      <span>Ignora-ho i ves directe a jugar — si tens problemes jugant, ja ho faràs més endavant.</span>
-      <button id="calibSkipGo" class="btn-gold">A jugar</button>
     </div>
   </div>
 </section>

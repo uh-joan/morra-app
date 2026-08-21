@@ -198,6 +198,9 @@ body.vs-on #vsSplash { display: flex; }
 @media (max-height: 640px), (max-width: 640px) {
   #screenTitle { justify-content: flex-start; padding-top: 12px; }
   .title-inner { gap: 12px; padding: 12px 16px; }
+  /* top-anchored layout: the install nudge needs its berth cleared, or it
+     sits on the wordmark's raised hands */
+  body[data-install-nudge="on"] .title-inner { padding-top: 96px; }
   .title-wordmark { width: min(360px, 70vw); }
   .title-prep {
     position: relative; bottom: auto; left: auto; transform: none;
@@ -205,11 +208,13 @@ body.vs-on #vsSplash { display: flex; }
   }
 }
 .title-waves { position: absolute; bottom: 0; left: 0; right: 0; height: 90px; z-index: 1; }
-/* The iOS add-to-home-screen whisper: a slim strip over the waves, title
-   screen only, gone forever on ✕ (installNudge.ts owns the logic). */
+/* The iOS add-to-home-screen whisper: a slim strip at the TOP of the port,
+   just under the header — the old marquee's empty berth. Title screen
+   only, gone forever on ✕ (installNudge.ts owns the logic). */
 .install-nudge { display: none; }
 body[data-screen="title"][data-install-nudge="on"] .install-nudge {
-  position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%);
+  width: min(680px, calc(100% - 24px));
   z-index: 30; display: flex; align-items: center; gap: 10px; justify-content: space-between;
   padding: 10px 8px 10px 16px; border-radius: 12px;
   background: rgba(6,9,18,.92); border: 1.5px solid rgba(224,182,79,.45);
@@ -218,15 +223,16 @@ body[data-screen="title"][data-install-nudge="on"] .install-nudge {
 }
 .install-nudge b { color: var(--gold-2); font-weight: 700; }
 .install-nudge button { flex: none; font-size: 14px; padding: 6px 10px; }
-/* The Calibratge skip banner — the install nudge's pill language, but
-   IN-FLOW at the foot of the page (next to Restableix, which it mirrors):
-   a fixed strip occluded the panel's own controls on short viewports.
-   Shown only when the page stands between the player and the game
-   (screens.ts sets data-calib-skip on the detour / first-run paths). */
+/* The Calibratge skip banner — the install nudge's pill language, IN-FLOW
+   at the TOP of the page (under the hail, above the hand tabs): the way
+   past calibration is the first thing a player in a hurry sees, and
+   in-flow can never occlude the panel's own controls (a fixed strip did,
+   on short viewports). Shown only when the page stands between the player
+   and the game (screens.ts sets data-calib-skip on detour / first-run). */
 .calib-skip { display: none; }
 body[data-screen="calib"][data-calib-skip="on"] .calib-skip {
   display: flex; align-items: center; gap: 12px; justify-content: space-between;
-  width: min(680px, calc(100% - 24px)); margin: 14px auto calc(16px + env(safe-area-inset-bottom, 0px));
+  width: min(680px, calc(100% - 24px)); margin: 0 auto 14px;
   padding: 10px 10px 10px 16px; border-radius: 12px;
   background: rgba(6,9,18,.92); border: 1.5px solid rgba(224,182,79,.45);
   color: var(--parchment); font-size: 13.5px; line-height: 1.35;
