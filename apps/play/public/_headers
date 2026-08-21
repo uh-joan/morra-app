@@ -13,3 +13,14 @@
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
   Content-Security-Policy: frame-ancestors 'none'
+
+# Long-cache the heavy runtime payloads (mirrors deploy/morra.Caddyfile —
+# Caddy doesn't read this file, its vhost sets the same headers). The model
+# zip and the Vite bundles are version/content-named → immutable is safe;
+# vendored MediaPipe and the rival clips are name-stable → a week.
+/assets/vosk-model/*
+  Cache-Control: public, max-age=31536000, immutable
+/assets/vendor/*
+  Cache-Control: public, max-age=604800
+/assets/rival-voice/*
+  Cache-Control: public, max-age=604800
