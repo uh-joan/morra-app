@@ -13,7 +13,7 @@
 // the gesture-gated sensor buttons synchronously.
 
 import { logEvent } from "./telemetry.js";
-import { getActiveProfileId, needsFirstRunProfile, renameProfileById } from "./profile.js";
+import { getActiveProfileId, needsFirstRunProfile, profileNameHash, renameProfileById } from "./profile.js";
 
 let onNamed: (name: string) => void = () => {};
 export function setFirstRunNamedHook(hook: (name: string) => void): void {
@@ -92,7 +92,7 @@ export function installFirstRun(): void {
       // At first run the active profile IS the default one.
       if (!renameProfileById(getActiveProfileId(), name)) return;
       closeCard();
-      logEvent("firstrun_named", { profileId: getActiveProfileId(), profileName: name });
+      logEvent("firstrun_named", { profileId: getActiveProfileId(), profileHash: profileNameHash(name) });
       onNamed(name); // screens.ts: same gesture → sensors → calibration
       return;
     }
