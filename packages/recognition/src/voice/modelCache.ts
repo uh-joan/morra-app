@@ -29,7 +29,8 @@ export async function fetchBlobWithCache(
       if (hit) {
         const blob = await hit.blob();
         if (blob.size > 0) {
-          onProgress?.(blob.size, blob.size);
+          // deliberately NO onProgress here: progress means "downloading",
+          // and a hit must never flash «Descarregant…» at the player
           return { blob, bytes: blob.size, fromCache: true };
         }
       }

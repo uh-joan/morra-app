@@ -60,6 +60,10 @@ export class VoskCallRecognizer implements CallRecognizer {
   private readonly grammarJson: string;
   private model: VoskModel | null = null;
   private loading: Promise<void> | null = null;
+  /** After load(): whether the model blob came from Cache Storage (true),
+   * the network (false), or hasn't loaded yet (null). Diagnostic surface —
+   * the status line and telemetry read it. */
+  modelFromCache: boolean | null = null;
 
   constructor(options: VoskCallRecognizerOptions = {}) {
     this.cdnScriptUrl = options.cdnScriptUrl ?? DEFAULT_CDN_SCRIPT_URL;
@@ -79,7 +83,8 @@ export class VoskCallRecognizer implements CallRecognizer {
     if (this.loading) return this.loading;
     this.loading = (async () => {
       const Vosk = await this.ensureVoskScriptLoaded();
-      const { blob } = await this.fetchModelBlob(this.modelUrl, this.onDownloadProgress);
+      const { blob, fromCache } = await this.fetchModelBlob(this.modelUrl, this.onDownloadProgress);
+      this.modelFromCache = fromCache;
       const blobUrl = URL.createObjectURL(blob);
       this.model = await Vosk.createModel(blobUrl, 0);
     })();
@@ -106,7 +111,7 @@ export class VoskCallRecognizer implements CallRecognizer {
   private async fetchModelBlob(
     url: string,
     onProgress?: (received: number, total: number) => void
-  ): Promise<{ blob: Blob; bytes: number }> {
+  ): Promise<{ blob: Blob; bytes: number; fromCache: boolean }> {
     // Cache Storage first (see modelCache.ts) — the 40 MB model downloads
     // once per device instead of once per visit on phones.
     return fetchBlobWithCache(url, "morra-vosk-model", onProgress);

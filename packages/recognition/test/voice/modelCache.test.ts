@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 describe("modelCache: cache hit", () => {
-  it("returns the stored blob without touching the network, progress fires once complete", async () => {
+  it("returns the stored blob without touching the network — and WITHOUT progress (progress means «downloading», a hit must not flash it)", async () => {
     const { caches } = fakeCaches({ [MODEL_URL]: new Response(new Blob([BYTES])) });
     const netFetch = vi.fn();
     stubGlobals({ caches, fetch: netFetch as unknown as typeof fetch });
@@ -54,7 +54,7 @@ describe("modelCache: cache hit", () => {
     expect(r.bytes).toBe(BYTES.length);
     expect(new Uint8Array(await r.blob.arrayBuffer())).toEqual(BYTES);
     expect(netFetch).not.toHaveBeenCalled();
-    expect(progress).toEqual([[BYTES.length, BYTES.length]]);
+    expect(progress).toEqual([]);
   });
 
   it("treats an empty cached blob as a miss (a truncated put must not brick the voice)", async () => {

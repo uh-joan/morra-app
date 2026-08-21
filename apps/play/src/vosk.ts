@@ -10,6 +10,7 @@ import { VoskCallRecognizer } from "@morra/recognition";
 import { VOSK_CDN_URL, VOSK_GRAMMAR_WORDS, VOSK_MODEL_URL, VOSK_SAMPLE_RATE } from "./config.js";
 import { el, setStatus } from "./dom.js";
 import { reportError, setChip } from "./status.js";
+import { logEvent } from "./telemetry.js";
 import { renderBigWordIdle } from "./render/bigWord.js";
 
 function fmtBytes(n: number): string {
@@ -46,7 +47,16 @@ export async function loadVoskModel(): Promise<void> {
     const t0 = performance.now();
     await voskRecognizer.load();
     const totalMs = performance.now() - t0;
-    setStatus(el.voskStatus, `Veu a punt (català) — carregada en ${(totalMs / 1000).toFixed(1)}s.`, "ok");
+    // Say WHERE it came from — «del bagul» proves the device cache held it,
+    // «descarregada» means the network paid the 41 MB again. Field-debuggable
+    // from the status line alone.
+    const fromCache = voskRecognizer.modelFromCache === true;
+    logEvent("vosk_load", { fromCache, ms: Math.round(totalMs) });
+    setStatus(
+      el.voskStatus,
+      `Veu a punt (català) — ${fromCache ? "del bagul" : "descarregada"} en ${(totalMs / 1000).toFixed(1)}s.`,
+      "ok"
+    );
     el.btnLoadVosk.textContent = "Veu a punt";
     setChip(el.chipVosk, "loaded", "ok");
     renderBigWordIdle(true);
