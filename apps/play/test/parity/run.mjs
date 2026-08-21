@@ -97,8 +97,14 @@ async function drive(page, seam, scenario, level) {
           // The verdict depends on this system's OWN unseeded AI draw —
           // never compare card text across systems for synced rounds;
           // instead each system's card must match its own expected verdict.
+          // Parata in this scenario is always the both-guessed case (the
+          // player's call is always correct here): the spike says PARATA,
+          // the app's living-Catalan copy says EMPAT! — accept each
+          // system's own wording.
           cardMatchesOwnVerdict:
-            document.getElementById("roundResultText").textContent === (expected === "parata" ? "PARATA" : "TU GUANYES!"),
+            expected === "parata"
+              ? ["PARATA", "EMPAT!"].includes(document.getElementById("roundResultText").textContent)
+              : document.getElementById("roundResultText").textContent === "TU GUANYES!",
         };
       }
 

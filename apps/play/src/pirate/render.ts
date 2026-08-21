@@ -119,7 +119,11 @@ function syncCoinsFromScoreboard(): void {
 const ROUND_REACTIONS: Record<string, { react: ReactKind; taunt: PirateReaction }> = {
   "TU GUANYES!": { react: "lose", taunt: "lose" },
   "RIVAL GUANYA": { react: "win", taunt: "win" },
-  "PARATA": { react: "parata", taunt: "parata" },
+  // the shared tie wears three faces (copy.ts PARATA_HEADLINE + the
+  // context-free CAP PUNT) — all the same shrug on stage
+  "EMPAT!": { react: "parata", taunt: "parata" },
+  "PER A NINGÚ": { react: "parata", taunt: "parata" },
+  "CAP PUNT": { react: "parata", taunt: "parata" },
   "RONDA ANUL·LADA": { react: "void", taunt: "void" },
 };
 
