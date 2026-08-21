@@ -62,6 +62,23 @@ describe("computeMatchScore", () => {
   it("falls back to the L1 base for an unknown level id", () => {
     expect(computeMatchScore("L9", 10, 8, noStyle)).toBe(1200);
   });
+
+  // Concrete end-to-end scores, pinned so tuning any weight can't silently
+  // shift the numbers players see. If you change base/margin/style on
+  // purpose, update these — that's the point.
+  it("pins canonical scores across the formula's range", () => {
+    const full = { syncRate: 1, redundancy: 0, exploitability: 0 };
+    // the floor of a win, and the absolute ceiling of a top match
+    expect(computeMatchScore("L1", 10, 9, noStyle)).toBe(1100); // scrape past Nino
+    expect(computeMatchScore("L4", 10, 0, noStyle)).toBe(20000); // flawless El Rei, no style
+    expect(computeMatchScore("L4", 10, 0, full)).toBe(30000); // flawless + stylish — the max
+    // single-metric style, and the mid rungs
+    expect(computeMatchScore("L3", 10, 6, { syncRate: 0.8, redundancy: null, exploitability: null })).toBe(9800);
+    // rounding: 2500 × 1.3 × 1.25 = 4062.5 → 4063
+    expect(computeMatchScore("L2", 10, 7, { syncRate: 0.5, redundancy: null, exploitability: null })).toBe(4063);
+    // all three style components averaged: 2500 × 1.5 × 1.31667 = 4937.5 → 4938
+    expect(computeMatchScore("L2", 10, 5, { syncRate: 0.6, redundancy: 0.2, exploitability: 0.2 })).toBe(4938);
+  });
 });
 
 describe("insertEntry", () => {
