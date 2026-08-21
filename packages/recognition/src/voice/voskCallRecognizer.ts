@@ -10,6 +10,7 @@
 // since that's the field-tested loading mechanism, not a design choice to
 // revisit here.
 import type { CallRecognizer, RecognitionResult } from "@morra/core";
+import { fetchBlobWithCache } from "./modelCache.js";
 import { resampleToSampleRate } from "./resample.js";
 
 export const DEFAULT_CATALAN_VOCABULARY: readonly string[] = [
@@ -106,27 +107,9 @@ export class VoskCallRecognizer implements CallRecognizer {
     url: string,
     onProgress?: (received: number, total: number) => void
   ): Promise<{ blob: Blob; bytes: number }> {
-    let resp: Response;
-    try {
-      resp = await fetch(url);
-    } catch (e) {
-      throw new Error(`fetch("${url}") threw before any HTTP status was seen — CORS block or network/path error. Original: ${(e as Error).message}`);
-    }
-    if (!resp.ok) throw new Error(`Model fetch failed: HTTP ${resp.status} for ${url}`);
-    const total = parseInt(resp.headers.get("Content-Length") || "0", 10);
-    const reader = resp.body!.getReader();
-    const chunks: Uint8Array[] = [];
-    let received = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      received += value.length;
-      onProgress?.(received, total);
-    }
-    // Same ArrayBuffer-vs-ArrayBufferLike narrowing as resample.ts — fetch's
-    // ReadableStream chunks are always real ArrayBuffers in practice.
-    return { blob: new Blob(chunks as BlobPart[]), bytes: received };
+    // Cache Storage first (see modelCache.ts) — the 40 MB model downloads
+    // once per device instead of once per visit on phones.
+    return fetchBlobWithCache(url, "morra-vosk-model", onProgress);
   }
 
   /** Returns the raw Kaldi result detail's rawText (untrimmed) alongside

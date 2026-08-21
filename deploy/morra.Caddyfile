@@ -18,4 +18,20 @@ morra.joans.cat {
     Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()"
     Content-Security-Policy "frame-ancestors 'none'"
   }
+
+  # Without Cache-Control browsers fall back to heuristic freshness off
+  # last-modified — and every deploy rsyncs fresh mtimes, churning Caddy's
+  # mtime-derived etags too. Net effect in the field: phones re-downloaded
+  # the 41 MB vosk model almost every visit.
+  # The model zip carries its version in the filename → immutable is safe.
+  @model path /assets/vosk-model/*
+  header @model Cache-Control "public, max-age=31536000, immutable"
+  # Vite bundles are content-hashed (index-XXXX.js) → immutable is safe.
+  # (Vendor + rival-voice files live in subdirs, so this glob skips them.)
+  @hashed path /assets/*.js /assets/*.css
+  header @hashed Cache-Control "public, max-age=31536000, immutable"
+  # Vendored MediaPipe (~11 MB) and the rival clips are name-stable — they
+  # CAN change on a dep bump without renaming, so a week, not immutable.
+  @vendored path /assets/vendor/* /assets/rival-voice/*
+  header @vendored Cache-Control "public, max-age=604800"
 }
