@@ -1150,6 +1150,11 @@ body.tecnic #roundResultCard { display: block; }
 .rank-row:first-child .rank-title { color: var(--gold-2); font-size: 22px; }
 .rank-name { font-family: var(--serif); font-size: 18px; font-weight: 800; color: var(--parchment); font-variant: small-caps; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-score { font-family: var(--serif); font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--gold-2); text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+/* Unclaimed rungs: still on the board — zero points, waiting — but clearly
+   nobody's yet. Dimmed all through; no glow even at the top. */
+.rank-row.buida { opacity: .45; }
+.rank-row.buida .rank-name { color: var(--dim); }
+.rank-row.buida:first-child { border-color: var(--border); box-shadow: none; }
 .classif-foot { margin-top: 18px; text-align: center; }
 @media (max-width: 560px) {
   .rank-row { grid-template-columns: 34px 1fr auto; gap: 8px; padding: 10px; }
