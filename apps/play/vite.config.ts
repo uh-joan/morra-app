@@ -60,6 +60,10 @@ export default defineConfig({
     // land in spikes/logs/ alongside spike sessions.
     proxy: {
       "/log": "http://127.0.0.1:8080",
+      // the global Classificació — run the collector locally for the full
+      // loop (DATA_DIR=/tmp/morra-dev node deploy/collector/collector.mjs);
+      // absent, the proxy 502s and the board falls back to the local shadow
+      "/classificacio": "http://127.0.0.1:9310",
     },
   },
   build: {
