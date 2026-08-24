@@ -66,4 +66,96 @@ FROM e WHERE type='throw_outcome' GROUP BY 1 ORDER BY n DESC;
 
 SELECT '== errors ==' AS section;
 SELECT count(*) AS n, any_value(rx) AS example_at FROM e WHERE type='error';
+
+-- ================= retention (Rang de bord phase 0, 2026-08-22) =========
+-- The retention key is profileHash (stable, pseudonymous — PR #40): the
+-- day-rotating visitor hash deliberately can't follow a player across days.
+-- A day counts as PLAYED only when a real round resolved (game_reveal) in
+-- one of that profile's sessions — opening the app is presence, not play.
+-- Materialized slim table: joining VIEWS over read_ndjson_objects trips a
+-- DuckDB pushdown bug (a bogus cast-to-numerical of the raw json column);
+-- a typed table sidesteps it and single-scans the files. NOTE: this whole
+-- SQL block lives in a shell double-quoted string - no double quotes here.
+
+CREATE TABLE evt AS
+  SELECT json ->> 'type' AS type,
+         json ->> 'sessionId' AS session,
+         json ->> 'rx' AS rx,
+         substr(json ->> 'rx', 1, 10) AS day,
+         json ->> 'profileHash' AS profileHash
+  FROM read_ndjson_objects('$LOGS_DIR/events-*.ndjson');
+
+CREATE VIEW session_profile AS
+  SELECT session, any_value(profileHash) AS profile
+  FROM evt WHERE type='profile_active' AND profileHash IS NOT NULL
+  GROUP BY session;
+
+CREATE VIEW profile_open_days AS
+  SELECT DISTINCT sp.profile, evt.day
+  FROM evt JOIN session_profile sp ON sp.session = evt.session;
+
+CREATE VIEW profile_played_days AS
+  SELECT DISTINCT sp.profile, evt.day
+  FROM evt JOIN session_profile sp ON sp.session = evt.session
+  WHERE evt.type='game_reveal';
+
+SELECT '== players per day (opened vs played) ==' AS section;
+SELECT o.day,
+       count(DISTINCT o.profile) AS opened,
+       count(DISTINCT p.profile) AS played
+FROM profile_open_days o
+LEFT JOIN profile_played_days p ON p.profile = o.profile AND p.day = o.day
+GROUP BY 1 ORDER BY 1;
+
+SELECT '== retention cohorts (by first PLAYED day) ==' AS section;
+WITH firsts AS (
+  SELECT profile, min(day) AS d0 FROM profile_played_days GROUP BY 1
+)
+SELECT f.d0 AS cohort_day,
+       count(DISTINCT f.profile) AS cohort,
+       count(DISTINCT CASE WHEN pd.day = CAST(CAST(f.d0 AS DATE) + 1 AS VARCHAR) THEN f.profile END) AS d1,
+       count(DISTINCT CASE WHEN pd.day >  f.d0 AND CAST(pd.day AS DATE) <= CAST(f.d0 AS DATE) + 7  THEN f.profile END) AS within_d7,
+       count(DISTINCT CASE WHEN pd.day >  f.d0 AND CAST(pd.day AS DATE) <= CAST(f.d0 AS DATE) + 30 THEN f.profile END) AS within_d30
+FROM firsts f
+LEFT JOIN profile_played_days pd ON pd.profile = f.profile
+GROUP BY 1 ORDER BY 1;
+
+SELECT '== play streaks (consecutive played days, per profile) ==' AS section;
+WITH runs AS (
+  SELECT profile, day,
+         CAST(day AS DATE) - CAST(row_number() OVER (PARTITION BY profile ORDER BY day) AS INTEGER) AS grp
+  FROM profile_played_days
+), streaks AS (
+  SELECT profile, count(*) AS len, max(day) AS last_day
+  FROM runs GROUP BY profile, grp
+)
+SELECT profile,
+       max(len) AS best_streak,
+       max(CASE WHEN last_day = (SELECT max(day) FROM profile_played_days) THEN len ELSE 0 END) AS current_streak,
+       count(*) AS separate_runs
+FROM streaks GROUP BY 1 ORDER BY best_streak DESC LIMIT 20;
+
+SELECT '== per-profile summary (who is coming back) ==' AS section;
+SELECT sp.profile,
+       min(evt.day) AS first_seen,
+       max(evt.day) AS last_seen,
+       count(DISTINCT evt.day) AS days_seen,
+       count(DISTINCT CASE WHEN evt.type='game_reveal' THEN evt.day END) AS days_played,
+       count(CASE WHEN evt.type='game_reveal' THEN 1 END) AS rounds,
+       count(DISTINCT evt.session) AS sessions
+FROM evt JOIN session_profile sp ON sp.session = evt.session
+GROUP BY 1 ORDER BY last_seen DESC, days_played DESC LIMIT 20;
+
+SELECT '== last thing lapsed profiles did (churn signal) ==' AS section;
+WITH last_ev AS (
+  SELECT sp.profile, evt.type, evt.rx, evt.day,
+         row_number() OVER (PARTITION BY sp.profile ORDER BY evt.rx DESC) AS rn
+  FROM evt JOIN session_profile sp ON sp.session = evt.session
+  WHERE evt.type NOT IN ('route','route_apply','screen_change','framing','ready_pill')
+)
+SELECT l.profile, l.day AS last_day, l.type AS last_meaningful_event
+FROM last_ev l
+WHERE l.rn = 1
+  AND CAST(l.day AS DATE) < (SELECT max(CAST(day AS DATE)) FROM evt) - 2
+ORDER BY l.rx DESC LIMIT 15;
 "
