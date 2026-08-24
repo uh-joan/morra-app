@@ -10,6 +10,8 @@
 // would play identically. The verdict banner stays the semantic source of
 // truth; this is the punch on top.
 
+import { artWithUniqueIds, PIRATE_ART } from "./art.js";
+
 export type CopKind = "guanyes" | "perds" | "empat" | "ningu";
 
 /** Your finisher. One name whoever the rival is (v1; per-player names are
@@ -40,6 +42,13 @@ export function copName(kind: CopKind, levelId?: string | null): string {
     case "empat": return COP_EMPAT;
     case "ningu": return COP_NINGU;
   }
+}
+
+/** The match-end shout. Plain register (the BORDADA lesson): you win the
+ * PARTIDA; a corsair finishes you with his own signature move. Pure. */
+export const COP_FINAL_GRUMET = "PARTIDA!";
+export function finalCopName(playerWon: boolean, levelId?: string | null): string {
+  return playerWon ? COP_FINAL_GRUMET : copName("perds", levelId);
 }
 
 // ------------------------------------------------------------ choreography
@@ -141,4 +150,81 @@ export function flyCoin(target: Element): void {
   const done = () => fly.remove();
   anim.onfinish = done;
   anim.oncancel = done;
+}
+
+// ------------------------------------------------- the FINALE (phase 2)
+// Match end takes the WHOLE screen: triple impact flash, a diagonal cut-in
+// band (the fighting-game super-move grammar), and — on your win only —
+// the «DON!!» stamp and a rain of doblons. On a loss the corsair's
+// portrait rides the band with his signature move. All pointer-events:
+// none — the game-end banner's buttons stay clickable underneath.
+
+let finalTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function performCopFinal(playerWon: boolean, levelId?: string | null): void {
+  if (reducedMotion()) return;
+  document.querySelector(".cop-final")?.remove();
+  if (finalTimer) clearTimeout(finalTimer);
+  // the last round's own cop yields the stage — one thunder at a time
+  document.getElementById("moveStage")?.replaceChildren();
+
+  const overlay = document.createElement("div");
+  overlay.className = "cop-final " + (playerWon ? "final-guanyes" : "final-perds");
+
+  const flash = document.createElement("div");
+  flash.className = "cop-final-impacte";
+  overlay.appendChild(flash);
+
+  const band = document.createElement("div");
+  band.className = "cop-final-band";
+  if (!playerWon && levelId && PIRATE_ART[levelId]) {
+    const portrait = document.createElement("div");
+    portrait.className = "cop-final-portrait";
+    portrait.innerHTML = artWithUniqueIds(PIRATE_ART[levelId], "final"); // constant authored art — no data
+    band.appendChild(portrait);
+  }
+  const nom = document.createElement("div");
+  nom.className = "cop-final-nom";
+  nom.textContent = finalCopName(playerWon, levelId);
+  band.appendChild(nom);
+  overlay.appendChild(band);
+
+  if (playerWon) {
+    const don = document.createElement("div");
+    don.className = "cop-final-don";
+    don.textContent = "DON!!";
+    overlay.appendChild(don);
+    const rain = document.createElement("div");
+    rain.className = "cop-final-rain";
+    for (let i = 0; i < 14; i++) {
+      const c = document.createElement("i");
+      c.style.left = `${(i * 7.3 + 4) % 100}%`;
+      c.style.animationDelay = `${(i % 7) * 0.09 + 0.4}s`;
+      c.style.animationDuration = `${1 + (i % 4) * 0.18}s`;
+      rain.appendChild(c);
+    }
+    overlay.appendChild(rain);
+  }
+
+  document.body.appendChild(overlay);
+  finalTimer = setTimeout(() => {
+    overlay.remove();
+    finalTimer = null;
+  }, 2600);
+}
+
+// Match point: one warning drum — a single impact frame the moment either
+// side reaches the brink (rising edge only; the strip's glow does the rest).
+let wasMatchPoint = false;
+
+export function matchPointDrum(isMatchPoint: boolean): void {
+  const rising = isMatchPoint && !wasMatchPoint;
+  wasMatchPoint = isMatchPoint;
+  if (!rising || reducedMotion()) return;
+  const stage = document.getElementById("moveStage");
+  if (!stage) return;
+  const drum = document.createElement("div");
+  drum.className = "cop-impacte una";
+  stage.appendChild(drum);
+  setTimeout(() => drum.remove(), 400);
 }

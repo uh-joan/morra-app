@@ -37,9 +37,14 @@ Four devices, all portable to the web:
 | Tie, both guessed | **«EMPAT!»** | one short flash, steel-foam slam, no shake — a clash, not a hit |
 | Tie, nobody | **«PER A NINGÚ»** | no flash: the name sinks and fades — comic deflation, the sea keeps the coin |
 
-Ships now (option B, chosen 2026-08-25). Phase 2 (later): match-end
-**cut-ins** — corsair portrait slash-in + «DON!!» stamp + doblons rain,
-and match-point warning frame.
+Phase B shipped 2026-08-25 (round verdicts). **Phase 2 shipped same day,
+branch-only**: match end takes the whole screen — triple impact flash, a
+diagonal cut-in band (fighting-game super grammar). Your win: **«PARTIDA!»**
+(plain register — the BORDADA lesson) + the **«DON!!»** stamp + a rain of
+14 doblons. The corsair's win: his portrait rides the dark band with his
+own signature move. Match point fires one warning frame on the rising
+edge (either side reaching the brink). The game-end banner's buttons stay
+clickable throughout (`pointer-events: none`).
 
 ## 3 · Architecture
 

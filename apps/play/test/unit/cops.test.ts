@@ -2,7 +2,7 @@
 // Pure names only; the DOM choreography is exercised by the integration
 // harness playing real rounds.
 import { describe, expect, it } from "vitest";
-import { COP_DEL_CORSARI, COP_DEL_GRUMET, copName } from "../../src/pirate/cops.js";
+import { COP_DEL_CORSARI, COP_DEL_GRUMET, copName, finalCopName } from "../../src/pirate/cops.js";
 
 describe("cops: every verdict slams a NAME (the Gomu-Gomu insight)", () => {
   it("your win is the plain table shout, whoever the rival is (BORDADA retired by field verdict 2026-08-25)", () => {
@@ -29,5 +29,12 @@ describe("cops: every verdict slams a NAME (the Gomu-Gomu insight)", () => {
       if (level === "L4") expect(name.endsWith("!")).toBe(false);
       else expect(name.endsWith("!")).toBe(true);
     }
+  });
+  it("the FINALE: you win the PARTIDA; a corsair finishes you with his own signature", () => {
+    expect(finalCopName(true, "L1")).toBe("PARTIDA!");
+    expect(finalCopName(true, null)).toBe("PARTIDA!");
+    expect(finalCopName(false, "L2")).toBe("COP DE TIMÓ!");
+    expect(finalCopName(false, "L4")).toBe("L'ONADA NEGRA");
+    expect(finalCopName(false, null)).toBe("COP DE CORSARI!");
   });
 });

@@ -10,7 +10,7 @@ import { el } from "../dom.js";
 import { GAME_WIN_SCORE } from "../config.js";
 import { pirateForLevel, pickTaunt, type Pirate, type PirateReaction } from "./cast.js";
 import { artWithUniqueIds, PIRATE_ART, SCENERY, WAVES_SVG } from "./art.js";
-import { flyCoin, performCop, type CopKind } from "./cops.js";
+import { flyCoin, matchPointDrum, performCop, performCopFinal, type CopKind } from "./cops.js";
 
 let current: Pirate | null = null;
 let tauntTimer: ReturnType<typeof setTimeout> | null = null;
@@ -107,6 +107,7 @@ function renderCoins(player: number, ai: number): void {
   lastAi = ai;
   const matchPoint = player === GAME_WIN_SCORE - 1 || ai === GAME_WIN_SCORE - 1;
   document.body.classList.toggle("match-point", matchPoint);
+  matchPointDrum(matchPoint); // one warning frame on the rising edge (cops.ts)
   // r3: which side is at match point drives the strip's glow
   const strip = byId("scoreStrip");
   if (strip) strip.dataset.matchpoint = player === GAME_WIN_SCORE - 1 && ai === GAME_WIN_SCORE - 1 ? "both" : player === GAME_WIN_SCORE - 1 ? "you" : ai === GAME_WIN_SCORE - 1 ? "rival" : "";
@@ -164,5 +165,6 @@ export function installPirateChoreography(): void {
     document.body.classList.toggle("match-lost", !playerWon);
     react(playerWon ? "matchLose" : "matchWin");
     tauntFor(playerWon ? "matchLose" : "matchWin");
+    performCopFinal(playerWon, current?.levelId); // the FINALE cut-in (cops.ts)
   }).observe(el.gameEndBanner, { attributes: true, attributeFilter: ["style"] });
 }

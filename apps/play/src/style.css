@@ -1396,6 +1396,82 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   box-shadow: 0 0 10px rgba(224, 182, 79, .8), 0 0 22px rgba(224, 182, 79, .4);
 }
 
+/* ---------------------------- the FINALE (phase 2) --------------------
+   Match end takes the WHOLE screen: triple flash, a diagonal cut-in band
+   (fighting-game super grammar), «DON!!» + doblons rain on your win, the
+   corsair's portrait riding the band on his. pointer-events: none — the
+   game-end banner's buttons stay clickable underneath. */
+.cop-final { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
+.cop-final-impacte { position: absolute; inset: 0; background: #fff; mix-blend-mode: difference; animation: cop-final-impacte .38s steps(1, end) both; }
+@keyframes cop-final-impacte {
+  0% { opacity: 1; } 18% { opacity: 0; } 36% { opacity: 1; }
+  54% { opacity: 0; } 72% { opacity: 1; } 100% { opacity: 0; }
+}
+.cop-final-band {
+  position: absolute; left: -10%; right: -10%; top: 50%;
+  display: flex; align-items: center; justify-content: center; gap: 4vw;
+  padding: 20px 10%; background: rgba(6, 9, 18, .9);
+  border-top: 3px solid var(--gold-2); border-bottom: 3px solid var(--gold-2);
+  box-shadow: 0 0 44px rgba(224, 182, 79, .35);
+  animation: cop-final-band 2.45s cubic-bezier(.16, 1, .3, 1) both;
+}
+.final-perds .cop-final-band {
+  background: rgba(12, 6, 8, .93); border-color: #7c2f28;
+  box-shadow: 0 0 44px rgba(0, 0, 0, .65);
+}
+@keyframes cop-final-band {
+  0%   { transform: translateY(-50%) rotate(-6deg) translateX(-115%); }
+  13%  { transform: translateY(-50%) rotate(-6deg) translateX(0); }
+  86%  { transform: translateY(-50%) rotate(-6deg) translateX(0); opacity: 1; }
+  100% { transform: translateY(-50%) rotate(-6deg) translateX(6%); opacity: 0; }
+}
+.cop-final-nom {
+  font-family: var(--serif); font-weight: 900; text-transform: uppercase; line-height: 1;
+  font-size: clamp(40px, 12vw, 96px); letter-spacing: .02em;
+  -webkit-text-stroke: 2px rgba(10, 6, 2, .9);
+  text-shadow: 0 5px 0 rgba(10, 6, 2, .5), 0 12px 34px rgba(0, 0, 0, .6);
+  color: var(--gold-2);
+}
+.final-perds .cop-final-nom { color: #ff7a6b; }
+.cop-final-portrait { width: clamp(70px, 18vw, 120px); flex: 0 0 auto; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .6)); animation: cop-final-portrait 2.45s ease-out both; }
+.cop-final-portrait svg { width: 100%; height: auto; display: block; }
+@keyframes cop-final-portrait {
+  0%  { transform: scale(.4) rotate(8deg); opacity: 0; }
+  16% { transform: scale(1.08) rotate(-2deg); opacity: 1; }
+  26% { transform: scale(1) rotate(0deg); }
+  86% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* Oda's stamp — win only; the deep never hears it */
+.cop-final-don {
+  position: absolute; right: 5%; top: 15%; transform: rotate(9deg);
+  font-family: var(--serif); font-weight: 900; line-height: 1;
+  font-size: clamp(52px, 17vw, 130px);
+  color: #fff; -webkit-text-stroke: 3px #1a0f06;
+  text-shadow: 6px 6px 0 var(--gold-2), 0 14px 40px rgba(0, 0, 0, .5);
+  animation: cop-final-don 2.45s cubic-bezier(.2, 1.6, .3, 1) both;
+}
+@keyframes cop-final-don {
+  0%  { transform: rotate(9deg) scale(0); opacity: 0; }
+  22% { transform: rotate(9deg) scale(0); opacity: 0; }
+  32% { transform: rotate(9deg) scale(1.25); opacity: 1; }
+  40% { transform: rotate(9deg) scale(1); }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.cop-final-rain { position: absolute; inset: 0; }
+.cop-final-rain i {
+  position: absolute; top: -24px; width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe9a8, var(--gold-2) 55%, #8a6a1f);
+  box-shadow: 0 0 8px rgba(224, 182, 79, .7);
+  animation: cop-rain-fall 1.2s cubic-bezier(.4, .1, .7, 1) both;
+}
+@keyframes cop-rain-fall {
+  0%  { transform: translateY(0); opacity: 0; }
+  8%  { opacity: 1; }
+  100% { transform: translateY(110vh); opacity: .9; }
+}
+
 /* ------------------------------------------- stacked fight: the STAGE
    Phones + narrow tablets: a call-style layout. The score rides on top in
    flow; below it ONE tall pirate card holds the camera (not full-bleed —
