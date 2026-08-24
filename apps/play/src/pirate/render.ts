@@ -10,7 +10,6 @@ import { el } from "../dom.js";
 import { GAME_WIN_SCORE } from "../config.js";
 import { pirateForLevel, pickTaunt, type Pirate, type PirateReaction } from "./cast.js";
 import { artWithUniqueIds, PIRATE_ART, SCENERY, WAVES_SVG } from "./art.js";
-import { flyCoin, performCop, type CopKind } from "./cops.js";
 
 let current: Pirate | null = null;
 let tauntTimer: ReturnType<typeof setTimeout> | null = null;
@@ -98,9 +97,7 @@ function renderCoins(player: number, ai: number): void {
       const full = i < score;
       const was = coin.classList.contains("full");
       coin.classList.toggle("full", full);
-      const earned = full && !was && score > prev;
-      coin.classList.toggle("pop", earned);
-      if (earned) flyCoin(coin); // a doblo sails from the stage to its slot
+      coin.classList.toggle("pop", full && !was && score > prev);
     });
   }
   lastPlayer = player;
@@ -119,16 +116,14 @@ function syncCoinsFromScoreboard(): void {
 
 // ---------------------------------------------------------- choreography
 
-const ROUND_REACTIONS: Record<string, { react: ReactKind; taunt: PirateReaction; cop?: CopKind }> = {
-  "TU GUANYES!": { react: "lose", taunt: "lose", cop: "guanyes" },
-  "RIVAL GUANYA": { react: "win", taunt: "win", cop: "perds" },
+const ROUND_REACTIONS: Record<string, { react: ReactKind; taunt: PirateReaction }> = {
+  "TU GUANYES!": { react: "lose", taunt: "lose" },
+  "RIVAL GUANYA": { react: "win", taunt: "win" },
   // the shared tie wears three faces (copy.ts PARATA_HEADLINE + the
-  // context-free CAP PUNT) — all the same shrug on stage. EMPAT slams as
-  // a clash, PER A NINGÚ deflates; the context-free CAP PUNT clashes too.
-  "EMPAT!": { react: "parata", taunt: "parata", cop: "empat" },
-  "PER A NINGÚ": { react: "parata", taunt: "parata", cop: "ningu" },
-  "CAP PUNT": { react: "parata", taunt: "parata", cop: "empat" },
-  // a void round is an interruption, not a move — no cop
+  // context-free CAP PUNT) — all the same shrug on stage
+  "EMPAT!": { react: "parata", taunt: "parata" },
+  "PER A NINGÚ": { react: "parata", taunt: "parata" },
+  "CAP PUNT": { react: "parata", taunt: "parata" },
   "RONDA ANUL·LADA": { react: "void", taunt: "void" },
 };
 
@@ -144,7 +139,6 @@ export function installPirateChoreography(): void {
     if (!hit) return;
     react(hit.react);
     tauntFor(hit.taunt);
-    if (hit.cop) performCop(hit.cop, current?.levelId); // the named move (cops.ts)
   }).observe(el.roundResultText, { childList: true });
 
   // Treasure: mirror the scoreboard into doubloons + match-point state.
