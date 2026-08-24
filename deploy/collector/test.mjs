@@ -90,6 +90,21 @@ check("table persisted to classificacio.json", disk.entries.length === 10 && dis
 // /log unaffected
 r = await fetch(`${BASE}/log`, { method: "POST", body: '{"sessionId":"t","type":"smoke"}' });
 check("/log still answers 204", r.status === 204);
+
+// profileHash salting: stored value differs from the sent one, is stable
+// across events, and the salt file exists in DATA_DIR
+await fetch(`${BASE}/log`, { method: "POST", body: '{"sessionId":"t","type":"profile_active","profileHash":"aabbccddeeff"}' });
+await fetch(`${BASE}/log`, { method: "POST", body: '{"sessionId":"t2","type":"profile_active","profileHash":"aabbccddeeff"}' });
+await new Promise((res) => setTimeout(res, 200)); // let the appends flush
+{
+  const day = new Date().toISOString().slice(0, 10);
+  const lines = readFileSync(path.join(DATA, `events-${day}.ndjson`), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  const salted = lines.filter((e) => e.type === "profile_active").map((e) => e.profileHash);
+  check("profileHash is salted before storage", salted.length === 2 && salted[0] !== "aabbccddeeff" && /^[0-9a-f]{12}$/.test(salted[0]), JSON.stringify(salted));
+  check("salting is stable (same player groups across sessions)", salted[0] === salted[1]);
+  const salt = readFileSync(path.join(DATA, ".profile-salt"), "utf8").trim();
+  check("salt persisted in DATA_DIR", salt.length >= 32);
+}
 r = await fetch(`${BASE}/nope`);
 check("everything else still 404s", r.status === 404);
 

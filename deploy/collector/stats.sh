@@ -14,7 +14,8 @@ LOGS_DIR=".logs"
 if [[ "${1:-}" != "--no-sync" ]]; then
   mkdir -p "$LOGS_DIR"
   echo "→ syncing /srv/morra-logs from the box…"
-  rsync -az "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/morra-logs/" "$LOGS_DIR/"
+  # --exclude .profile-salt: the server-side salt must never leave the box
+  rsync -az --exclude ".profile-salt" "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/morra-logs/" "$LOGS_DIR/"
 fi
 
 shopt -s nullglob

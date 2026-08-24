@@ -9,7 +9,11 @@ silently). This directory is the production sink.
   1 MB body cap, 60 req/min per IP, every line must parse as JSON (≤8 KB)
   and is re-serialized with a server timestamp (`rx`) and a day-rotating
   `visitor` hash (sha256 of ip+day, truncated — no addresses stored).
-  Appends to `/data/events-<utc-day>.ndjson`.
+  Appends to `/data/events-<utc-day>.ndjson`. Any `profileHash` field is
+  **re-hashed with a server-side secret salt** before storage
+  (`/data/.profile-salt`, auto-generated on first boot, excluded from
+  stats.sh's rsync): the client hash is computable from the public repo +
+  a name off the public Classificació, the stored one is not.
 
   Since 2026-08-22 it also serves **la Classificació global** — the one
   arcade table for every vessel:
