@@ -17,7 +17,7 @@
 // Run: DATA_DIR=/data node collector.mjs   (port 9310)
 
 import http from "node:http";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createWriteStream, mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import path from "node:path";
 
@@ -71,6 +71,31 @@ function dayStream() {
 // to an address, and lets stats count unique devices per day.
 function visitorHash(ip, day) {
   return createHash("sha256").update(`${ip}|${day}`).digest("hex").slice(0, 12);
+}
+
+// The client's profileHash is deterministic (sha256 of the folded name,
+// public code) — so anyone holding the repo AND a name from the public
+// Classificació could compute it and link that player's telemetry. A
+// server-side secret salt breaks that: stored logs carry
+// sha256(salt|clientHash) instead, stable for retention stats but
+// uncomputable without the salt. The salt auto-generates on first boot and
+// lives in DATA_DIR (stats.sh excludes it from its rsync).
+const SALT_FILE = path.join(DATA_DIR, ".profile-salt");
+const PROFILE_SALT = (() => {
+  try {
+    const s = readFileSync(SALT_FILE, "utf8").trim();
+    if (s.length >= 32) return s;
+  } catch {
+    // first boot — generate below
+  }
+  const fresh = randomBytes(32).toString("hex");
+  try { writeFileSync(SALT_FILE, fresh + "\n"); } catch (err) {
+    console.error(`profile-salt persist error: ${err.message} — salting with an ephemeral salt this run`);
+  }
+  return fresh;
+})();
+function saltProfileHash(clientHash) {
+  return createHash("sha256").update(`${PROFILE_SALT}|${clientHash}`).digest("hex").slice(0, 12);
 }
 
 // ---- la Classificació: the ONE arcade table for every vessel -------------
@@ -237,6 +262,7 @@ const server = http.createServer((req, res) => {
         if (typeof evt !== "object" || evt === null || Array.isArray(evt)) continue;
         evt.rx = rx;
         evt.visitor = visitor;
+        if (typeof evt.profileHash === "string") evt.profileHash = saltProfileHash(evt.profileHash);
         out.write(JSON.stringify(evt) + "\n");
         kept += 1;
       } catch {
