@@ -12,10 +12,11 @@
 
 export type CopKind = "guanyes" | "perds" | "empat" | "ningu";
 
-/** Your finisher — the broadside. One name whoever the rival is (v1;
- * per-player names are a later idea). Draft names — the user is the
- * ground truth on Catalan and renames after feeling them in-game. */
-export const COP_DEL_GRUMET = "BORDADA!";
+/** Your finisher. One name whoever the rival is (v1; per-player names are
+ * a later idea). Draft names — the user is the ground truth on Catalan.
+ * 2026-08-25 field verdict: «BORDADA» read "super super weird" — removed;
+ * «PUNT!» is the plain table shout. */
+export const COP_DEL_GRUMET = "PUNT!";
 
 /** Each corsari's signature move, One Piece style: the pattern is
  * per-character, like «Gomu Gomu no ___» is Luffy's alone. */

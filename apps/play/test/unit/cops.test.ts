@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 import { COP_DEL_CORSARI, COP_DEL_GRUMET, copName } from "../../src/pirate/cops.js";
 
 describe("cops: every verdict slams a NAME (the Gomu-Gomu insight)", () => {
-  it("your win is the broadside, whoever the rival is", () => {
-    expect(copName("guanyes", "L1")).toBe("BORDADA!");
+  it("your win is the plain table shout, whoever the rival is (BORDADA retired by field verdict 2026-08-25)", () => {
+    expect(copName("guanyes", "L1")).toBe("PUNT!");
     expect(copName("guanyes", "L4")).toBe(COP_DEL_GRUMET);
     expect(copName("guanyes", null)).toBe(COP_DEL_GRUMET);
   });
