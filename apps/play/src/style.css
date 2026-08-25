@@ -463,7 +463,11 @@ body[data-screen="calib"][data-calib-skip="on"] .calib-skip {
   animation: vs-stamp .4s cubic-bezier(.2,.9,.3,1.4) .12s both;
 }
 @keyframes vs-stamp { from { transform: scale(3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.vs-stage { position: absolute; bottom: 9vh; left: 0; right: 0; text-align: center; font-family: var(--serif); font-size: 20px; color: var(--foam); opacity: .85; }
+/* In flow, not pinned: absolute bottom overlapped the rival's title on
+   short viewports (field screenshot 2026-08-25 — «La Coberta del Xebec»
+   through «el Contramestre»). As the column's last child the flex gap
+   guarantees clearance on every screen. */
+.vs-stage { text-align: center; font-family: var(--serif); font-size: 20px; color: var(--foam); opacity: .85; max-width: 96vw; }
 
 /* ------------------------------------------------------ fight stage */
 #screenFight { position: relative; padding: 0 0 12px; } /* was 40: the game screen must fit a 900px-tall window at 100% */
@@ -1322,6 +1326,8 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
         .home-cta { font-size: 28px; padding: 14px 60px; }
 }
 @media (max-height: 760px) { .home .title-wordmark { width: min(480px, 84vw); } }
+/* short viewports: the VS column must fit — the portrait gives the room */
+@media (max-height: 800px) { .vs-portrait { width: 190px; height: 220px; } .vs-you-mark { font-size: 56px; } }
 /* solo card: a mirror-glow instead of a portrait */
 .solo-portrait { background: radial-gradient(closest-side, rgba(224,182,79,.35), rgba(224,182,79,.08) 60%, transparent 70%); }
 
