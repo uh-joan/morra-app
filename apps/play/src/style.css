@@ -1384,6 +1384,47 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
    a11y read those), and void rounds (no cop) keep the banner as before. */
 .verdict-banner.amb-cop { display: none; }
 
+/* EMPAT: the cutlasses cross behind the slam, the spark bites, gone. */
+.cop-sabres { position: absolute; left: 50%; top: 40%; width: min(46%, 200px); aspect-ratio: 1; transform: translate(-50%, -50%); animation: cop-sabres .7s ease-out both; }
+.cop-sabres svg { width: 100%; height: 100%; }
+.cop-sabres .cs-spark { transform-origin: 50% 52%; animation: cop-spark .5s cubic-bezier(.2, 1.6, .3, 1) both; }
+@keyframes cop-sabres {
+  0%   { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+  18%  { transform: translate(-50%, -50%) scale(.96); opacity: .95; }
+  26%  { transform: translate(-50%, -50%) scale(1); }
+  70%  { opacity: .95; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+@keyframes cop-spark {
+  0%, 20% { transform: scale(0); }
+  45%     { transform: scale(1.6); }
+  60%     { transform: scale(1); }
+  100%    { transform: scale(.7); opacity: 0; }
+}
+
+/* PER A NINGÚ: the sea sweeps the stage bottom and keeps the coin. */
+.cop-onada { position: absolute; left: 0; right: 0; bottom: 0; height: 34%; overflow: hidden; animation: cop-onada 1.25s ease-in-out both; }
+.cop-onada svg { position: absolute; left: 0; bottom: 0; width: 200%; height: 100%; animation: cop-onada-sweep 1.25s ease-in-out both; }
+@keyframes cop-onada { 0% { opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes cop-onada-sweep { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+/* PERDS: the corsair's figure smear-lunges toward your side — stretch out,
+   snap back. Direction flips with the PiP dock on phones. */
+.rival-figure-frame.cop-lunge { animation: cop-lunge .55s cubic-bezier(.2, .9, .3, 1) both; }
+.rival-side[data-dock="left"] .rival-figure-frame.cop-lunge { animation-name: cop-lunge-dret; }
+@keyframes cop-lunge {
+  0%   { transform: translateX(0) scaleX(1); }
+  30%  { transform: translateX(-16px) scaleX(1.35) skewX(-6deg); }
+  55%  { transform: translateX(-10px) scaleX(1.08); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+@keyframes cop-lunge-dret {
+  0%   { transform: translateX(0) scaleX(1); }
+  30%  { transform: translateX(16px) scaleX(1.35) skewX(6deg); }
+  55%  { transform: translateX(10px) scaleX(1.08); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+
 /* The whole arena takes the hit. */
 .arena.cop-tremolor { animation: cop-tremolor .3s linear both; }
 @keyframes cop-tremolor {

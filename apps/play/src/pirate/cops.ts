@@ -57,6 +57,27 @@ function reducedMotion(): boolean {
   return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+// EMPAT: two cutlasses cross and a spark pops at the bite point — a clash
+// has energy but no winner. Constant authored art.
+const SABRES_SVG = `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <g stroke-linecap="round" fill="none">
+    <path class="cs-blade" d="M22 84 L72 30 M72 30 Q76 24 74 18" stroke="#cdd6e0" stroke-width="4.5"/>
+    <path d="M28 78 q-7 7 -2 12 q6 4 11 -3" stroke="#8a6a1f" stroke-width="3.5"/>
+    <path class="cs-blade" d="M78 84 L28 30 M28 30 Q24 24 26 18" stroke="#b9c4d2" stroke-width="4.5"/>
+    <path d="M72 78 q7 7 2 12 q-6 4 -11 -3" stroke="#8a6a1f" stroke-width="3.5"/>
+  </g>
+  <g class="cs-spark" fill="#ffe9a8">
+    <polygon points="50,40 52.5,50 62,52 52.5,54 50,64 47.5,54 38,52 47.5,50"/>
+  </g>
+</svg>`;
+
+// PER A NINGÚ: the sea sweeps in and keeps the coin. Two foam humps
+// crossing the stage bottom, translucent. Constant authored art.
+const ONADA_SVG = `<svg viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 26 Q12 14 25 26 T50 26 T75 26 T100 26 T125 26 T150 26 T175 26 T200 26 L200 40 L0 40 Z" fill="rgba(191,227,224,.28)"/>
+  <path d="M0 32 Q15 22 30 32 T60 32 T90 32 T120 32 T150 32 T180 32 T210 32 L210 40 L0 40 Z" fill="rgba(95,140,160,.38)"/>
+</svg>`;
+
 // ~24 radial manga speed lines, jittered lengths, drawn once per burst.
 // currentColor so the palette rides on .cop-linies[data-cop].
 function speedLinesSvg(): string {
@@ -107,6 +128,34 @@ export function performCop(kind: CopKind, levelId?: string | null): void {
     linies.dataset.cop = kind;
     linies.innerHTML = speedLinesSvg(); // constant authored art — no data
     stage.appendChild(linies);
+  }
+
+  // The clash: crossed cutlasses + spark behind the EMPAT slam.
+  if (kind === "empat") {
+    const sabres = document.createElement("div");
+    sabres.className = "cop-sabres";
+    sabres.innerHTML = SABRES_SVG; // constant authored art — no data
+    stage.appendChild(sabres);
+  }
+
+  // The deflation: the sea sweeps the stage bottom and keeps the coin.
+  if (kind === "ningu") {
+    const onada = document.createElement("div");
+    onada.className = "cop-onada";
+    onada.innerHTML = ONADA_SVG; // constant authored art — no data
+    stage.appendChild(onada);
+  }
+
+  // The rival's blow lands: his figure smear-lunges toward your side
+  // (mirrored when the PiP is docked left — style.css owns the direction).
+  if (kind === "perds") {
+    const frame = document.getElementById("rivalFigureFrame");
+    if (frame) {
+      frame.classList.remove("cop-lunge");
+      void frame.offsetWidth; // restart the animation
+      frame.classList.add("cop-lunge");
+      setTimeout(() => frame.classList.remove("cop-lunge"), 700);
+    }
   }
 
   // The name, slammed.
