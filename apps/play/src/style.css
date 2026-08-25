@@ -1525,6 +1525,20 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   100% { transform: translateY(110vh); opacity: .9; }
 }
 
+/* Laptops: the camera card is small (~440px) — the banner must be a note
+   on the video, not a poster over it (field verdict 2026-08-25: «RONDA
+   ANUL·LADA / cap crit sentit» covered almost the whole webcam). Phones
+   keep the big type ("in phone is ok"). Applies to the banners that still
+   show: void/incomplete, and every verdict under reduced motion. */
+@media (min-width: 901px) {
+  .verdict-banner { padding: 6px 10px 8px; }
+  .vb-head { font-size: 22px; }
+  .verdict-banner.void .vb-head { font-size: 19px; }
+  .verdict-banner.incomplete .vb-head { font-size: 17px; }
+  .vb-reason { font-size: 13px; }
+  .vb-seal { font-size: 10px; }
+}
+
 /* ------------------------------------------- stacked fight: the STAGE
    Phones + narrow tablets: a call-style layout. The score rides on top in
    flow; below it ONE tall pirate card holds the camera (not full-bleed —
