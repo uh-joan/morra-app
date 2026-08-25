@@ -10,6 +10,7 @@ import { el } from "../dom.js";
 import { GAME_WIN_SCORE } from "../config.js";
 import { pirateForLevel, pickTaunt, type Pirate, type PirateReaction } from "./cast.js";
 import { artWithUniqueIds, PIRATE_ART, SCENERY, WAVES_SVG } from "./art.js";
+import { flyCoin, matchPointDrum, performCop, performCopFinal, type CopKind } from "./cops.js";
 
 let current: Pirate | null = null;
 let tauntTimer: ReturnType<typeof setTimeout> | null = null;
@@ -97,13 +98,16 @@ function renderCoins(player: number, ai: number): void {
       const full = i < score;
       const was = coin.classList.contains("full");
       coin.classList.toggle("full", full);
-      coin.classList.toggle("pop", full && !was && score > prev);
+      const earned = full && !was && score > prev;
+      coin.classList.toggle("pop", earned);
+      if (earned) flyCoin(coin); // a doblo sails from the stage to its slot
     });
   }
   lastPlayer = player;
   lastAi = ai;
   const matchPoint = player === GAME_WIN_SCORE - 1 || ai === GAME_WIN_SCORE - 1;
   document.body.classList.toggle("match-point", matchPoint);
+  matchPointDrum(matchPoint); // one warning frame on the rising edge (cops.ts)
   // r3: which side is at match point drives the strip's glow
   const strip = byId("scoreStrip");
   if (strip) strip.dataset.matchpoint = player === GAME_WIN_SCORE - 1 && ai === GAME_WIN_SCORE - 1 ? "both" : player === GAME_WIN_SCORE - 1 ? "you" : ai === GAME_WIN_SCORE - 1 ? "rival" : "";
@@ -116,14 +120,16 @@ function syncCoinsFromScoreboard(): void {
 
 // ---------------------------------------------------------- choreography
 
-const ROUND_REACTIONS: Record<string, { react: ReactKind; taunt: PirateReaction }> = {
-  "TU GUANYES!": { react: "lose", taunt: "lose" },
-  "RIVAL GUANYA": { react: "win", taunt: "win" },
+const ROUND_REACTIONS: Record<string, { react: ReactKind; taunt: PirateReaction; cop?: CopKind }> = {
+  "TU GUANYES!": { react: "lose", taunt: "lose", cop: "guanyes" },
+  "RIVAL GUANYA": { react: "win", taunt: "win", cop: "perds" },
   // the shared tie wears three faces (copy.ts PARATA_HEADLINE + the
-  // context-free CAP PUNT) — all the same shrug on stage
-  "EMPAT!": { react: "parata", taunt: "parata" },
-  "PER A NINGÚ": { react: "parata", taunt: "parata" },
-  "CAP PUNT": { react: "parata", taunt: "parata" },
+  // context-free CAP PUNT) — all the same shrug on stage. EMPAT slams as
+  // a clash, PER A NINGÚ deflates; the context-free CAP PUNT clashes too.
+  "EMPAT!": { react: "parata", taunt: "parata", cop: "empat" },
+  "PER A NINGÚ": { react: "parata", taunt: "parata", cop: "ningu" },
+  "CAP PUNT": { react: "parata", taunt: "parata", cop: "empat" },
+  // a void round is an interruption, not a move — no cop
   "RONDA ANUL·LADA": { react: "void", taunt: "void" },
 };
 
@@ -139,6 +145,7 @@ export function installPirateChoreography(): void {
     if (!hit) return;
     react(hit.react);
     tauntFor(hit.taunt);
+    if (hit.cop) performCop(hit.cop, current?.levelId); // the named move (cops.ts)
   }).observe(el.roundResultText, { childList: true });
 
   // Treasure: mirror the scoreboard into doubloons + match-point state.
@@ -158,5 +165,6 @@ export function installPirateChoreography(): void {
     document.body.classList.toggle("match-lost", !playerWon);
     react(playerWon ? "matchLose" : "matchWin");
     tauntFor(playerWon ? "matchLose" : "matchWin");
+    performCopFinal(playerWon, current?.levelId); // the FINALE cut-in (cops.ts)
   }).observe(el.gameEndBanner, { attributes: true, attributeFilter: ["style"] });
 }
