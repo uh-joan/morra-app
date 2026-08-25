@@ -1378,6 +1378,12 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   100% { transform: translate(-50%, -30%) scale(.9);  opacity: 0; }
 }
 
+/* While a cop plays, the verdict banner defers to the slam: invisible
+   through the shout, fading in as it exits. textContent/hidden semantics
+   untouched — this is opacity theater only. */
+.verdict-banner.amb-cop { animation: vb-amb-cop 1.6s ease-out both; }
+@keyframes vb-amb-cop { 0%, 58% { opacity: 0; } 100% { opacity: 1; } }
+
 /* The whole arena takes the hit. */
 .arena.cop-tremolor { animation: cop-tremolor .3s linear both; }
 @keyframes cop-tremolor {
