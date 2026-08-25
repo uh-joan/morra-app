@@ -85,11 +85,11 @@ export function performCop(kind: CopKind, levelId?: string | null): void {
   if (cleanupTimer) clearTimeout(cleanupTimer);
   stage.replaceChildren();
 
-  // One voice at a time (field verdict 2026-08-25: "now there are 2 text
-  // overlays"): while the slam shouts, the verdict banner holds its breath
-  // and fades in as the slam exits — the shout first, then the record.
-  // banner() resets className every render, so the class self-cleans; the
-  // observer fires after banner() in the same task, so this always lands.
+  // One voice only (field verdict 2026-08-25, round 2): on a cop verdict
+  // the old banner is hidden entirely — the slam IS the verdict on screen.
+  // Visual-only (display:none via .amb-cop): textContent + [hidden] stay
+  // untouched for the harness and a11y. banner() resets className every
+  // render, so the class self-cleans; void rounds (no cop) keep the banner.
   document.getElementById("verdictBanner")?.classList.add("amb-cop");
 
   // Impact flash — the fake hit-stop. Double flash on a hit, a single
