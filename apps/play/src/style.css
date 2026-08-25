@@ -1451,7 +1451,7 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
 
 /* ---------------------------- the FINALE (phase 2) --------------------
    Match end takes the WHOLE screen: triple flash, a diagonal cut-in band
-   (fighting-game super grammar), «DON!!» + doblons rain on your win, the
+   (fighting-game super grammar), «BUM!» + doblons rain on your win, the
    corsair's portrait riding the band on his. pointer-events: none — the
    game-end banner's buttons stay clickable underneath. */
 .cop-final { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }

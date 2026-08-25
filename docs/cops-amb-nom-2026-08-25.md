@@ -40,7 +40,9 @@ Four devices, all portable to the web:
 Phase B shipped 2026-08-25 (round verdicts). **Phase 2 shipped same day,
 branch-only**: match end takes the whole screen — triple impact flash, a
 diagonal cut-in band (fighting-game super grammar). Your win: **«PARTIDA!»**
-(plain register — the BORDADA lesson) + the **«DON!!»** stamp + a rain of
+(plain register — the BORDADA lesson) + the **«BUM!»** stamp (Oda's DON!!
+said in Catalan — same-day field verdict: the manga syllable reads as the
+honorific here) + a rain of
 14 doblons. The corsair's win: his portrait rides the dark band with his
 own signature move. Match point fires one warning frame on the rising
 edge (either side reaching the brink). The game-end banner's buttons stay
