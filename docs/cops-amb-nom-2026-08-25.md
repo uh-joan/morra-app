@@ -33,7 +33,7 @@ Four devices, all portable to the web:
 | Outcome | Move name (v1 drafts — user is ground truth on Catalan) | Choreography |
 |---|---|---|
 | You win a round | **«PUNT!»** (first draft «BORDADA!» retired same day — field verdict: reads "super super weird") | double impact flash → name slam + radial speed lines (gold) → small screen shake → the earned coin flies to its slot |
-| Rival wins | per corsari — Nino **«GANXO!»**, Bru **«COP DE TIMÓ!»**, Mercè **«TALL DE MAREA!»**, El Rei **«L'ONADA NEGRA»** | the same grammar mirrored in red/bone; his figure keeps its existing celebrate react |
+| Rival wins | per corsari — Nino **«PLAM!»** (first draft «GANXO!» retired by field verdict), Bru **«COP DE TIMÓ!»**, Mercè **«TALL DE MAREA!»**, El Rei **«L'ONADA NEGRA»** | the same grammar mirrored in red/bone; his figure keeps its existing celebrate react |
 | Tie, both guessed | **«EMPAT!»** | one short flash, steel-foam slam, no shake — a clash, not a hit |
 | Tie, nobody | **«PER A NINGÚ»** | no flash: the name sinks and fades — comic deflation, the sea keeps the coin |
 

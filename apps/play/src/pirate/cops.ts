@@ -23,7 +23,7 @@ export const COP_DEL_GRUMET = "PUNT!";
 /** Each corsari's signature move, One Piece style: the pattern is
  * per-character, like «Gomu Gomu no ___» is Luffy's alone. */
 export const COP_DEL_CORSARI: Record<string, string> = {
-  L1: "GANXO!", // Nino — the tavern hook
+  L1: "PLAM!", // Nino — the tavern smack (field verdict 2026-08-25: «ganxo» out)
   L2: "COP DE TIMÓ!", // Bru — the helm swings
   L3: "TALL DE MAREA!", // Mercè — the tide cuts
   L4: "L'ONADA NEGRA", // El Rei — no exclamation; the deep doesn't shout
