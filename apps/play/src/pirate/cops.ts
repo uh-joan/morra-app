@@ -78,6 +78,18 @@ const ONADA_SVG = `<svg viewBox="0 0 200 40" preserveAspectRatio="none" aria-hid
   <path d="M0 32 Q15 22 30 32 T60 32 T90 32 T120 32 T150 32 T180 32 T210 32 L210 40 L0 40 Z" fill="rgba(95,140,160,.38)"/>
 </svg>`;
 
+// GUANYES: your punt lands ON the corsair — a cartoon llamp cracks down
+// over his figure. Child-friendly by design (2026-08-27): chunky bolt,
+// warm yellows, star sparks — playful, never menacing. Constant authored art.
+const LLAMP_SVG = `<svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <circle class="ll-glow" cx="30" cy="118" r="30" fill="#ffe9a8"/>
+  <path class="ll-bolt" d="M62 4 L24 66 L44 66 L20 126 L80 52 L56 52 L88 4 Z" fill="#ffd94a" stroke="#b97e10" stroke-width="4" stroke-linejoin="round"/>
+  <g class="ll-espurnes" fill="#fff3c4">
+    <polygon points="24,112 27,121 36,124 27,127 24,136 21,127 12,124 21,121"/>
+    <polygon points="58,124 60,130 66,132 60,134 58,140 56,134 50,132 56,130"/>
+  </g>
+</svg>`;
+
 // ~24 radial manga speed lines, jittered lengths, drawn once per burst.
 // currentColor so the palette rides on .cop-linies[data-cop].
 function speedLinesSvg(): string {
@@ -155,6 +167,28 @@ export function performCop(kind: CopKind, levelId?: string | null): void {
       void frame.offsetWidth; // restart the animation
       frame.classList.add("cop-lunge");
       setTimeout(() => frame.classList.remove("cop-lunge"), 700);
+    }
+  }
+
+  // Your blow lands: a llamp cracks down over the corsair's figure and his
+  // frame shivers under it (the shiver displaces render.ts's react-lose
+  // grumble while it runs; the grumble restarts fresh after) — the mirror
+  // of his cop-lunge when he scores.
+  if (kind === "guanyes") {
+    const frame = document.getElementById("rivalFigureFrame");
+    if (frame) {
+      frame.querySelector(".cop-llamp")?.remove();
+      const llamp = document.createElement("div");
+      llamp.className = "cop-llamp";
+      llamp.innerHTML = LLAMP_SVG; // constant authored art — no data
+      frame.appendChild(llamp);
+      frame.classList.remove("cop-espurneig");
+      void frame.offsetWidth; // restart the animation
+      frame.classList.add("cop-espurneig");
+      setTimeout(() => {
+        llamp.remove();
+        frame.classList.remove("cop-espurneig");
+      }, 800);
     }
   }
 

@@ -1431,6 +1431,45 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   100% { transform: translateX(0) scaleX(1); }
 }
 
+/* GUANYES: your punt lands ON the corsair — a cartoon llamp cracks down
+   over his figure (child-friendly: chunky and warm, never menacing). The
+   bolt overshoots in from above, flickers twice like real lightning, the
+   glow blooms at the strike point and two star sparks pop. The frame's
+   shiver displaces the react-lose grumble while it runs (same-specificity
+   rule, later in the sheet), then the grumble restarts fresh. */
+.cop-llamp { position: absolute; left: 50%; top: -28%; width: 58%; height: 118%; transform: translateX(-50%); z-index: 5; pointer-events: none; }
+.cop-llamp svg { width: 100%; height: 100%; overflow: visible; }
+.cop-llamp .ll-bolt { transform-origin: 62% 0; animation: ll-bolt .7s cubic-bezier(.2, 1.5, .3, 1) both; }
+@keyframes ll-bolt {
+  0%   { transform: scaleY(0);    opacity: 0; }
+  12%  { transform: scaleY(1.08); opacity: 1; }
+  20%  { opacity: .3; }
+  28%  { transform: scaleY(1);    opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.cop-llamp .ll-glow { transform-origin: 30% 79%; mix-blend-mode: screen; animation: ll-glow .7s ease-out both; }
+@keyframes ll-glow {
+  0%, 10% { opacity: 0;  transform: scale(.3); }
+  24%     { opacity: .6; transform: scale(1.1); }
+  100%    { opacity: 0;  transform: scale(1.6); }
+}
+.cop-llamp .ll-espurnes { transform-origin: 40% 84%; animation: ll-espurnes .7s ease-out both; }
+@keyframes ll-espurnes {
+  0%, 16% { opacity: 0; transform: scale(.4); }
+  30%     { opacity: 1; transform: scale(1.15); }
+  55%     { opacity: 1; transform: scale(1); }
+  100%    { opacity: 0; transform: scale(1.3); }
+}
+.rival-figure-frame.cop-espurneig { animation: cop-espurneig .5s linear both; }
+@keyframes cop-espurneig {
+  0%, 100% { transform: translate(0, 0); }
+  15% { transform: translate(2px, 1px) rotate(.6deg); }
+  35% { transform: translate(-3px, -1px) rotate(-.8deg); }
+  55% { transform: translate(2px, -1px) rotate(.5deg); }
+  75% { transform: translate(-2px, 1px); }
+}
+
 /* The whole arena takes the hit. */
 .arena.cop-tremolor { animation: cop-tremolor .3s linear both; }
 @keyframes cop-tremolor {
