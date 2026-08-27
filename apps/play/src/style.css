@@ -1454,6 +1454,34 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   100%    { opacity: 0; transform: scale(1.35) rotate(26deg); }
 }
 
+/* PERDS · L2 Bru «COP DE TIMÓ!»: the helm swings — the wheel spins in
+   from his side (right), whacks center-frame, the star pops at contact
+   and the wheel wobbles from its own hit before spinning off. Translation
+   rides the svg, rotation rides the inner .tb-roda group. */
+.cop-timo { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.cop-timo svg { width: min(52%, 230px); overflow: visible; animation: tb-swing .9s cubic-bezier(.2, 1.1, .3, 1) both; }
+@keyframes tb-swing {
+  0%   { transform: translateX(160%); opacity: 0; }
+  10%  { opacity: 1; }
+  26%  { transform: translateX(-5%); }
+  38%  { transform: translateX(3%); }
+  72%  { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-14%); opacity: 0; }
+}
+.cop-timo .tb-roda { transform-origin: 50% 50%; animation: tb-gir .9s linear both; }
+@keyframes tb-gir {
+  0%   { transform: rotate(80deg); }
+  30%  { transform: rotate(-500deg); }
+  100% { transform: rotate(-580deg); }
+}
+.cop-timo .tb-estrella { transform-origin: 50% 50%; animation: tb-estrella .9s ease-out both; }
+@keyframes tb-estrella {
+  0%, 22% { opacity: 0; transform: scale(.2) rotate(0); }
+  32%     { opacity: 1; transform: scale(1.5) rotate(12deg); }
+  52%     { opacity: .85; transform: scale(1.25) rotate(18deg); }
+  100%    { opacity: 0; transform: scale(1.6) rotate(24deg); }
+}
+
 /* GUANYES: your punt lands ON the corsair — a cartoon llamp cracks down
    over his figure (child-friendly: chunky and warm, never menacing). The
    bolt overshoots in from above, flickers twice like real lightning, the

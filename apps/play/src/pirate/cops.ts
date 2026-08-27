@@ -91,10 +91,10 @@ const LLAMP_SVG = `<svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet
 </svg>`;
 
 // PERDS is per-corsair: the blow that lands on you IS his named move made
-// literal (one at a time — Nino first; Bru/Mercè/El Rei to follow).
+// literal (one at a time — Mercè and El Rei still to come). Same
+// child-friendly register as the llamp throughout. Constant authored art.
 // L1 Nino «PLAM!»: the tavern smack — a big cartoon palm slaps straight
-// into the camera, impact star behind it. Same child-friendly register as
-// the llamp. Constant authored art.
+// into the camera, impact star behind it.
 const MA_PLAM_SVG = `<svg viewBox="0 0 100 120" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
   <polygon class="mp-estrella" points="50,2 60,36 94,26 68,52 98,72 62,68 66,104 46,74 22,98 32,62 2,54 36,46" fill="#ffe9a8"/>
   <g class="mp-ma" fill="#eec39a" stroke="#8a5a30" stroke-width="3.5" stroke-linejoin="round">
@@ -106,6 +106,42 @@ const MA_PLAM_SVG = `<svg viewBox="0 0 100 120" preserveAspectRatio="xMidYMid me
     <ellipse cx="52" cy="80" rx="29" ry="26"/>
   </g>
 </svg>`;
+
+// L2 Bru «COP DE TIMÓ!»: the helm swings — a chunky wooden ship's wheel
+// spins in from his side, whacks center-frame (star pop + wobble), spins
+// off. Eight handles, brass hub, wood two-tone.
+const TIMO_SVG = `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <polygon class="tb-estrella" points="50,4 59,34 88,22 66,48 96,58 64,62 70,96 50,70 30,96 36,62 4,58 34,48" fill="#ffe9a8"/>
+  <g class="tb-roda">
+    <g fill="#b98a4e" stroke="#6e4a1f" stroke-width="3">
+      <rect x="47" y="1" width="6" height="16" rx="3"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(45 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(90 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(135 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(180 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(225 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(270 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(315 50 50)"/>
+    </g>
+    <circle cx="50" cy="50" r="32" fill="none" stroke="#b98a4e" stroke-width="10"/>
+    <circle cx="50" cy="50" r="37" fill="none" stroke="#6e4a1f" stroke-width="2.5"/>
+    <circle cx="50" cy="50" r="27" fill="none" stroke="#6e4a1f" stroke-width="2.5"/>
+    <g stroke="#b98a4e" stroke-width="5" stroke-linecap="round">
+      <line x1="50" y1="40" x2="50" y2="28"/><line x1="50" y1="60" x2="50" y2="72"/>
+      <line x1="40" y1="50" x2="28" y2="50"/><line x1="60" y1="50" x2="72" y2="50"/>
+      <line x1="43" y1="43" x2="34" y2="34"/><line x1="57" y1="57" x2="66" y2="66"/>
+      <line x1="57" y1="43" x2="66" y2="34"/><line x1="43" y1="57" x2="34" y2="66"/>
+    </g>
+    <circle cx="50" cy="50" r="10" fill="#e0b64f" stroke="#6e4a1f" stroke-width="3"/>
+  </g>
+</svg>`;
+
+/** The corsair blows with authored art so far (the rest land with the
+ * lunge alone until their turn comes). */
+const COP_CORSARI_FX: Record<string, { cls: string; svg: string }> = {
+  L1: { cls: "cop-plam", svg: MA_PLAM_SVG },
+  L2: { cls: "cop-timo", svg: TIMO_SVG },
+};
 
 // ~24 radial manga speed lines, jittered lengths, drawn once per burst.
 // currentColor so the palette rides on .cop-linies[data-cop].
@@ -185,13 +221,13 @@ export function performCop(kind: CopKind, levelId?: string | null): void {
       frame.classList.add("cop-lunge");
       setTimeout(() => frame.classList.remove("cop-lunge"), 700);
     }
-    // His named move, made literal on your stage (per-corsair; the others
-    // fall back to the lunge alone until their turn comes).
-    if (levelId === "L1") {
-      const plam = document.createElement("div");
-      plam.className = "cop-plam";
-      plam.innerHTML = MA_PLAM_SVG; // constant authored art — no data
-      stage.appendChild(plam);
+    // His named move, made literal on your stage.
+    const fx = COP_CORSARI_FX[levelId ?? ""];
+    if (fx) {
+      const el = document.createElement("div");
+      el.className = fx.cls;
+      el.innerHTML = fx.svg; // constant authored art — no data
+      stage.appendChild(el);
     }
   }
 
