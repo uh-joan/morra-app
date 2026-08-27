@@ -1431,6 +1431,139 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   100% { transform: translateX(0) scaleX(1); }
 }
 
+/* PERDS · L1 Nino «PLAM!»: the tavern smack — a big cartoon palm slaps
+   straight INTO the camera (grows toward you, blur-to-sharp), the impact
+   star pops behind it at contact, a flat-hand hold, then it lifts away.
+   The name slam renders above it (appended later in the stage). */
+.cop-plam { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.cop-plam svg { width: min(58%, 250px); overflow: visible; }
+.cop-plam .mp-ma { transform-origin: 52% 66%; animation: mp-ma .85s cubic-bezier(.2, 1.2, .3, 1) both; }
+@keyframes mp-ma {
+  0%   { transform: scale(.15) rotate(-16deg); opacity: 0; filter: blur(7px); }
+  22%  { transform: scale(1.14) rotate(4deg);  opacity: 1; filter: blur(0); }
+  30%  { transform: scale(1.04) rotate(0deg); }
+  40%  { transform: scale(1.08) rotate(1deg); }
+  72%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1.16); opacity: 0; }
+}
+.cop-plam .mp-estrella { transform-origin: 50% 50%; animation: mp-estrella .85s ease-out both; }
+@keyframes mp-estrella {
+  0%, 18% { opacity: 0; transform: scale(.2) rotate(0); }
+  28%     { opacity: 1; transform: scale(1.25) rotate(14deg); }
+  48%     { opacity: .9; transform: scale(1.05) rotate(20deg); }
+  100%    { opacity: 0; transform: scale(1.35) rotate(26deg); }
+}
+
+/* PERDS · L2 Bru «COP DE TIMÓ!»: the helm swings — the wheel spins in
+   from his side (right), whacks center-frame, the star pops at contact
+   and the wheel wobbles from its own hit before spinning off. Translation
+   rides the svg, rotation rides the inner .tb-roda group. */
+.cop-timo { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.cop-timo svg { width: min(52%, 230px); overflow: visible; animation: tb-swing .9s cubic-bezier(.2, 1.1, .3, 1) both; }
+@keyframes tb-swing {
+  0%   { transform: translateX(160%); opacity: 0; }
+  10%  { opacity: 1; }
+  26%  { transform: translateX(-5%); }
+  38%  { transform: translateX(3%); }
+  72%  { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-14%); opacity: 0; }
+}
+.cop-timo .tb-roda { transform-origin: 50% 50%; animation: tb-gir .9s linear both; }
+@keyframes tb-gir {
+  0%   { transform: rotate(80deg); }
+  30%  { transform: rotate(-500deg); }
+  100% { transform: rotate(-580deg); }
+}
+.cop-timo .tb-estrella { transform-origin: 50% 50%; animation: tb-estrella .9s ease-out both; }
+@keyframes tb-estrella {
+  0%, 22% { opacity: 0; transform: scale(.2) rotate(0); }
+  32%     { opacity: 1; transform: scale(1.5) rotate(12deg); }
+  52%     { opacity: .85; transform: scale(1.25) rotate(18deg); }
+  100%    { opacity: 0; transform: scale(1.6) rotate(24deg); }
+}
+
+/* PERDS · L3 Mercè «TALL DE MAREA!»: the tide cuts — a curling water
+   blade sweeps right-to-left across the stage, the foam-white cut line
+   it leaves flashes behind it, and spray pops where it exits. */
+.cop-marea { position: absolute; inset: 0; }
+.cop-marea .tm-ona { position: absolute; top: 24%; right: -40%; width: 64%; animation: tm-ona .9s ease-in-out both; }
+/* width stays % (no px cap): translateX % is element-relative, so the
+   crossing distance only stays correct if the wave scales with the stage */
+@keyframes tm-ona {
+  0%   { transform: translateX(0) rotate(3deg); opacity: 0; }
+  10%  { transform: translateX(-30%) rotate(2deg); opacity: 1; }
+  32%  { transform: translateX(-130%) rotate(-2deg); }
+  55%  { transform: translateX(-240%) rotate(-4deg); opacity: 1; }
+  100% { transform: translateX(-262%) rotate(-4deg); opacity: 0; }
+}
+.cop-marea .tm-tall { position: absolute; left: 4%; right: 4%; top: 47%; height: 3px; background: rgba(234, 255, 251, .95); border-radius: 2px; transform-origin: right center; animation: tm-tall .9s ease-out both; }
+@keyframes tm-tall {
+  0%, 10% { transform: rotate(-3deg) scaleX(0); opacity: 0; }
+  55%     { transform: rotate(-3deg) scaleX(1); opacity: .95; }
+  78%     { opacity: .7; }
+  100%    { transform: rotate(-3deg) scaleX(1); opacity: 0; }
+}
+.cop-marea .tm-esquitxos { position: absolute; left: 5%; top: 34%; width: min(22%, 90px); animation: tm-esquitxos .9s ease-out both; }
+@keyframes tm-esquitxos {
+  0%, 52% { opacity: 0; transform: scale(.3) translate(10px, 6px); }
+  66%     { opacity: 1; transform: scale(1.15) translate(-4px, -4px); }
+  100%    { opacity: 0; transform: scale(1.3) translate(-12px, -10px); }
+}
+
+/* PERDS · L4 El Rei «L'ONADA NEGRA»: the deep doesn't shout — no star,
+   no flash of its own: a dark swell rises from below, swallows the stage
+   bottom, sways once and pulls back with the punt. The rise carries the
+   wrapper; the sideways drift of living water rides the inner svg. */
+.cop-onadanegra { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; animation: on-puja 1.25s ease-in-out both; }
+.cop-onadanegra svg { position: absolute; left: 0; bottom: 0; width: 200%; height: 100%; animation: on-vaive 1.25s ease-in-out both; }
+@keyframes on-puja {
+  0%   { transform: translateY(103%); }
+  38%  { transform: translateY(5%); }
+  55%  { transform: translateY(0); }
+  80%  { transform: translateY(4%); }
+  100% { transform: translateY(105%); }
+}
+@keyframes on-vaive { 0% { transform: translateX(0); } 100% { transform: translateX(-38%); } }
+
+/* GUANYES: your punt lands ON the corsair — a cartoon llamp cracks down
+   over his figure (child-friendly: chunky and warm, never menacing). The
+   bolt overshoots in from above, flickers twice like real lightning, the
+   glow blooms at the strike point and two star sparks pop. The frame's
+   shiver displaces the react-lose grumble while it runs (same-specificity
+   rule, later in the sheet), then the grumble restarts fresh. */
+.cop-llamp { position: absolute; left: 50%; top: -28%; width: 58%; height: 118%; transform: translateX(-50%); z-index: 5; pointer-events: none; }
+.cop-llamp svg { width: 100%; height: 100%; overflow: visible; }
+.cop-llamp .ll-bolt { transform-origin: 62% 0; animation: ll-bolt .7s cubic-bezier(.2, 1.5, .3, 1) both; }
+@keyframes ll-bolt {
+  0%   { transform: scaleY(0);    opacity: 0; }
+  12%  { transform: scaleY(1.08); opacity: 1; }
+  20%  { opacity: .3; }
+  28%  { transform: scaleY(1);    opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.cop-llamp .ll-glow { transform-origin: 30% 79%; mix-blend-mode: screen; animation: ll-glow .7s ease-out both; }
+@keyframes ll-glow {
+  0%, 10% { opacity: 0;  transform: scale(.3); }
+  24%     { opacity: .6; transform: scale(1.1); }
+  100%    { opacity: 0;  transform: scale(1.6); }
+}
+.cop-llamp .ll-espurnes { transform-origin: 40% 84%; animation: ll-espurnes .7s ease-out both; }
+@keyframes ll-espurnes {
+  0%, 16% { opacity: 0; transform: scale(.4); }
+  30%     { opacity: 1; transform: scale(1.15); }
+  55%     { opacity: 1; transform: scale(1); }
+  100%    { opacity: 0; transform: scale(1.3); }
+}
+.rival-figure-frame.cop-espurneig { animation: cop-espurneig .5s linear both; }
+@keyframes cop-espurneig {
+  0%, 100% { transform: translate(0, 0); }
+  15% { transform: translate(2px, 1px) rotate(.6deg); }
+  35% { transform: translate(-3px, -1px) rotate(-.8deg); }
+  55% { transform: translate(2px, -1px) rotate(.5deg); }
+  75% { transform: translate(-2px, 1px); }
+}
+
 /* The whole arena takes the hit. */
 .arena.cop-tremolor { animation: cop-tremolor .3s linear both; }
 @keyframes cop-tremolor {

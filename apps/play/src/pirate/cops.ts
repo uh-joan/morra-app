@@ -78,6 +78,106 @@ const ONADA_SVG = `<svg viewBox="0 0 200 40" preserveAspectRatio="none" aria-hid
   <path d="M0 32 Q15 22 30 32 T60 32 T90 32 T120 32 T150 32 T180 32 T210 32 L210 40 L0 40 Z" fill="rgba(95,140,160,.38)"/>
 </svg>`;
 
+// GUANYES: your punt lands ON the corsair — a cartoon llamp cracks down
+// over his figure. Child-friendly by design (2026-08-27): chunky bolt,
+// warm yellows, star sparks — playful, never menacing. Constant authored art.
+const LLAMP_SVG = `<svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <circle class="ll-glow" cx="30" cy="118" r="30" fill="#ffe9a8"/>
+  <path class="ll-bolt" d="M62 4 L24 66 L44 66 L20 126 L80 52 L56 52 L88 4 Z" fill="#ffd94a" stroke="#b97e10" stroke-width="4" stroke-linejoin="round"/>
+  <g class="ll-espurnes" fill="#fff3c4">
+    <polygon points="24,112 27,121 36,124 27,127 24,136 21,127 12,124 21,121"/>
+    <polygon points="58,124 60,130 66,132 60,134 58,140 56,134 50,132 56,130"/>
+  </g>
+</svg>`;
+
+// PERDS is per-corsair: the blow that lands on you IS his named move made
+// literal. Same child-friendly register as the llamp throughout (2026-08-27
+// audience note: children play this). Constant authored art.
+// L1 Nino «PLAM!»: the tavern smack — a big cartoon palm slaps straight
+// into the camera, impact star behind it.
+const MA_PLAM_SVG = `<svg viewBox="0 0 100 120" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <polygon class="mp-estrella" points="50,2 60,36 94,26 68,52 98,72 62,68 66,104 46,74 22,98 32,62 2,54 36,46" fill="#ffe9a8"/>
+  <g class="mp-ma" fill="#eec39a" stroke="#8a5a30" stroke-width="3.5" stroke-linejoin="round">
+    <rect x="29" y="18" width="13" height="48" rx="6.5"/>
+    <rect x="44" y="11" width="13" height="54" rx="6.5"/>
+    <rect x="59" y="16" width="13" height="50" rx="6.5"/>
+    <rect x="73" y="30" width="11" height="38" rx="5.5"/>
+    <rect x="10" y="58" width="14" height="34" rx="7" transform="rotate(38 17 75)"/>
+    <ellipse cx="52" cy="80" rx="29" ry="26"/>
+  </g>
+</svg>`;
+
+// L2 Bru «COP DE TIMÓ!»: the helm swings — a chunky wooden ship's wheel
+// spins in from his side, whacks center-frame (star pop + wobble), spins
+// off. Eight handles, brass hub, wood two-tone.
+const TIMO_SVG = `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <polygon class="tb-estrella" points="50,4 59,34 88,22 66,48 96,58 64,62 70,96 50,70 30,96 36,62 4,58 34,48" fill="#ffe9a8"/>
+  <g class="tb-roda">
+    <g fill="#b98a4e" stroke="#6e4a1f" stroke-width="3">
+      <rect x="47" y="1" width="6" height="16" rx="3"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(45 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(90 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(135 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(180 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(225 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(270 50 50)"/>
+      <rect x="47" y="1" width="6" height="16" rx="3" transform="rotate(315 50 50)"/>
+    </g>
+    <circle cx="50" cy="50" r="32" fill="none" stroke="#b98a4e" stroke-width="10"/>
+    <circle cx="50" cy="50" r="37" fill="none" stroke="#6e4a1f" stroke-width="2.5"/>
+    <circle cx="50" cy="50" r="27" fill="none" stroke="#6e4a1f" stroke-width="2.5"/>
+    <g stroke="#b98a4e" stroke-width="5" stroke-linecap="round">
+      <line x1="50" y1="40" x2="50" y2="28"/><line x1="50" y1="60" x2="50" y2="72"/>
+      <line x1="40" y1="50" x2="28" y2="50"/><line x1="60" y1="50" x2="72" y2="50"/>
+      <line x1="43" y1="43" x2="34" y2="34"/><line x1="57" y1="57" x2="66" y2="66"/>
+      <line x1="57" y1="43" x2="66" y2="34"/><line x1="43" y1="57" x2="34" y2="66"/>
+    </g>
+    <circle cx="50" cy="50" r="10" fill="#e0b64f" stroke="#6e4a1f" stroke-width="3"/>
+  </g>
+</svg>`;
+
+// L3 Mercè «TALL DE MAREA!»: the tide cuts — a curling water blade sweeps
+// across the stage, the cut line it leaves flashes foam-white, spray pops
+// where it exits. Three layers, one markup string.
+const MAREA_SVG = `<svg class="tm-ona" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <path d="M104 4 C36 18 36 82 104 96 C66 82 66 18 104 4 Z" fill="#4f8fae" stroke="#2e5a72" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M100 14 C64 26 64 74 100 86" fill="none" stroke="#7fb7cf" stroke-width="3.5" stroke-linecap="round"/>
+  <g fill="#eafffb" stroke="#2e5a72" stroke-width="3">
+    <circle cx="48" cy="50" r="9"/>
+    <circle cx="54" cy="30" r="7"/>
+    <circle cx="54" cy="70" r="7"/>
+    <circle cx="68" cy="14" r="5"/>
+    <circle cx="68" cy="86" r="5"/>
+  </g>
+</svg>
+<div class="tm-tall"></div>
+<svg class="tm-esquitxos" viewBox="0 0 80 60" aria-hidden="true">
+  <g fill="#eafffb">
+    <circle cx="16" cy="22" r="5"/>
+    <circle cx="36" cy="10" r="4"/>
+    <circle cx="52" cy="26" r="3.5"/>
+    <circle cx="28" cy="40" r="4.5"/>
+    <circle cx="60" cy="44" r="3"/>
+  </g>
+</svg>`;
+
+// L4 El Rei «L'ONADA NEGRA»: the deep doesn't shout — no star, no whack:
+// a dark swell rises from below, swallows the stage bottom, sways once and
+// pulls back with the punt. Same hump grammar as ONADA_SVG, deep-water dark.
+const ONADA_NEGRA_SVG = `<svg viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 22 Q12 10 25 22 T50 22 T75 22 T100 22 T125 22 T150 22 T175 22 T200 22 L200 60 L0 60 Z" fill="rgba(13,27,38,.92)"/>
+  <path d="M0 22 Q12 10 25 22 T50 22 T75 22 T100 22 T125 22 T150 22 T175 22 T200 22" fill="none" stroke="rgba(191,227,224,.35)" stroke-width="2.5"/>
+  <path d="M0 32 Q15 20 30 32 T60 32 T90 32 T120 32 T150 32 T180 32 T210 32 L210 60 L0 60 Z" fill="rgba(9,16,25,.96)"/>
+</svg>`;
+
+/** Every corsair's blow, authored. */
+const COP_CORSARI_FX: Record<string, { cls: string; svg: string }> = {
+  L1: { cls: "cop-plam", svg: MA_PLAM_SVG },
+  L2: { cls: "cop-timo", svg: TIMO_SVG },
+  L3: { cls: "cop-marea", svg: MAREA_SVG },
+  L4: { cls: "cop-onadanegra", svg: ONADA_NEGRA_SVG },
+};
+
 // ~24 radial manga speed lines, jittered lengths, drawn once per burst.
 // currentColor so the palette rides on .cop-linies[data-cop].
 function speedLinesSvg(): string {
@@ -155,6 +255,36 @@ export function performCop(kind: CopKind, levelId?: string | null): void {
       void frame.offsetWidth; // restart the animation
       frame.classList.add("cop-lunge");
       setTimeout(() => frame.classList.remove("cop-lunge"), 700);
+    }
+    // His named move, made literal on your stage.
+    const fx = COP_CORSARI_FX[levelId ?? ""];
+    if (fx) {
+      const el = document.createElement("div");
+      el.className = fx.cls;
+      el.innerHTML = fx.svg; // constant authored art — no data
+      stage.appendChild(el);
+    }
+  }
+
+  // Your blow lands: a llamp cracks down over the corsair's figure and his
+  // frame shivers under it (the shiver displaces render.ts's react-lose
+  // grumble while it runs; the grumble restarts fresh after) — the mirror
+  // of his cop-lunge when he scores.
+  if (kind === "guanyes") {
+    const frame = document.getElementById("rivalFigureFrame");
+    if (frame) {
+      frame.querySelector(".cop-llamp")?.remove();
+      const llamp = document.createElement("div");
+      llamp.className = "cop-llamp";
+      llamp.innerHTML = LLAMP_SVG; // constant authored art — no data
+      frame.appendChild(llamp);
+      frame.classList.remove("cop-espurneig");
+      void frame.offsetWidth; // restart the animation
+      frame.classList.add("cop-espurneig");
+      setTimeout(() => {
+        llamp.remove();
+        frame.classList.remove("cop-espurneig");
+      }, 800);
     }
   }
 
