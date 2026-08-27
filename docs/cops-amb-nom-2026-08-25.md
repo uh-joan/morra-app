@@ -33,14 +33,16 @@ Four devices, all portable to the web:
 | Outcome | Move name (v1 drafts — user is ground truth on Catalan) | Choreography |
 |---|---|---|
 | You win a round | **«PUNT!»** (first draft «BORDADA!» retired same day — field verdict: reads "super super weird") | double impact flash → name slam + radial speed lines (gold) → small screen shake → the earned coin flies to its slot |
-| Rival wins | per corsari — Nino **«GANXO!»**, Bru **«COP DE TIMÓ!»**, Mercè **«TALL DE MAREA!»**, El Rei **«L'ONADA NEGRA»** | the same grammar mirrored in red/bone; his figure keeps its existing celebrate react |
+| Rival wins | per corsari — Nino **«PLAM!»** (first draft «GANXO!» retired by field verdict), Bru **«COP DE TIMÓ!»**, Mercè **«TALL DE MAREA!»**, El Rei **«L'ONADA NEGRA»** | the same grammar mirrored in red/bone; his figure keeps its existing celebrate react |
 | Tie, both guessed | **«EMPAT!»** | one short flash, steel-foam slam, no shake — a clash, not a hit |
 | Tie, nobody | **«PER A NINGÚ»** | no flash: the name sinks and fades — comic deflation, the sea keeps the coin |
 
 Phase B shipped 2026-08-25 (round verdicts). **Phase 2 shipped same day,
 branch-only**: match end takes the whole screen — triple impact flash, a
 diagonal cut-in band (fighting-game super grammar). Your win: **«PARTIDA!»**
-(plain register — the BORDADA lesson) + the **«DON!!»** stamp + a rain of
+(plain register — the BORDADA lesson) + the **«BUM!»** stamp (Oda's DON!!
+said in Catalan — same-day field verdict: the manga syllable reads as the
+honorific here) + a rain of
 14 doblons. The corsair's win: his portrait rides the dark band with his
 own signature move. Match point fires one warning frame on the rising
 edge (either side reaching the brink). The game-end banner's buttons stay

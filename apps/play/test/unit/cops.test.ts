@@ -11,7 +11,7 @@ describe("cops: every verdict slams a NAME (the Gomu-Gomu insight)", () => {
     expect(copName("guanyes", null)).toBe(COP_DEL_GRUMET);
   });
   it("each corsari lands his OWN signature move", () => {
-    expect(copName("perds", "L1")).toBe("GANXO!");
+    expect(copName("perds", "L1")).toBe("PLAM!");
     expect(copName("perds", "L2")).toBe("COP DE TIMÓ!");
     expect(copName("perds", "L3")).toBe("TALL DE MAREA!");
     expect(copName("perds", "L4")).toBe("L'ONADA NEGRA");

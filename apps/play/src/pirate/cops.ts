@@ -23,7 +23,7 @@ export const COP_DEL_GRUMET = "PUNT!";
 /** Each corsari's signature move, One Piece style: the pattern is
  * per-character, like «Gomu Gomu no ___» is Luffy's alone. */
 export const COP_DEL_CORSARI: Record<string, string> = {
-  L1: "GANXO!", // Nino — the tavern hook
+  L1: "PLAM!", // Nino — the tavern smack (field verdict 2026-08-25: «ganxo» out)
   L2: "COP DE TIMÓ!", // Bru — the helm swings
   L3: "TALL DE MAREA!", // Mercè — the tide cuts
   L4: "L'ONADA NEGRA", // El Rei — no exclamation; the deep doesn't shout
@@ -211,7 +211,9 @@ export function flyCoin(target: Element): void {
 // ------------------------------------------------- the FINALE (phase 2)
 // Match end takes the WHOLE screen: triple impact flash, a diagonal cut-in
 // band (the fighting-game super-move grammar), and — on your win only —
-// the «DON!!» stamp and a rain of doblons. On a loss the corsair's
+// the «BUM!» stamp (Oda's DON!!, said in Catalan — field verdict
+// 2026-08-25: the manga syllable doesn't land here) and a rain of
+// doblons. On a loss the corsair's
 // portrait rides the band with his signature move. All pointer-events:
 // none — the game-end banner's buttons stay clickable underneath.
 
@@ -248,7 +250,7 @@ export function performCopFinal(playerWon: boolean, levelId?: string | null): vo
   if (playerWon) {
     const don = document.createElement("div");
     don.className = "cop-final-don";
-    don.textContent = "DON!!";
+    don.textContent = "BUM!";
     overlay.appendChild(don);
     const rain = document.createElement("div");
     rain.className = "cop-final-rain";
