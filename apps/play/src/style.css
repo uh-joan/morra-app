@@ -1482,6 +1482,34 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   100%    { opacity: 0; transform: scale(1.6) rotate(24deg); }
 }
 
+/* PERDS · L3 Mercè «TALL DE MAREA!»: the tide cuts — a curling water
+   blade sweeps right-to-left across the stage, the foam-white cut line
+   it leaves flashes behind it, and spray pops where it exits. */
+.cop-marea { position: absolute; inset: 0; }
+.cop-marea .tm-ona { position: absolute; top: 24%; right: -40%; width: 64%; animation: tm-ona .9s ease-in-out both; }
+/* width stays % (no px cap): translateX % is element-relative, so the
+   crossing distance only stays correct if the wave scales with the stage */
+@keyframes tm-ona {
+  0%   { transform: translateX(0) rotate(3deg); opacity: 0; }
+  10%  { transform: translateX(-30%) rotate(2deg); opacity: 1; }
+  32%  { transform: translateX(-130%) rotate(-2deg); }
+  55%  { transform: translateX(-240%) rotate(-4deg); opacity: 1; }
+  100% { transform: translateX(-262%) rotate(-4deg); opacity: 0; }
+}
+.cop-marea .tm-tall { position: absolute; left: 4%; right: 4%; top: 47%; height: 3px; background: rgba(234, 255, 251, .95); border-radius: 2px; transform-origin: right center; animation: tm-tall .9s ease-out both; }
+@keyframes tm-tall {
+  0%, 10% { transform: rotate(-3deg) scaleX(0); opacity: 0; }
+  55%     { transform: rotate(-3deg) scaleX(1); opacity: .95; }
+  78%     { opacity: .7; }
+  100%    { transform: rotate(-3deg) scaleX(1); opacity: 0; }
+}
+.cop-marea .tm-esquitxos { position: absolute; left: 5%; top: 34%; width: min(22%, 90px); animation: tm-esquitxos .9s ease-out both; }
+@keyframes tm-esquitxos {
+  0%, 52% { opacity: 0; transform: scale(.3) translate(10px, 6px); }
+  66%     { opacity: 1; transform: scale(1.15) translate(-4px, -4px); }
+  100%    { opacity: 0; transform: scale(1.3) translate(-12px, -10px); }
+}
+
 /* GUANYES: your punt lands ON the corsair — a cartoon llamp cracks down
    over his figure (child-friendly: chunky and warm, never menacing). The
    bolt overshoots in from above, flickers twice like real lightning, the

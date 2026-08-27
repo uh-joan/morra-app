@@ -136,11 +136,37 @@ const TIMO_SVG = `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"
   </g>
 </svg>`;
 
+// L3 Mercè «TALL DE MAREA!»: the tide cuts — a curling water blade sweeps
+// across the stage, the cut line it leaves flashes foam-white, spray pops
+// where it exits. Three layers, one markup string.
+const MAREA_SVG = `<svg class="tm-ona" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <path d="M104 4 C36 18 36 82 104 96 C66 82 66 18 104 4 Z" fill="#4f8fae" stroke="#2e5a72" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M100 14 C64 26 64 74 100 86" fill="none" stroke="#7fb7cf" stroke-width="3.5" stroke-linecap="round"/>
+  <g fill="#eafffb" stroke="#2e5a72" stroke-width="3">
+    <circle cx="48" cy="50" r="9"/>
+    <circle cx="54" cy="30" r="7"/>
+    <circle cx="54" cy="70" r="7"/>
+    <circle cx="68" cy="14" r="5"/>
+    <circle cx="68" cy="86" r="5"/>
+  </g>
+</svg>
+<div class="tm-tall"></div>
+<svg class="tm-esquitxos" viewBox="0 0 80 60" aria-hidden="true">
+  <g fill="#eafffb">
+    <circle cx="16" cy="22" r="5"/>
+    <circle cx="36" cy="10" r="4"/>
+    <circle cx="52" cy="26" r="3.5"/>
+    <circle cx="28" cy="40" r="4.5"/>
+    <circle cx="60" cy="44" r="3"/>
+  </g>
+</svg>`;
+
 /** The corsair blows with authored art so far (the rest land with the
  * lunge alone until their turn comes). */
 const COP_CORSARI_FX: Record<string, { cls: string; svg: string }> = {
   L1: { cls: "cop-plam", svg: MA_PLAM_SVG },
   L2: { cls: "cop-timo", svg: TIMO_SVG },
+  L3: { cls: "cop-marea", svg: MAREA_SVG },
 };
 
 // ~24 radial manga speed lines, jittered lengths, drawn once per burst.
