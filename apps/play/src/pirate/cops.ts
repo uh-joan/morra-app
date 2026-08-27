@@ -91,8 +91,8 @@ const LLAMP_SVG = `<svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet
 </svg>`;
 
 // PERDS is per-corsair: the blow that lands on you IS his named move made
-// literal (one at a time — Mercè and El Rei still to come). Same
-// child-friendly register as the llamp throughout. Constant authored art.
+// literal. Same child-friendly register as the llamp throughout (2026-08-27
+// audience note: children play this). Constant authored art.
 // L1 Nino «PLAM!»: the tavern smack — a big cartoon palm slaps straight
 // into the camera, impact star behind it.
 const MA_PLAM_SVG = `<svg viewBox="0 0 100 120" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
@@ -161,12 +161,21 @@ const MAREA_SVG = `<svg class="tm-ona" viewBox="0 0 160 100" preserveAspectRatio
   </g>
 </svg>`;
 
-/** The corsair blows with authored art so far (the rest land with the
- * lunge alone until their turn comes). */
+// L4 El Rei «L'ONADA NEGRA»: the deep doesn't shout — no star, no whack:
+// a dark swell rises from below, swallows the stage bottom, sways once and
+// pulls back with the punt. Same hump grammar as ONADA_SVG, deep-water dark.
+const ONADA_NEGRA_SVG = `<svg viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 22 Q12 10 25 22 T50 22 T75 22 T100 22 T125 22 T150 22 T175 22 T200 22 L200 60 L0 60 Z" fill="rgba(13,27,38,.92)"/>
+  <path d="M0 22 Q12 10 25 22 T50 22 T75 22 T100 22 T125 22 T150 22 T175 22 T200 22" fill="none" stroke="rgba(191,227,224,.35)" stroke-width="2.5"/>
+  <path d="M0 32 Q15 20 30 32 T60 32 T90 32 T120 32 T150 32 T180 32 T210 32 L210 60 L0 60 Z" fill="rgba(9,16,25,.96)"/>
+</svg>`;
+
+/** Every corsair's blow, authored. */
 const COP_CORSARI_FX: Record<string, { cls: string; svg: string }> = {
   L1: { cls: "cop-plam", svg: MA_PLAM_SVG },
   L2: { cls: "cop-timo", svg: TIMO_SVG },
   L3: { cls: "cop-marea", svg: MAREA_SVG },
+  L4: { cls: "cop-onadanegra", svg: ONADA_NEGRA_SVG },
 };
 
 // ~24 radial manga speed lines, jittered lengths, drawn once per burst.

@@ -1510,6 +1510,21 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   100%    { opacity: 0; transform: scale(1.3) translate(-12px, -10px); }
 }
 
+/* PERDS · L4 El Rei «L'ONADA NEGRA»: the deep doesn't shout — no star,
+   no flash of its own: a dark swell rises from below, swallows the stage
+   bottom, sways once and pulls back with the punt. The rise carries the
+   wrapper; the sideways drift of living water rides the inner svg. */
+.cop-onadanegra { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; animation: on-puja 1.25s ease-in-out both; }
+.cop-onadanegra svg { position: absolute; left: 0; bottom: 0; width: 200%; height: 100%; animation: on-vaive 1.25s ease-in-out both; }
+@keyframes on-puja {
+  0%   { transform: translateY(103%); }
+  38%  { transform: translateY(5%); }
+  55%  { transform: translateY(0); }
+  80%  { transform: translateY(4%); }
+  100% { transform: translateY(105%); }
+}
+@keyframes on-vaive { 0% { transform: translateX(0); } 100% { transform: translateX(-38%); } }
+
 /* GUANYES: your punt lands ON the corsair — a cartoon llamp cracks down
    over his figure (child-friendly: chunky and warm, never menacing). The
    bolt overshoots in from above, flickers twice like real lightning, the
