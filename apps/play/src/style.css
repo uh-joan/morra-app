@@ -1431,6 +1431,29 @@ button.link:hover { color: var(--gold-2); text-decoration-color: var(--gold-2); 
   100% { transform: translateX(0) scaleX(1); }
 }
 
+/* PERDS · L1 Nino «PLAM!»: the tavern smack — a big cartoon palm slaps
+   straight INTO the camera (grows toward you, blur-to-sharp), the impact
+   star pops behind it at contact, a flat-hand hold, then it lifts away.
+   The name slam renders above it (appended later in the stage). */
+.cop-plam { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.cop-plam svg { width: min(58%, 250px); overflow: visible; }
+.cop-plam .mp-ma { transform-origin: 52% 66%; animation: mp-ma .85s cubic-bezier(.2, 1.2, .3, 1) both; }
+@keyframes mp-ma {
+  0%   { transform: scale(.15) rotate(-16deg); opacity: 0; filter: blur(7px); }
+  22%  { transform: scale(1.14) rotate(4deg);  opacity: 1; filter: blur(0); }
+  30%  { transform: scale(1.04) rotate(0deg); }
+  40%  { transform: scale(1.08) rotate(1deg); }
+  72%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1.16); opacity: 0; }
+}
+.cop-plam .mp-estrella { transform-origin: 50% 50%; animation: mp-estrella .85s ease-out both; }
+@keyframes mp-estrella {
+  0%, 18% { opacity: 0; transform: scale(.2) rotate(0); }
+  28%     { opacity: 1; transform: scale(1.25) rotate(14deg); }
+  48%     { opacity: .9; transform: scale(1.05) rotate(20deg); }
+  100%    { opacity: 0; transform: scale(1.35) rotate(26deg); }
+}
+
 /* GUANYES: your punt lands ON the corsair — a cartoon llamp cracks down
    over his figure (child-friendly: chunky and warm, never menacing). The
    bolt overshoots in from above, flickers twice like real lightning, the

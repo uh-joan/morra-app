@@ -90,6 +90,23 @@ const LLAMP_SVG = `<svg viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet
   </g>
 </svg>`;
 
+// PERDS is per-corsair: the blow that lands on you IS his named move made
+// literal (one at a time — Nino first; Bru/Mercè/El Rei to follow).
+// L1 Nino «PLAM!»: the tavern smack — a big cartoon palm slaps straight
+// into the camera, impact star behind it. Same child-friendly register as
+// the llamp. Constant authored art.
+const MA_PLAM_SVG = `<svg viewBox="0 0 100 120" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <polygon class="mp-estrella" points="50,2 60,36 94,26 68,52 98,72 62,68 66,104 46,74 22,98 32,62 2,54 36,46" fill="#ffe9a8"/>
+  <g class="mp-ma" fill="#eec39a" stroke="#8a5a30" stroke-width="3.5" stroke-linejoin="round">
+    <rect x="29" y="18" width="13" height="48" rx="6.5"/>
+    <rect x="44" y="11" width="13" height="54" rx="6.5"/>
+    <rect x="59" y="16" width="13" height="50" rx="6.5"/>
+    <rect x="73" y="30" width="11" height="38" rx="5.5"/>
+    <rect x="10" y="58" width="14" height="34" rx="7" transform="rotate(38 17 75)"/>
+    <ellipse cx="52" cy="80" rx="29" ry="26"/>
+  </g>
+</svg>`;
+
 // ~24 radial manga speed lines, jittered lengths, drawn once per burst.
 // currentColor so the palette rides on .cop-linies[data-cop].
 function speedLinesSvg(): string {
@@ -167,6 +184,14 @@ export function performCop(kind: CopKind, levelId?: string | null): void {
       void frame.offsetWidth; // restart the animation
       frame.classList.add("cop-lunge");
       setTimeout(() => frame.classList.remove("cop-lunge"), 700);
+    }
+    // His named move, made literal on your stage (per-corsair; the others
+    // fall back to the lunge alone until their turn comes).
+    if (levelId === "L1") {
+      const plam = document.createElement("div");
+      plam.className = "cop-plam";
+      plam.innerHTML = MA_PLAM_SVG; // constant authored art — no data
+      stage.appendChild(plam);
     }
   }
 
