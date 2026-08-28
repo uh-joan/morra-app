@@ -81,37 +81,18 @@ export function calibrationSiteKey(): string {
   return getActiveProfileId() + "|" + (cameraDeviceKey ?? "");
 }
 
-// Declined detours, per profile+camera, for THIS session only — the play
-// detour won't re-ask until the next page load. Owned here (it is
-// calibration state); screens.ts is the only writer via the end hook.
+// Declined invitations, per profile+camera, for THIS session only — the
+// tripulants' invitation pill won't re-show until the next page load.
+// Owned here (it is calibration state); screens.ts is the only writer via
+// the end hook and the pill's ✕. (The old play detour and its forever-skip
+// flag are gone — 2026-08-28: nobody is interposed anymore; a stale
+// morra-calib-skip-v1 key in localStorage is harmless.)
 const declinedSites = new Set<string>();
 export function markCalibrationDeclined(): void {
   declinedSites.add(calibrationSiteKey());
 }
 export function isCalibrationDeclined(): boolean {
   return declinedSites.has(calibrationSiteKey());
-}
-
-// The skip banner's FOREVER flag, per profile+camera: "ignora-ho i ves
-// directe a jugar" means the play detour never comes back for this site —
-// unlike ✕/Descarta, which only quiets it for the session. Calibratge
-// itself stays reachable from the home; only the automatic invitation ends.
-const SKIP_KEY = "morra-calib-skip-v1";
-function readSkippedSites(): string[] {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(SKIP_KEY) ?? "[]");
-    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-export function markCalibrationSkippedForever(): void {
-  const sites = new Set(readSkippedSites());
-  sites.add(calibrationSiteKey());
-  try { localStorage.setItem(SKIP_KEY, JSON.stringify([...sites])); } catch { /* session decline still holds */ }
-}
-export function isCalibrationSkippedForever(): boolean {
-  return readSkippedSites().includes(calibrationSiteKey());
 }
 
 /** Re-apply the stored fit for the active profile on the current camera —

@@ -109,6 +109,15 @@
   <h2 class="select-head select-entrena">Amb qui entrenes?</h2>
   <p class="select-sub select-entrena">Sense punts, amb mirall: el corsari tira i canta, i L'Espill et diu què veu. O sol, davant l'espill.</p>
   <div id="selectGrid" class="select-grid"><!-- cards built by screens.ts --></div>
+  <!-- The Calibratge invitation (2026-08-28, replacing the play detour):
+       shown only while this profile+camera has no saved fit and hasn't
+       declined this session (screens.ts drives [hidden]). Quiet by design —
+       playing on the app defaults is a fine first sitting. -->
+  <div id="calibInvite" class="calib-invite" role="note" hidden>
+    <span>La taula et llegeix amb els valors de fàbrica — un minut de calibratge i et llegirà millor la mà i la veu.</span>
+    <button id="calibInviteGo" class="btn-gold">Calibra</button>
+    <button id="calibInviteDismiss" class="calib-invite-x" aria-label="Ara no">✕</button>
+  </div>
 </section>
 
 <!-- ================= FIGHT ================= -->
@@ -449,14 +458,6 @@
   <div class="calib-page">
     <!-- The hail: filled with the active profile's name on entry (screens.ts) -->
     <div id="calibWelcome" class="calib-welcome"></div>
-    <!-- Only when Calibratge stands between the player and the game (the
-         play detour, or the first run): the way straight past it, up top
-         where a player in a hurry actually looks. Sets the forever flag —
-         the detour never asks again for this profile+camera. -->
-    <div id="calibSkipNudge" class="calib-skip" role="note">
-      <span>Ignora-ho i ves directe a jugar — si tens problemes jugant, ja ho faràs més endavant.</span>
-      <button id="calibSkipGo" class="btn-gold">A jugar</button>
-    </div>
     <!-- Which hand throws: layout mirrors so the steps sit on the free-hand
          side. body[data-ma] drives it (calibration.ts persists the choice). -->
     <div class="calib-hand-tabs" role="tablist" aria-label="Amb quina mà tires?">
