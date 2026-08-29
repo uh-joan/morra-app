@@ -68,6 +68,40 @@ FROM e WHERE type='throw_outcome' GROUP BY 1 ORDER BY n DESC;
 SELECT '== errors ==' AS section;
 SELECT count(*) AS n, any_value(rx) AS example_at FROM e WHERE type='error';
 
+-- ============== the invitation era (PR #60, 2026-08-28) ==================
+-- Calibratge stopped being a gate: first run lands straight on the game
+-- (outcome 'direct'), the tripulants carry an invitation pill instead of
+-- the play detour. These sections watch whether that bet pays off; the
+-- legacy detour/skip columns should stay frozen at their pre-#60 counts.
+
+SELECT '== first-run outcomes per day ==' AS section;
+SELECT substr(rx,1,10) AS day, json ->> 'outcome' AS outcome, count(*) AS n
+FROM e WHERE type='firstrun_done' GROUP BY 1, 2 ORDER BY 1, 2;
+
+SELECT '== calibratge: invites vs saves ==' AS section;
+SELECT substr(rx,1,10) AS day,
+       count(CASE WHEN type='calibration_invite_go' THEN 1 END)      AS invite_go,
+       count(CASE WHEN type='calibration_invite_dismiss' THEN 1 END) AS invite_dismiss,
+       count(CASE WHEN type='calibration_saved' THEN 1 END)          AS saved,
+       count(CASE WHEN type='calibration_detour' THEN 1 END)         AS detour_legacy,
+       count(CASE WHEN type='calibration_skip_forever' THEN 1 END)   AS skip_legacy
+FROM e
+WHERE type IN ('calibration_invite_go','calibration_invite_dismiss','calibration_saved','calibration_detour','calibration_skip_forever')
+GROUP BY 1 ORDER BY 1;
+
+-- The option C signal (docs/calibratge-evidencia-2026-08-28.md): hand-only
+-- and voice-only are the calibration-fixable misreads; rhythm (early/late)
+-- is practice, and resets are not reads. pct_synced is of completed reads.
+SELECT '== sync rate per day (mic health / option C signal) ==' AS section;
+SELECT substr(rx,1,10) AS day,
+       count(CASE WHEN json ->> 'outcome' = 'synced' THEN 1 END)     AS synced,
+       count(CASE WHEN json ->> 'outcome' = 'hand-only' THEN 1 END)  AS hand_only,
+       count(CASE WHEN json ->> 'outcome' = 'voice-only' THEN 1 END) AS voice_only,
+       count(CASE WHEN json ->> 'outcome' IN ('voice-early','voice-late') THEN 1 END) AS rhythm,
+       round(100.0 * count(CASE WHEN json ->> 'outcome' = 'synced' THEN 1 END)
+             / nullif(count(CASE WHEN json ->> 'outcome' <> 'reset' THEN 1 END), 0)) AS pct_synced
+FROM e WHERE type='throw_outcome' GROUP BY 1 ORDER BY 1;
+
 -- ================= retention (Rang de bord phase 0, 2026-08-22) =========
 -- The retention key is profileHash (stable, pseudonymous — PR #40): the
 -- day-rotating visitor hash deliberately can't follow a player across days.
