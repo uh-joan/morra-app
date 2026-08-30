@@ -24,6 +24,10 @@ export interface VoskCallRecognizerOptions {
   /** Grammar words (excluding the reject class, which is always appended). */
   vocabulary?: readonly string[];
   onDownloadProgress?: (received: number, total: number) => void;
+  /** Breadcrumb per load stage, in order — the diagnostic surface for
+   * field crashes mid-load (iOS standalone kills, 2026-08-30): the last
+   * stage that reached the collector localizes where the page died. */
+  onStage?: (stage: string) => void;
 }
 
 const DEFAULT_CDN_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
@@ -57,6 +61,7 @@ export class VoskCallRecognizer implements CallRecognizer {
   private readonly modelUrl: string;
   private readonly sampleRate: number;
   private readonly onDownloadProgress: ((received: number, total: number) => void) | undefined;
+  private readonly onStage: ((stage: string) => void) | undefined;
   private readonly grammarJson: string;
   private model: VoskModel | null = null;
   private loading: Promise<void> | null = null;
@@ -70,6 +75,7 @@ export class VoskCallRecognizer implements CallRecognizer {
     this.modelUrl = options.modelUrl ?? DEFAULT_MODEL_URL;
     this.sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
     this.onDownloadProgress = options.onDownloadProgress;
+    this.onStage = options.onStage;
     const vocabulary = options.vocabulary ?? DEFAULT_CATALAN_VOCABULARY;
     this.grammarJson = JSON.stringify([...vocabulary, UNKNOWN_TOKEN]);
   }
@@ -82,11 +88,16 @@ export class VoskCallRecognizer implements CallRecognizer {
     if (this.model) return;
     if (this.loading) return this.loading;
     this.loading = (async () => {
+      this.onStage?.("script-load");
       const Vosk = await this.ensureVoskScriptLoaded();
       const { blob, fromCache } = await this.fetchModelBlob(this.modelUrl, this.onDownloadProgress);
       this.modelFromCache = fromCache;
       const blobUrl = URL.createObjectURL(blob);
+      // The peak: vosk-browser unzips the 40 MB and boots the WASM heap —
+      // the prime jetsam-kill suspect on standalone iOS.
+      this.onStage?.("model-init");
       this.model = await Vosk.createModel(blobUrl, 0);
+      this.onStage?.("model-ready");
     })();
     try {
       await this.loading;
@@ -114,7 +125,7 @@ export class VoskCallRecognizer implements CallRecognizer {
   ): Promise<{ blob: Blob; bytes: number; fromCache: boolean }> {
     // Cache Storage first (see modelCache.ts) — the 40 MB model downloads
     // once per device instead of once per visit on phones.
-    return fetchBlobWithCache(url, "morra-vosk-model", onProgress);
+    return fetchBlobWithCache(url, "morra-vosk-model", onProgress, this.onStage);
   }
 
   /** Returns the raw Kaldi result detail's rawText (untrimmed) alongside

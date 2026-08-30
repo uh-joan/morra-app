@@ -19,7 +19,8 @@ export interface FetchBlobResult {
 export async function fetchBlobWithCache(
   url: string,
   cacheName: string,
-  onProgress?: (received: number, total: number) => void
+  onProgress?: (received: number, total: number) => void,
+  onStage?: (stage: string) => void
 ): Promise<FetchBlobResult> {
   let store: Cache | null = null;
   try {
@@ -31,6 +32,7 @@ export async function fetchBlobWithCache(
         if (blob.size > 0) {
           // deliberately NO onProgress here: progress means "downloading",
           // and a hit must never flash «Descarregant…» at the player
+          onStage?.("cache-hit");
           return { blob, bytes: blob.size, fromCache: true };
         }
       }
@@ -38,6 +40,7 @@ export async function fetchBlobWithCache(
   } catch {
     store = null; // private mode / storage denied — plain network below
   }
+  onStage?.("net-fetch");
 
   let resp: Response;
   try {
@@ -62,6 +65,7 @@ export async function fetchBlobWithCache(
   // Same ArrayBuffer-vs-ArrayBufferLike narrowing as resample.ts — fetch's
   // ReadableStream chunks are always real ArrayBuffers in practice.
   const blob = new Blob(chunks as BlobPart[]);
+  onStage?.("net-fetch-done");
   if (store) {
     try {
       // We only reach here on a miss for the CURRENT url, and one model ever
@@ -69,7 +73,9 @@ export async function fetchBlobWithCache(
       // carries the version) doesn't leave a 40 MB orphan behind.
       for (const key of await store.keys()) await store.delete(key);
       await store.put(url, new Response(blob));
+      onStage?.("cache-written");
     } catch {
+      onStage?.("cache-write-failed");
       // storage pressure — next visit downloads again, nothing broken
     }
   }
