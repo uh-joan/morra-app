@@ -116,6 +116,16 @@ logEvent("page_load", {
   ua: navigator.userAgent,
   deviceMemory: nav.deviceMemory ?? null,
 });
+// The eager model start returns (v2, 2026-08-30) — GATED to browser tabs:
+// the one recorded standalone kill (session 01c468ef) died inside
+// model-init, so home-screen apps keep the gesture-time load until that
+// stage is hardened; browser tabs proved the eager path before the revert.
+// A fetch needs no gesture, so the 47 MB overlaps naming + permissions.
+// Save-Data is the other courtesy: those visitors keep tap-to-load.
+const saveData = (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true;
+if (displayMode === "browser" && !saveData) void loadVoskModel();
+else logEvent("vosk_eager_skipped", { reason: saveData ? "save-data" : "standalone" });
+
 // Field study (2026-08-18): every session says WHO is playing from the first
 // event — the active profile at boot, not only on a switch — so the logs can
 // be split per player later without guessing.
