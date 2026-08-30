@@ -10,7 +10,7 @@ import { VoskCallRecognizer } from "@morra/recognition";
 import { VOSK_CDN_URL, VOSK_GRAMMAR_WORDS, VOSK_MODEL_URL, VOSK_SAMPLE_RATE } from "./config.js";
 import { el, setStatus } from "./dom.js";
 import { reportError, setChip } from "./status.js";
-import { logEvent } from "./telemetry.js";
+import { flushTelemetryNow, logEvent } from "./telemetry.js";
 import { renderBigWordIdle } from "./render/bigWord.js";
 
 function fmtBytes(n: number): string {
@@ -29,6 +29,13 @@ export const voskRecognizer = new VoskCallRecognizer({
       `Descarregant l'oïda… ${fmtBytes(received)}${total ? " / " + fmtBytes(total) : ""} (${pct.toFixed(0)}%)`
     );
   },
+  // Field crashes 2026-08-30 (iOS standalone web app dies around the voice):
+  // every stage is logged AND beacon-flushed immediately, so the last
+  // breadcrumb the collector holds localizes where the page was killed.
+  onStage: (stage) => {
+    logEvent("vosk_load_stage", { stage });
+    flushTelemetryNow();
+  },
 });
 
 export function voskLoaded(): boolean {
@@ -40,6 +47,8 @@ let voskLoading = false;
 export async function loadVoskModel(): Promise<void> {
   if (voskRecognizer.isLoaded || voskLoading) return;
   voskLoading = true;
+  logEvent("vosk_load_stage", { stage: "load-start" });
+  flushTelemetryNow();
   el.btnLoadVosk.disabled = true;
   setChip(el.chipVosk, "loading…", "warn");
   setStatus(el.voskStatus, "Preparant el reconeixement de veu…");

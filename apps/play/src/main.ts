@@ -102,7 +102,20 @@ setChip(el.chipVad, "—", "dim");
 setChip(el.chipVosk, "not loaded", "dim");
 setChip(el.chipClock, "unsampled", "dim");
 
-logEvent("page_load", { pageVersion: PAGE_VERSION, veudelayActive: RIVAL_VOICE_DEFER, fingerCountRule: FINGER_COUNT_RULE, rivalEngine: RIVAL_ENGINE });
+// Device context (field crashes 2026-08-30): a home-screen web app on iOS
+// dies where a Safari tab survives — without displayMode + ua in the logs
+// those sessions were invisible among the permission-abandoners.
+const nav = navigator as Navigator & { standalone?: boolean; deviceMemory?: number };
+const displayMode = matchMedia("(display-mode: standalone)").matches || nav.standalone === true ? "standalone" : "browser";
+logEvent("page_load", {
+  pageVersion: PAGE_VERSION,
+  veudelayActive: RIVAL_VOICE_DEFER,
+  fingerCountRule: FINGER_COUNT_RULE,
+  rivalEngine: RIVAL_ENGINE,
+  displayMode,
+  ua: navigator.userAgent,
+  deviceMemory: nav.deviceMemory ?? null,
+});
 // Field study (2026-08-18): every session says WHO is playing from the first
 // event — the active profile at boot, not only on a switch — so the logs can
 // be split per player later without guessing.

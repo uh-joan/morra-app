@@ -57,6 +57,15 @@ function flushLogBatch(useBeacon: boolean): void {
   );
 }
 
+/** Flush the pending batch RIGHT NOW via sendBeacon. For breadcrumbs that
+ * must survive a page death the visibility events never see — an iOS
+ * jetsam kill of a standalone web app (field crashes 2026-08-30): the
+ * beacon hands the bytes to the browser process, so an already-queued
+ * flush outlives the page. Use sparingly — rare, load-time events only. */
+export function flushTelemetryNow(): void {
+  flushLogBatch(true);
+}
+
 export function installTelemetryFlushing(): void {
   setInterval(() => flushLogBatch(false), 2000);
   document.addEventListener("visibilitychange", () => {
