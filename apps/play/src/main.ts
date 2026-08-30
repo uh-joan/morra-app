@@ -103,16 +103,6 @@ setChip(el.chipVosk, "not loaded", "dim");
 setChip(el.chipClock, "unsampled", "dim");
 
 logEvent("page_load", { pageVersion: PAGE_VERSION, veudelayActive: RIVAL_VOICE_DEFER, fingerCountRule: FINGER_COUNT_RULE, rivalEngine: RIVAL_ENGINE });
-
-// The model starts downloading from the moll (2026-08-30, front-door work):
-// a fetch needs no user gesture, so the 47 MB — cache-miss average 25 s in
-// the field — overlaps naming + permissions instead of starting after them.
-// The gesture-gated path stays: the onboarding's btnLoadVosk click no-ops
-// once this is in flight, and remains the loader wherever this is skipped.
-// Save-Data is the one courtesy: those visitors keep today's tap-to-load.
-const saveData = (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true;
-if (!saveData) void loadVoskModel();
-else logEvent("vosk_eager_skipped", { reason: "save-data" });
 // Field study (2026-08-18): every session says WHO is playing from the first
 // event — the active profile at boot, not only on a switch — so the logs can
 // be split per player later without guessing.
