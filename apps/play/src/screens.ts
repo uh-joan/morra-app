@@ -16,6 +16,7 @@ import { installOnboarding, setOnboardingReadyHook, startOnboarding } from "./on
 import { installFirstRun, maybeStartFirstRun, setFirstRunNamedHook } from "./firstrun.js";
 import { renderProfileControls } from "./profiles.js";
 import { calibrationSiteKey, hasCalibrationForCurrentSite, isCalibrating, isCalibrationDeclined, markCalibrationDeclined, setCalibrationEndHook, start as startCalibration, stop as stopCalibration } from "./calibration.js";
+import { voskLoaded } from "./vosk.js";
 import { getActiveProfileName, loadBeatenRivals } from "./profile.js";
 import { frontierLevel, isRivalUnlocked, predecessorLevel } from "./rivalLadder.js";
 import { renderEspillScreen } from "./training.js";
@@ -220,9 +221,28 @@ function chooseRival(p: Pirate): void {
   }
   document.body.classList.add("vs-on");
   if (splashTimer) clearTimeout(splashTimer);
-  splashTimer = setTimeout(() => {
+  // The splash is the voiceless-duel guard (2026-08-30): in Partida a round
+  // thrown before the voice model loads voids and burns the committed AI
+  // move, so the curtain HOLDS past its 1.4 s drama beat until the rival's
+  // ear is awake — with a line saying so. Entrenament never burns anything;
+  // a voice that ERRORED lifts the curtain too (a stuck splash helps
+  // nobody — the duel then behaves exactly as before this guard).
+  const needVoice = getSessionMode() === "partida";
+  const vsVeu = byId("vsVeu");
+  const voiceErrored = () => el.chipVosk.className.includes("bad");
+  const lower = () => {
     document.body.classList.remove("vs-on");
-  }, 1400);
+    if (vsVeu) vsVeu.hidden = true;
+  };
+  const holdForVoice = () => {
+    if (!needVoice || voskLoaded() || voiceErrored()) { lower(); return; }
+    if (vsVeu && vsVeu.hidden) {
+      vsVeu.hidden = false;
+      logEvent("vs_splash_veu_hold", { level: p.levelId });
+    }
+    splashTimer = setTimeout(holdForVoice, 250);
+  };
+  splashTimer = setTimeout(holdForVoice, 1400);
   // The mode is the player's intent (the pills); choosing a rival keeps it:
   // in Partida this starts the duel, in Entrenament the sparring.
   setSoloTraining(false);

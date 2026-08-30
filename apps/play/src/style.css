@@ -467,6 +467,8 @@ body[data-screen="title"][data-install-nudge="on"] .install-nudge {
    short viewports (field screenshot 2026-08-25 — «La Coberta del Xebec»
    through «el Contramestre»). As the column's last child the flex gap
    guarantees clearance on every screen. */
+.vs-veu { position: absolute; left: 50%; bottom: 3%; transform: translateX(-50%); white-space: nowrap; color: var(--parchment); font-size: 15px; opacity: .85; animation: vs-veu-puls 1.2s ease-in-out infinite; }
+@keyframes vs-veu-puls { 0%, 100% { opacity: .55; } 50% { opacity: .95; } }
 .vs-stage { text-align: center; font-family: var(--serif); font-size: 20px; color: var(--foam); opacity: .85; max-width: 96vw; }
 
 /* ------------------------------------------------------ fight stage */

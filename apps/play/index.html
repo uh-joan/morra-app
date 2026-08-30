@@ -501,6 +501,10 @@
     <div id="vsTitle" class="vs-title"></div>
   </div>
   <div id="vsStage" class="vs-stage"></div>
+  <!-- Partida only, while the voice model is still loading: the splash
+       HOLDS on this line instead of opening a duel whose rounds would
+       void and burn commitments (screens.ts owns the hold). -->
+  <div id="vsVeu" class="vs-veu" hidden>L'oïda del rival es desperta…</div>
 </div>
 
 <!-- Background voice-model download banner -->
