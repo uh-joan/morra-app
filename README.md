@@ -14,6 +14,13 @@ Two channels have to land together: the camera counts your fingers
 throw only *synces* when hand and voice co-occur within the window — that
 simultaneity is the whole game, and it's what the pipeline is built around.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/sync-diagram-dark.svg">
+    <img src="docs/sync-diagram-light.svg" alt="Camera and microphone channels converge on a sync window where hand and voice must co-occur for the throw to count; the rival's move is cryptographically committed before the throw." width="760">
+  </picture>
+</p>
+
 > Skin: **ux-pirates** — four corsairs (Nino, Bru, Mercè, El Rei del Fons)
 > mapped onto the engine's four AI levels. The names are presentation only;
 > the difficulty comes from the engine.
